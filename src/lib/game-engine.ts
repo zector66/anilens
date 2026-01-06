@@ -138,16 +138,22 @@ export class GameEngine {
   static generateQuoteQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
-    const shuffled = prioritizeUnused(entries, recentIds);
+    // Filter to only entries with descriptions
+    const withDescription = entries.filter(e => e.media?.description && e.media.description.length > 50);
+    const shuffled = prioritizeUnused(withDescription, recentIds);
     const usedIds: number[] = [];
     
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
       const entry = shuffled[i];
-      if (!entry.media) continue;
+      if (!entry.media || !entry.media.description) continue;
       
       const media = entry.media;
       usedIds.push(media.id);
       const difficulty = this.calculateDifficulty(entry);
+      
+      // Extract a snippet from the actual anime description
+      const snippet = this.extractDescriptionSnippet(media.description, difficulty);
+      if (!snippet) continue;
       
       const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
       questions.push({
@@ -155,22 +161,48 @@ export class GameEngine {
         type: 'QUOTE_GUESS',
         media,
         difficulty,
-        question: `Guess the anime from this quote: "${this.generateQuote(media)}"`,
+        question: `Guess the anime from this synopsis snippet: "${snippet}"`,
         options,
         optionImages,
         correctAnswer: media.title.romaji || media.title.english || '',
         hints: [
-          `Character: Main protagonist`,
-          `Context: Emotional scene`,
-          `Era: ${media.startDate.year || 'unknown'}`,
+          `Genre: ${media.genres?.[0] || 'Unknown'}`,
+          `Year: ${media.startDate?.year || 'Unknown'}`,
+          `Format: ${media.format || 'Unknown'}`,
         ],
-        timeLimit: difficulty === 'EASY' ? 20 : difficulty === 'MEDIUM' ? 15 : 10,
+        timeLimit: difficulty === 'EASY' ? 25 : difficulty === 'MEDIUM' ? 20 : 15,
         points: difficulty === 'EASY' ? 20 : difficulty === 'MEDIUM' ? 30 : 50,
       });
     }
     
     saveRecentlyUsedIds([...recentIds, ...usedIds]);
     return questions;
+  }
+  
+  private static extractDescriptionSnippet(description: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD'): string | null {
+    // Clean HTML tags from description
+    const cleaned = description.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
+    if (cleaned.length < 50) return null;
+    
+    // Split into sentences
+    const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    if (sentences.length === 0) return null;
+    
+    // For harder difficulty, pick shorter/less obvious snippets
+    let snippetLength = difficulty === 'EASY' ? 150 : difficulty === 'MEDIUM' ? 100 : 70;
+    
+    // Try to find a good sentence that doesn't contain the anime title
+    const goodSentences = sentences.filter(s => s.length > 30 && s.length < 200);
+    if (goodSentences.length === 0) {
+      // Fall back to truncating the description
+      return cleaned.substring(0, snippetLength) + '...';
+    }
+    
+    // Pick a random sentence from the middle (avoid spoilery endings)
+    const middleSentences = goodSentences.slice(0, Math.max(1, Math.floor(goodSentences.length * 0.6)));
+    const picked = middleSentences[Math.floor(Math.random() * middleSentences.length)];
+    
+    return picked.trim().substring(0, snippetLength) + (picked.length > snippetLength ? '...' : '');
   }
 
   static generateScoreGuessQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
