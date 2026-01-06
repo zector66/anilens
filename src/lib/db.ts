@@ -155,6 +155,21 @@ export async function getAllPlayerRatings(userId: number) {
   return result;
 }
 
+// Calculate overall MMR from all game modes
+export async function getOverallRating(userId: number) {
+  const result = await getDb()`
+    SELECT 
+      COALESCE(SUM(rating), 0) as total_rating,
+      COALESCE(SUM(games_played), 0) as total_games,
+      COALESCE(SUM(wins), 0) as total_wins,
+      COALESCE(MAX(best_streak), 0) as best_streak,
+      COUNT(*) as game_types_played
+    FROM player_ratings 
+    WHERE user_id = ${userId} AND games_played > 0
+  `;
+  return result[0] || { total_rating: 0, total_games: 0, total_wins: 0, best_streak: 0, game_types_played: 0 };
+}
+
 // Calculate rating change based on correct answers, difficulty, time, question count, and game type
 function calculateRatingChange(
   currentRating: number,

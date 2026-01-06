@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateUser, getAllPlayerRatings, getGameHistory, getGameStats } from '@/lib/db';
+import { getOrCreateUser, getAllPlayerRatings, getGameHistory, getGameStats, getOverallRating } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const ratings = await getAllPlayerRatings(user.id);
     const history = await getGameHistory(user.id, 10);
     const stats = await getGameStats(user.id);
+    const overallRating = await getOverallRating(user.id);
 
     return NextResponse.json({
       success: true,
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
       ratings,
       history,
       stats,
+      overallRating,
     });
   } catch (error) {
     console.error('Profile error:', error);

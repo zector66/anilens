@@ -44,6 +44,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
   const [dbProfile, setDbProfile] = useState<{
     ratings: Array<{ game_type: string; rating: number; games_played: number; wins: number; best_streak: number }>;
     stats: Array<{ game_type: string; games_played: number; avg_accuracy: number }>;
+    overallRating?: { total_rating: number; total_games: number; total_wins: number; best_streak: number; game_types_played: number };
   } | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
@@ -285,7 +286,11 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
 
       {/* Tab Content */}
       {activeTab === 'profile' && (
-        <PlayerStatsTab dbRatings={dbProfile?.ratings || []} dbStats={dbProfile?.stats || []} />
+        <PlayerStatsTab 
+          dbRatings={dbProfile?.ratings || []} 
+          dbStats={dbProfile?.stats || []} 
+          overallRating={dbProfile?.overallRating}
+        />
       )}
       {activeTab === 'leaderboard' && (
         <LeaderboardTab currentUserId={user.id} />
@@ -314,7 +319,15 @@ interface DbStats {
   avg_accuracy: number;
 }
 
-function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats: DbStats[] }) {
+interface OverallRating {
+  total_rating: number;
+  total_games: number;
+  total_wins: number;
+  best_streak: number;
+  game_types_played: number;
+}
+
+function PlayerStatsTab({ dbRatings, dbStats, overallRating }: { dbRatings: DbRating[]; dbStats: DbStats[]; overallRating?: OverallRating }) {
   // All available game types
   const allGameTypes = [
     { key: 'op-guessing', label: 'OP/ED Guessing', icon: '🎵' },
@@ -352,8 +365,40 @@ function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats
   if (highestRating >= 1600) achievements.push('Platinum Tier');
   if (highestRating >= 2000) achievements.push('Diamond Tier');
 
+  // Calculate overall rank
+  const totalMMR = overallRating?.total_rating || dbRatings.reduce((sum, r) => sum + r.rating, 0);
+  const overallRank = RatingSystem.getRankTitle(totalMMR);
+
   return (
     <div className="space-y-6">
+      {/* Overall MMR - Sum of all game modes */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Star className="w-5 h-5 text-yellow-400" />
+          Overall Rating
+        </h3>
+        <div className="flex items-center gap-6">
+          <div className="text-center">
+            <div className="text-5xl font-bold text-white">{totalMMR}</div>
+            <div className={`text-lg font-medium ${overallRank.color}`}>{overallRank.title}</div>
+          </div>
+          <div className="flex-1 grid grid-cols-3 gap-4">
+            <div className="text-center p-3 rounded-xl bg-white/5">
+              <div className="text-2xl font-bold text-white">{overallRating?.total_games || totalGames}</div>
+              <div className="text-xs text-gray-400">Games Played</div>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-white/5">
+              <div className="text-2xl font-bold text-green-400">{overallRating?.total_wins || totalWins}</div>
+              <div className="text-xs text-gray-400">Wins</div>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-white/5">
+              <div className="text-2xl font-bold text-orange-400">{overallRating?.best_streak || bestStreak}</div>
+              <div className="text-xs text-gray-400">Best Streak</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Per-Game Ratings - Shows ALL game types */}
       <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
