@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
-import { TasteAnalyzer } from '@/lib/taste-analyzer';
+import { useAnimeList, useMangaList, useFavorites } from '@/hooks/use-anilist';
+import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
 import { 
   BarChart, 
@@ -33,7 +33,10 @@ import {
   Share2,
   Sword,
   Search,
-  User as UserIcon
+  User as UserIcon,
+  ChevronDown,
+  ChevronUp,
+  Info
 } from 'lucide-react';
 import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
@@ -58,11 +61,13 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const [opponentUsername, setOpponentUsername] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
+  const [expandedTrait, setExpandedTrait] = useState<string | null>(null);
 
   const effectiveUserId = userId || user?.id || 0;
   
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
+  const { data: favorites, isLoading: isLoadingFavorites } = useFavorites(effectiveUserId);
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const error = activeTab === 'ANIME' ? animeError : mangaError;
@@ -126,6 +131,26 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     if (analyzedEntries.length === 0) return null;
     return TasteAnalyzer.analyzeTaste(analyzedEntries, activeTab);
   }, [analyzedEntries, activeTab]);
+
+  // Analyze favorites to create favorites-only profile
+  const favoritesProfile = useMemo<FavoritesProfile | null>(() => {
+    if (!favorites || isLoadingFavorites) return null;
+    const favList = activeTab === 'ANIME' ? favorites.anime : favorites.manga;
+    if (favList.length === 0) return null;
+    return TasteAnalyzer.analyzeFavorites(favList, activeTab);
+  }, [favorites, isLoadingFavorites, activeTab]);
+
+  // Compare favorites DNA vs list DNA
+  const favoritesComparison = useMemo(() => {
+    if (!tasteProfile || !favoritesProfile) return null;
+    return TasteAnalyzer.compareFavoritesVsList(tasteProfile, favoritesProfile);
+  }, [tasteProfile, favoritesProfile]);
+
+  // Calculate favorites lambda for display
+  const favoritesLambda = useMemo(() => {
+    if (!favoritesProfile) return 0;
+    return TasteAnalyzer.calculateFavoritesLambda(favoritesProfile.count);
+  }, [favoritesProfile]);
 
   const totalProgressWatched = useMemo(() => {
     if (!tasteProfile) return 0;
@@ -221,7 +246,12 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Target,
       color: 'from-green-500 to-emerald-500',
       description: 'Your drive to finish what you start',
-      tooltip: 'Measures your completion rate minus drop rate. High score = you finish most titles you start and rarely drop.'
+      tooltip: 'Measures your completion rate. High score = you finish most titles you start.',
+      receipts: [
+        { label: 'Completion Rate', value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(1)}%` },
+        { label: 'Drop Rate', value: `${(tasteProfile.behavioralMetrics.dropRate * 100).toFixed(1)}%` },
+        { label: 'Avg progress before drop', value: `${((tasteProfile.behavioralMetrics.meanDropProgress || 0) * 100).toFixed(0)}%` }
+      ]
     },
     { 
       label: 'Seasonal Tourist', 
@@ -229,7 +259,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Clock,
       color: 'from-blue-500 to-cyan-500',
       description: 'Following current season trends',
-      tooltip: 'Based on % of your list from the current/last year. High score = you watch lots of currently airing or recent titles.'
+      tooltip: 'Based on % of your list from the current/last year.',
+      receipts: [
+        { label: 'Recent Titles', value: analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length.toString() },
+        { label: 'Seasonal Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
+      ]
     },
     { 
       label: 'Cult Hunter', 
@@ -237,7 +271,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Zap,
       color: 'from-yellow-500 to-orange-500',
       description: 'Seeking hidden gems and classics',
-      tooltip: 'Measures how many low-popularity titles you watch. High score = you dig deep for obscure gems others miss.'
+      tooltip: 'Measures how many low-popularity titles you watch.',
+      receipts: [
+        { label: 'Median Popularity', value: (tasteProfile.behavioralMetrics.medianPopularity || 0).toLocaleString() },
+        { label: 'Niche Index', value: (tasteProfile.behavioralMetrics.nicheIndex * 10).toFixed(1) }
+      ]
     },
     { 
       label: 'Art Snob', 
@@ -245,7 +283,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Palette,
       color: 'from-pink-500 to-rose-500',
       description: 'Appreciation for visual excellence',
-      tooltip: 'Based on experimental/avant-garde titles in your list. High score = you appreciate unique visual styles and art.'
+      tooltip: 'Based on experimental/avant-garde titles in your list.',
+      receipts: [
+        { label: 'Experimental Index', value: (tasteProfile.behavioralMetrics.experimentalIndex * 10).toFixed(1) },
+        { label: 'Unique Tags', value: tasteProfile.tagAffinity.filter(t => t.affinity > 0.6).length.toString() }
+      ]
     },
     { 
       label: 'Mainstream Maxxer', 
@@ -253,7 +295,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Zap,
       color: 'from-blue-400 to-indigo-600',
       description: 'Following the cultural phenomena',
-      tooltip: 'Measures how many highly popular titles you watch. High score = you watch what everyone is talking about.'
+      tooltip: 'Measures how many highly popular titles you watch.',
+      receipts: [
+        { label: 'Median Popularity', value: (tasteProfile.behavioralMetrics.medianPopularity || 0).toLocaleString() },
+        { label: '% over 100k pop', value: `${((tasteProfile.behavioralMetrics.percentMainstream || 0) * 100).toFixed(1)}%` }
+      ]
     },
     { 
       label: 'Nostalgia Addict', 
@@ -261,7 +307,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Clock,
       color: 'from-amber-700 to-orange-800',
       description: 'Classic-focused taste',
-      tooltip: 'Based on older titles in your list. High score = your heart belongs to anime from previous decades.'
+      tooltip: 'Based on older titles in your list.',
+      receipts: [
+        { label: 'Pre-2010 Titles', value: tasteProfile.eraPreference.filter(e => ['80s & Before', '90s', '2000s'].includes(e.era)).reduce((sum, e) => sum + e.count, 0).toString() },
+        { label: 'Vintage Ratio', value: `${((tasteProfile.eraPreference.filter(e => ['80s & Before', '90s', '2000s'].includes(e.era)).reduce((sum, e) => sum + e.count, 0) / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
+      ]
     },
   ];
 
@@ -315,30 +365,59 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
       {/* Personality Traits */}
       <div>
-        <h3 className="text-lg font-semibold text-white mb-4">Personality Traits</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          Personality Traits
+          <div className="group relative">
+            <Info className="w-4 h-4 text-gray-500 cursor-help" />
+            <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+              These traits represent your behavioral patterns. Click on a card to see the raw stats (&quot;receipts&quot;) that calculated your score.
+            </div>
+          </div>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {personalityCards.map((trait, i) => (
             <div 
               key={i} 
-              className="p-5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors group relative"
-              title={trait.tooltip}
+              className={`p-5 rounded-xl bg-white/5 border transition-all cursor-pointer group relative ${
+                expandedTrait === trait.label ? 'border-white/30 bg-white/10' : 'border-white/10 hover:border-white/20'
+              }`}
+              onClick={() => setExpandedTrait(expandedTrait === trait.label ? null : trait.label)}
             >
-              <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${trait.color} flex items-center justify-center mb-3`}>
-                <trait.icon className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${trait.color} flex items-center justify-center`}>
+                  <trait.icon className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-2xl font-bold text-white">{trait.value.toFixed(1)}</div>
               </div>
-              <div className="text-sm text-gray-400 mb-1">{trait.label}</div>
-              <div className="text-2xl font-bold text-white mb-2">{trait.value.toFixed(1)}</div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm font-semibold text-white">{trait.label}</div>
+                {expandedTrait === trait.label ? (
+                  <ChevronUp className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                )}
+              </div>
+              
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
                 <div 
                   className={`h-full bg-linear-to-r ${trait.color} rounded-full transition-all duration-500`}
                   style={{ width: `${trait.value * 10}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2">{trait.description}</p>
-              {/* Tooltip on hover */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-48 text-center z-10 shadow-xl">
-                {trait.tooltip}
-              </div>
+              <p className="text-xs text-gray-500">{trait.description}</p>
+
+              {expandedTrait === trait.label && (
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-2">The Receipts</p>
+                  {trait.receipts.map((receipt, j) => (
+                    <div key={j} className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">{receipt.label}</span>
+                      <span className="text-white font-mono">{receipt.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -346,14 +425,27 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
       {/* Special Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-xl bg-linear-to-br from-red-500/10 to-orange-500/10 border border-red-500/20">
+        <div className="p-6 rounded-xl bg-linear-to-br from-red-500/10 to-orange-500/10 border border-red-500/20 group relative">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
               <Flame className="w-6 h-6 text-red-400" />
             </div>
             <div>
-              <h4 className="text-white font-semibold">Emotional Damage Index</h4>
-              <p className="text-sm text-gray-400" title="Based on Drama, Tragedy, Psychological, and emotionally heavy genres in your list">How much suffering do you seek?</p>
+              <h4 className="text-white font-semibold flex items-center gap-2">
+                Emotional Damage Index
+                <div className="group/tooltip relative">
+                  <Info className="w-3 h-3 text-gray-500 cursor-help" />
+                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
+                    <p className="font-bold text-white mb-1">How it&apos;s calculated:</p>
+                    <ul className="list-disc pl-3 space-y-1">
+                      <li>Matches for Tragedy, Drama, Psychological tags</li>
+                      <li>Heavily weighted by completion (dropping = less damage)</li>
+                      <li>Normalized against your total watch count</li>
+                    </ul>
+                  </div>
+                </div>
+              </h4>
+              <p className="text-sm text-gray-400">How much suffering do you seek?</p>
             </div>
           </div>
           <div className="text-4xl font-bold text-red-400 mb-3">
@@ -376,14 +468,27 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </p>
         </div>
 
-        <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+        <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 group relative">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
               <Zap className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <h4 className="text-white font-semibold">Chaos Level</h4>
-              <p className="text-sm text-gray-400" title="Based on Ecchi, Harem, Comedy, Parody, Gore, Psychological, and other chaotic genres/tags">How wild is your taste?</p>
+              <h4 className="text-white font-semibold flex items-center gap-2">
+                Chaos Level
+                <div className="group/tooltip relative">
+                  <Info className="w-3 h-3 text-gray-500 cursor-help" />
+                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
+                    <p className="font-bold text-white mb-1">How it&apos;s calculated:</p>
+                    <ul className="list-disc pl-3 space-y-1">
+                      <li>Frequency of Parody, Comedy, Surreal, and Gore tags</li>
+                      <li>High scores for non-linear or abstract storytelling</li>
+                      <li>Penalized by high ratios of grounded Slice of Life</li>
+                    </ul>
+                  </div>
+                </div>
+              </h4>
+              <p className="text-sm text-gray-400">How wild is your taste?</p>
             </div>
           </div>
           <div className="text-4xl font-bold text-purple-400 mb-3">
@@ -408,29 +513,194 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       </div>
 
       {/* Genre Affinity */}
-      <div className="p-6 rounded-xl bg-white/5 border border-white/10">
-        <h3 className="text-lg font-semibold text-white mb-2">Genre Affinity</h3>
-        <p className="text-sm text-gray-400 mb-6">Your favorite genres based on {activeTab === 'ANIME' ? 'watch time' : 'reading'} and scores</p>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={tasteProfile.genreAffinity.slice(0, 8)} layout="vertical">
-              <XAxis type="number" stroke="#6b7280" />
-              <YAxis type="category" dataKey="genre" stroke="#6b7280" width={100} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                labelStyle={{ color: '#fff' }}
-              />
-              <Bar dataKey="affinity" fill="url(#purpleGradient)" radius={[0, 4, 4, 0]} />
-              <defs>
-                <linearGradient id="purpleGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-2">Genre Affinity</h3>
+          <p className="text-sm text-gray-400 mb-6">Your favorite genres based on {activeTab === 'ANIME' ? 'watch time' : 'reading'} and scores</p>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tasteProfile.genreAffinity.slice(0, 8)} layout="vertical">
+                <XAxis type="number" stroke="#6b7280" />
+                <YAxis type="category" dataKey="genre" stroke="#6b7280" width={100} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#fff' }}
+                />
+                <Bar dataKey="affinity" fill="url(#purpleGradient)" radius={[0, 4, 4, 0]} />
+                <defs>
+                  <linearGradient id="purpleGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#a855f7" />
+                    <stop offset="100%" stopColor="#3b82f6" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-2">Format Preference</h3>
+          <p className="text-sm text-gray-400 mb-4">Which distribution formats you engage with most</p>
+          
+          {/* Format Weights Summary */}
+          {tasteProfile.formatWeights && Object.keys(tasteProfile.formatWeights).length > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-xs text-gray-400 mb-2">Recommendation Weight Multipliers:</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(tasteProfile.formatWeights)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 6)
+                  .map(([format, weight]) => (
+                    <span 
+                      key={format}
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        weight > 1.1 ? 'bg-green-500/20 text-green-400' :
+                        weight < 0.9 ? 'bg-red-500/20 text-red-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}
+                      title={`${format} recommendations are ${weight > 1 ? 'boosted' : weight < 1 ? 'reduced' : 'neutral'} by ${Math.abs((weight - 1) * 100).toFixed(0)}%`}
+                    >
+                      {format}: {weight.toFixed(2)}x
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tasteProfile.formatPreference.slice(0, 8)} layout="vertical">
+                <XAxis type="number" stroke="#6b7280" />
+                <YAxis type="category" dataKey="format" stroke="#6b7280" width={100} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#fff' }}
+                  content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload as { format: string; count: number; avgScore: number; preference: number } | undefined;
+                    if (!data) return null;
+                    const weight = tasteProfile.formatWeights?.[data.format] ?? 1.0;
+                    return (
+                      <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm">
+                        <div className="font-medium text-white mb-1">{data.format}</div>
+                        <div className="text-gray-300">Engagement: {(data.preference * 100).toFixed(1)}%</div>
+                        <div className="text-gray-300">Count: {data.count} titles</div>
+                        <div className="text-gray-300">Avg Score: {data.avgScore.toFixed(1)}</div>
+                        <div className={weight > 1 ? 'text-green-400' : weight < 1 ? 'text-red-400' : 'text-gray-300'}>
+                          Rec Weight: {weight.toFixed(2)}x
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="preference" fill="url(#blueGradient)" radius={[0, 4, 4, 0]} />
+                <defs>
+                  <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#22c55e" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
+
+      {/* Favorites DNA vs List DNA */}
+      {favoritesProfile && favoritesProfile.count > 0 && favoritesComparison && (
+        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-yellow-400" />
+                Favorites DNA vs List DNA
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                {favoritesProfile.count} favorites • {(favoritesLambda * 100).toFixed(0)}% influence on recommendations
+              </p>
+            </div>
+            <div className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">
+              λ = {favoritesLambda.toFixed(2)}
+            </div>
+          </div>
+
+          {/* Insights */}
+          {favoritesComparison.insights.length > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                <div className="text-sm text-gray-300">
+                  {favoritesComparison.insights.map((insight, i) => (
+                    <p key={i} className={i > 0 ? 'mt-1' : ''}>{insight}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Genre Skew Comparison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-400 mb-2 font-medium">Top in Favorites (vs List)</p>
+              <div className="space-y-2">
+                {favoritesComparison.genreSkew
+                  .filter(g => g.diff > 5)
+                  .slice(0, 4)
+                  .map(g => (
+                    <div key={g.genre} className="flex items-center justify-between">
+                      <span className="text-sm text-white">{g.genre}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{g.listPct.toFixed(0)}%</span>
+                        <span className="text-green-400">→</span>
+                        <span className="text-xs text-green-400 font-medium">{g.favPct.toFixed(0)}%</span>
+                        <span className="text-xs text-green-400">(+{g.diff.toFixed(0)})</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2 font-medium">More Consumed Than Favorited</p>
+              <div className="space-y-2">
+                {favoritesComparison.genreSkew
+                  .filter(g => g.diff < -5)
+                  .slice(0, 4)
+                  .map(g => (
+                    <div key={g.genre} className="flex items-center justify-between">
+                      <span className="text-sm text-white">{g.genre}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-blue-400 font-medium">{g.listPct.toFixed(0)}%</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-xs text-gray-400">{g.favPct.toFixed(0)}%</span>
+                        <span className="text-xs text-red-400">({g.diff.toFixed(0)})</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Favorite Staff/Studios */}
+          {favoritesProfile.staffAffinity.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-xs text-gray-400 mb-2 font-medium">
+                {activeTab === 'ANIME' ? 'Studios' : 'Authors'} in Your Favorites
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {favoritesProfile.staffAffinity.slice(0, 6).map(s => (
+                  <span 
+                    key={s.name}
+                    className="px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-medium"
+                    title={`Appears in ${(s.affinity * 100).toFixed(0)}% of favorites`}
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Studio/Author Bias */}
       {activeTab === 'ANIME' && tasteProfile.studioBias.length > 0 && (

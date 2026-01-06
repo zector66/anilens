@@ -350,6 +350,7 @@ export interface TasteProfile {
     count: number;
     avgScore: number;
   }>;
+  formatWeights: Record<string, number>;
   scorePatterns: {
     meanScore: number;
     scoreDistribution: Array<{
@@ -369,6 +370,13 @@ export interface TasteProfile {
     nicheIndex: number;
     experimentalIndex: number;
     diversityIndex: number;
+    medianPopularity?: number;
+    percentMainstream?: number;
+    meanDropProgress?: number;
+    logNormalizedPopularity?: number;
+    popularityQuantile?: string;
+    rawCompletionRate?: number;
+    rawDropRate?: number;
   };
   personalityTraits: {
     completionist: number;

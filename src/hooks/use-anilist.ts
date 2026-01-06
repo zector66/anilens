@@ -26,6 +26,15 @@ export function useMangaList(userId: number) {
   });
 }
 
+export function useFavorites(userId: number) {
+  return useQuery({
+    queryKey: ['favorites', userId],
+    queryFn: () => anilistClient.getUserFavorites(userId),
+    enabled: !!userId && userId > 0,
+    staleTime: 10 * 60 * 1000, // 10 minutes - favorites change rarely
+  });
+}
+
 export function useUserStats(userId: number) {
   return useQuery({
     queryKey: ['userStats', userId],
@@ -60,6 +69,16 @@ export interface RecommendationOptions {
   minScore?: number;
   tagAffinity?: Array<{ tag: string; affinity: number; confidence?: number }>;
   studioBias?: Array<{ studio: string; bias: number }>;
+  formats?: string[];
+  formatWeights?: Record<string, number>;
+  favoritesProfile?: {
+    genreAffinity: Array<{ genre: string; affinity: number }>;
+    tagAffinity: Array<{ tag: string; affinity: number }>;
+    staffAffinity: Array<{ name: string; affinity: number }>;
+    count: number;
+  };
+  anchorToFavorites?: boolean;
+  favoritesInfluence?: number; // 0-30%
   explorationLevel?: number; // 0-100, affects genre diversity and risk tolerance
 }
 
@@ -76,6 +95,11 @@ export function useRecommendations(
     minScore = 60, 
     tagAffinity = [], 
     studioBias = [],
+    formats = [],
+    formatWeights = {},
+    favoritesProfile,
+    anchorToFavorites = true,
+    favoritesInfluence = 15,
     explorationLevel = 50 
   } = options;
   
@@ -93,7 +117,8 @@ export function useRecommendations(
       selectedTags.join(','),
       minScore,
       Math.floor(explorationLevel / 20), // Bucket exploration level for caching
-      studioBias.slice(0, 3).map(s => s.studio).join(',')
+      studioBias.slice(0, 3).map(s => s.studio).join(','),
+      formats.join(',')
     ],
     queryFn: async () => {
       const results = await anilistClient.getRecommendations(genreAffinity, watchedIds, type, {
@@ -103,6 +128,11 @@ export function useRecommendations(
         minScore,
         tagAffinity,
         studioBias,
+        formats,
+        formatWeights,
+        favoritesProfile,
+        anchorToFavorites,
+        favoritesInfluence,
         explorationLevel,
         limit: 18
       });

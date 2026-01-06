@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useAnimeList, useMangaList, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
+import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
-import { TasteAnalyzer } from '@/lib/taste-analyzer';
+import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { 
   Sparkles, 
@@ -31,6 +31,7 @@ interface RecommendationsProps {
 interface ExtendedMedia extends Media {
   _matchScore?: number;
   _matchReason?: string;
+  _reasons?: Array<{ type: string; text: string; weight: number }>;
   _category?: 'safe' | 'experimental' | 'hidden-gem';
 }
 
@@ -43,10 +44,13 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const [showGenrePicker, setShowGenrePicker] = useState(false);
   const [minScore, setMinScore] = useState(60);
   const [explorationLevel, setExplorationLevel] = useState(50); // 0 = comfort, 100 = full exploration
+  const [anchorToFavorites, setAnchorToFavorites] = useState(true);
+  const [favoritesInfluence, setFavoritesInfluence] = useState(15); // 0-30%
 
   const effectiveUserId = userId || user?.id || 0;
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
+  const { data: favorites } = useFavorites(effectiveUserId);
 
   const isLoadingList = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const listError = activeType === 'ANIME' ? animeError : mangaError;
@@ -67,6 +71,14 @@ export function Recommendations({ userId }: RecommendationsProps) {
     if (allEntries.length === 0) return null;
     return TasteAnalyzer.analyzeTaste(allEntries, activeType);
   }, [allEntries, activeType]);
+
+  // Analyze favorites for recommendation boosting
+  const favoritesProfile = useMemo<FavoritesProfile | null>(() => {
+    if (!favorites) return null;
+    const favList = activeType === 'ANIME' ? favorites.anime : favorites.manga;
+    if (favList.length === 0) return null;
+    return TasteAnalyzer.analyzeFavorites(favList, activeType);
+  }, [favorites, activeType]);
 
   const watchedIds = useMemo(() => {
     return new Set(allEntries.map((e: MediaListEntry) => e.media?.id).filter(Boolean) as number[]);
@@ -91,9 +103,18 @@ export function Recommendations({ userId }: RecommendationsProps) {
       minScore: adjustedMinScore,
       tagAffinity: tasteProfile?.tagAffinity || [],
       studioBias: tasteProfile?.studioBias || [],
+      formatWeights: tasteProfile?.formatWeights || {},
+      favoritesProfile: favoritesProfile ? {
+        genreAffinity: favoritesProfile.genreAffinity,
+        tagAffinity: favoritesProfile.tagAffinity,
+        staffAffinity: favoritesProfile.staffAffinity,
+        count: favoritesProfile.count
+      } : undefined,
+      anchorToFavorites,
+      favoritesInfluence,
       explorationLevel, // Pass to backend for genre diversity
     };
-  }, [selectedGenre, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias]);
+  }, [selectedGenre, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias, tasteProfile?.formatWeights, favoritesProfile, anchorToFavorites, favoritesInfluence]);
 
   const { data: recommendedMedia, isLoading: isLoadingRecs, refetch: refetchRecs, isRefetching } = useRecommendations(
     tasteProfile?.genreAffinity || [],
@@ -148,9 +169,11 @@ export function Recommendations({ userId }: RecommendationsProps) {
     title: getPreferredTitle(media.title),
     coverImage: media.coverImage?.extraLarge || media.coverImage?.large || '',
     genres: media.genres || [],
+    format: media.format || '',
     score: media.meanScore || 0,
     popularity: media.popularity || 0,
     reason: media._matchReason || 'Matches your taste profile',
+    reasons: media._reasons || [],
     matchScore: media._matchScore || 70,
     category: media._category || 'safe' as const
   }));
@@ -357,6 +380,54 @@ export function Recommendations({ userId }: RecommendationsProps) {
         </div>
       </div>
 
+      {/* Favorites Anchor Controls */}
+      {favoritesProfile && favoritesProfile.count > 0 && (
+        <div className="p-4 rounded-xl bg-linear-to-r from-yellow-500/10 via-purple-500/10 to-pink-500/10 border border-yellow-500/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Star className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm font-medium text-white">Anchor to Favorites</span>
+              <span className="text-xs text-gray-400">({favoritesProfile.count} favorites)</span>
+            </div>
+            <button
+              onClick={() => setAnchorToFavorites(!anchorToFavorites)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                anchorToFavorites ? 'bg-yellow-500' : 'bg-gray-600'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                anchorToFavorites ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+          
+          {anchorToFavorites && (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xs text-gray-400">Influence:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="5"
+                  value={favoritesInfluence}
+                  onChange={(e) => setFavoritesInfluence(Number(e.target.value))}
+                  className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                />
+                <span className="text-sm font-medium text-yellow-400 w-10">{favoritesInfluence}%</span>
+              </div>
+              <p className="text-xs text-gray-400">
+                {favoritesInfluence < 10 
+                  ? 'Subtle nudge toward favorites taste' 
+                  : favoritesInfluence > 20 
+                    ? 'Strong preference for favorites-like content'
+                    : 'Balanced favorites influence'}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {filters.map((filter) => (
@@ -405,8 +476,33 @@ export function Recommendations({ userId }: RecommendationsProps) {
                   </span>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                  <h3 className="text-lg font-semibold text-white mb-1 line-clamp-1">{rec.title}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-semibold text-white line-clamp-1">{rec.title}</h3>
+                    {rec.format && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/20 text-gray-200">
+                        {rec.format}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-300 mb-2 line-clamp-2">{rec.reason}</p>
+                  {rec.reasons.length > 1 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {rec.reasons.slice(1, 3).map((r, i) => (
+                        <span 
+                          key={i} 
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            r.type === 'format' ? (r.weight > 0 ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300') :
+                            r.type === 'genre' ? 'bg-purple-500/30 text-purple-300' :
+                            r.type === 'tag' ? 'bg-blue-500/30 text-blue-300' :
+                            r.type === 'staff' ? 'bg-yellow-500/30 text-yellow-300' :
+                            'bg-gray-500/30 text-gray-300'
+                          }`}
+                        >
+                          {r.text.length > 30 ? r.text.substring(0, 30) + '...' : r.text}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-yellow-400">
                       <Star className="w-4 h-4 fill-current" />

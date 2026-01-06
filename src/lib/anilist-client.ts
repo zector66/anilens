@@ -100,6 +100,115 @@ export class AniListClient {
     }
   }
 
+  async getUserFavorites(userId: number): Promise<{ anime: Media[]; manga: Media[] }> {
+    const query = gql`
+      query($userId: Int) {
+        User(id: $userId) {
+          favourites {
+            anime(perPage: 50) {
+              nodes {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                type
+                format
+                status
+                genres
+                tags {
+                  name
+                  rank
+                  isGeneralSpoiler
+                  isMediaSpoiler
+                }
+                meanScore
+                popularity
+                startDate {
+                  year
+                }
+                studios(isMain: true) {
+                  edges {
+                    isMain
+                    node {
+                      id
+                      name
+                      isAnimationStudio
+                    }
+                  }
+                }
+                coverImage {
+                  large
+                }
+              }
+            }
+            manga(perPage: 50) {
+              nodes {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                type
+                format
+                status
+                genres
+                tags {
+                  name
+                  rank
+                  isGeneralSpoiler
+                  isMediaSpoiler
+                }
+                meanScore
+                popularity
+                startDate {
+                  year
+                }
+                staff(perPage: 5) {
+                  edges {
+                    role
+                    node {
+                      id
+                      name {
+                        full
+                      }
+                    }
+                  }
+                }
+                coverImage {
+                  large
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.client.request<{ 
+        User: { 
+          favourites: { 
+            anime: { nodes: Media[] }; 
+            manga: { nodes: Media[] } 
+          } 
+        } 
+      }>(query, { userId });
+      
+      return {
+        anime: response.User?.favourites?.anime?.nodes || [],
+        manga: response.User?.favourites?.manga?.nodes || []
+      };
+    } catch (error) {
+      console.error('[AniListClient] Error fetching favorites:', error);
+      return { anime: [], manga: [] };
+    }
+  }
+
   async getAnimeList(userId: number): Promise<MediaList> {
     const query = gql`
       query($userId: Int) {
@@ -639,6 +748,16 @@ export class AniListClient {
       minScore?: number;
       tagAffinity?: Array<{ tag: string; affinity: number; confidence?: number }>;
       studioBias?: Array<{ studio: string; bias: number }>;
+      formats?: string[];
+      formatWeights?: Record<string, number>;
+      favoritesProfile?: {
+        genreAffinity: Array<{ genre: string; affinity: number }>;
+        tagAffinity: Array<{ tag: string; affinity: number }>;
+        staffAffinity: Array<{ name: string; affinity: number }>;
+        count: number;
+      };
+      anchorToFavorites?: boolean;
+      favoritesInfluence?: number; // 0-30%
       explorationLevel?: number;
     } = {}
   ): Promise<Media[]> {
@@ -650,6 +769,11 @@ export class AniListClient {
       minScore = 60,
       tagAffinity = [],
       studioBias = [],
+      formats = [],
+      formatWeights = {},
+      favoritesProfile = null,
+      anchorToFavorites = true,
+      favoritesInfluence = 15,
       explorationLevel = 50
     } = options;
 
@@ -727,7 +851,7 @@ export class AniListClient {
     }
 
     const query = gql`
-      query($genres: [String], $tags: [String], $type: MediaType, $perPage: Int, $minScore: Int, $sort: [MediaSort]) {
+      query($genres: [String], $tags: [String], $type: MediaType, $perPage: Int, $minScore: Int, $sort: [MediaSort], $formats: [MediaFormat]) {
         Page(page: 1, perPage: $perPage) {
           media(
             genre_in: $genres, 
@@ -735,7 +859,8 @@ export class AniListClient {
             sort: $sort, 
             type: $type, 
             isAdult: false,
-            averageScore_greater: $minScore
+            averageScore_greater: $minScore,
+            format_in: $formats
           ) {
             id
             title {
@@ -809,6 +934,8 @@ export class AniListClient {
     `;
 
     try {
+      console.log(`[AniListClient] getRecommendations started. Type: ${type}, Mode: ${mode}, Formats: ${formats.join(',') || 'any'}`);
+      
       // 1. Initial Attempt
       const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
         genres: searchGenres.length > 0 ? searchGenres : undefined,
@@ -817,12 +944,15 @@ export class AniListClient {
         perPage: 100, // Fetch more to filter and score
         minScore: minScore,
         sort: sortCriteria,
+        formats: formats.length > 0 ? formats : undefined,
       });
 
       let results = response.Page.media.filter(media => !watchedIds.has(media.id));
+      console.log(`[AniListClient] Attempt 1 results: ${results.length}`);
 
       // 2. Fallback Attempt (Broaden search if no results)
-      if (results.length < 5 && (searchGenres.length > 0 || searchTags.length > 0)) {
+      if (results.length < limit && (searchGenres.length > 0 || searchTags.length > 0 || formats.length > 0)) {
+        console.log('[AniListClient] Fallback 1: Broadening search criteria...');
         // Try again with either just genres or just tags, and lower minScore
         const fallbackMinScore = Math.max(40, minScore - 15);
         
@@ -833,9 +963,11 @@ export class AniListClient {
           perPage: 100,
           minScore: fallbackMinScore,
           sort: sortCriteria,
+          formats: formats.length > 0 ? formats : undefined,
         });
 
         const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        console.log(`[AniListClient] Fallback 1 results: ${fallbackResults.length}`);
         
         // Merge results, prioritizing original results
         const existingIds = new Set(results.map(m => m.id));
@@ -846,8 +978,33 @@ export class AniListClient {
         });
       }
 
-      // 3. Last Resort (Global Trending/Popular if still low)
+      // 3. Fallback Attempt 2: Relax format constraints if still low
+      if (results.length < limit && formats.length > 0) {
+        console.log('[AniListClient] Fallback 2: Relaxing format constraints...');
+        const fallbackResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
+          genres: searchGenres.length > 0 ? searchGenres : undefined,
+          tags: undefined,
+          type,
+          perPage: 100,
+          minScore: 40,
+          sort: sortCriteria,
+          formats: undefined, // Drop formats
+        });
+
+        const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        console.log(`[AniListClient] Fallback 2 results: ${fallbackResults.length}`);
+        
+        const existingIds = new Set(results.map(m => m.id));
+        fallbackResults.forEach(m => {
+          if (!existingIds.has(m.id)) {
+            results.push(m);
+          }
+        });
+      }
+
+      // 4. Last Resort (Global Trending/Popular if still low)
       if (results.length < 5) {
+        console.log('[AniListClient] Last Resort: Global trending...');
         const lastResortResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: undefined,
           tags: undefined,
@@ -855,6 +1012,7 @@ export class AniListClient {
           perPage: 50,
           minScore: 50,
           sort: ['TRENDING_DESC', 'POPULARITY_DESC'],
+          formats: undefined,
         });
         
         const lastResortResults = lastResortResponse.Page.media.filter(media => !watchedIds.has(media.id));
@@ -976,30 +1134,129 @@ export class AniListClient {
           });
         }
 
+        // Favorites similarity tie-breaker scoring (+5-12 points)
+        let favoritesBonus = 0;
+        if (anchorToFavorites && favoritesProfile && favoritesProfile.count > 0) {
+          // Calculate similarity to favorites profile
+          const mediaGenres = new Set(media.genres || []);
+          const mediaTags = new Set((media.tags || []).map(t => t.name));
+          const mediaStaff = type === 'ANIME'
+            ? (media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name) || [])
+            : (media.staff?.edges?.map(e => e.node.name.full) || []);
+
+          // Genre similarity
+          const favGenreSet = new Set(favoritesProfile.genreAffinity.slice(0, 5).map(g => g.genre));
+          const genreOverlap = [...mediaGenres].filter(g => favGenreSet.has(g)).length;
+          const genreSim = favGenreSet.size > 0 ? genreOverlap / favGenreSet.size : 0;
+
+          // Tag similarity
+          const favTagSet = new Set(favoritesProfile.tagAffinity.slice(0, 10).map(t => t.tag));
+          const tagOverlap = [...mediaTags].filter(t => favTagSet.has(t)).length;
+          const tagSim = favTagSet.size > 0 ? tagOverlap / favTagSet.size : 0;
+
+          // Staff similarity (higher weight for favorites staff)
+          const favStaffSet = new Set(favoritesProfile.staffAffinity.slice(0, 5).map(s => s.name));
+          const staffMatch = mediaStaff.some(s => favStaffSet.has(s));
+
+          // Combined similarity (0-1 scale)
+          const similarity = 0.4 * genreSim + 0.3 * tagSim + (staffMatch ? 0.3 : 0);
+          
+          // Scale to bonus points based on favoritesInfluence (0-30% maps to 0-12 bonus)
+          const maxBonus = (favoritesInfluence / 30) * 12;
+          favoritesBonus = similarity * maxBonus;
+          matchScore += favoritesBonus;
+
+          if (favoritesBonus > 3) {
+            const matchReason = staffMatch 
+              ? `Shares ${sourceLabel} with a favorite`
+              : genreOverlap >= 2 
+                ? 'Matches your favorites DNA'
+                : 'Similar to your favorites';
+            reasons.push({
+              type: 'favorite',
+              text: matchReason,
+              weight: favoritesBonus
+            });
+          }
+        }
+
+        // Apply format weight multiplier (default 1.0 if not specified)
+        const formatWeight = media.format ? (formatWeights[media.format] ?? 1.0) : 1.0;
+        const weightedMatchScore = matchScore * formatWeight;
+        
+        if (formatWeight !== 1.0 && Math.abs(formatWeight - 1.0) > 0.1) {
+          reasons.push({
+            type: 'format',
+            text: formatWeight > 1.0 
+              ? `Preferred format: ${media.format}` 
+              : `Less preferred format: ${media.format}`,
+            weight: (formatWeight - 1.0) * 10
+          });
+        }
+
         // Sort reasons by weight and take top 3
         const topReasons = reasons.sort((a, b) => b.weight - a.weight).slice(0, 3);
         const category = this.categorizeRecommendation(media, matchingGenres.length, tagAffinity.length);
 
         return {
           media,
-          matchScore: Math.round(matchScore),
+          matchScore: Math.round(weightedMatchScore),
+          formatWeight,
           reasons: topReasons,
           primaryReason: topReasons[0]?.text || 'Matches your taste profile',
           category
         };
       });
 
-      // Sort by match score and return with enhanced metadata
-      return scoredResults
-        .sort((a, b) => b.matchScore - a.matchScore)
-        .slice(0, limit)
-        .map(r => ({
-          ...r.media,
-          _matchScore: r.matchScore,
-          _matchReason: r.primaryReason,
-          _reasons: r.reasons,
-          _category: r.category
-        }));
+      // Sort by match score
+      scoredResults.sort((a, b) => b.matchScore - a.matchScore);
+
+      // Greedy reranking with dynamic format caps for diversity
+      const formatCaps: Record<string, number> = {
+        TV: 5,
+        TV_SHORT: 3,
+        MOVIE: 3,
+        SPECIAL: 2,
+        OVA: 2,
+        ONA: 3,
+        MUSIC: 1,
+        MANGA: 5,
+        NOVEL: 3,
+        ONE_SHOT: 2,
+      };
+      const formatCounts: Record<string, number> = {};
+      const diverseResults: typeof scoredResults = [];
+
+      for (const result of scoredResults) {
+        const format = result.media.format || 'OTHER';
+        const cap = formatCaps[format] ?? 2;
+        const currentCount = formatCounts[format] || 0;
+
+        if (currentCount < cap) {
+          diverseResults.push(result);
+          formatCounts[format] = currentCount + 1;
+        }
+
+        if (diverseResults.length >= limit) break;
+      }
+
+      // If we don't have enough diverse results, fill with remaining top scores
+      if (diverseResults.length < limit) {
+        for (const result of scoredResults) {
+          if (!diverseResults.includes(result)) {
+            diverseResults.push(result);
+            if (diverseResults.length >= limit) break;
+          }
+        }
+      }
+
+      return diverseResults.map(r => ({
+        ...r.media,
+        _matchScore: r.matchScore,
+        _matchReason: r.primaryReason,
+        _reasons: r.reasons,
+        _category: r.category
+      }));
 
     } catch (error) {
       console.error('[AniListClient] Error in getRecommendations:', error);
