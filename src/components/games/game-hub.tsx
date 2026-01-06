@@ -40,6 +40,23 @@ export function GameHub() {
       .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
   }, [currentList]);
 
+  // Separate anime and manga entries for bracket battles
+  const animeEntries = useMemo(() => {
+    if (!animeList?.lists) return [];
+    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
+    return animeList.lists
+      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
+      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
+  }, [animeList]);
+
+  const mangaEntries = useMemo(() => {
+    if (!mangaList?.lists) return [];
+    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
+    return mangaList.lists
+      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
+      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
+  }, [mangaList]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
@@ -219,9 +236,11 @@ export function GameHub() {
   if (specialGame === 'bracket-anime' || specialGame === 'bracket-manga') {
     // Use category from settings, or fallback to specialGame type
     const battleCategory = bracketSettings.category as 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
+    // Use manga entries for manga category, anime entries for everything else
+    const bracketEntries = battleCategory === 'manga' ? mangaEntries : animeEntries;
     return (
       <BracketBattle
-        entries={allEntries}
+        entries={bracketEntries}
         battleType={battleCategory}
         bracketSize={bracketSettings.size}
         onComplete={(winner) => {
