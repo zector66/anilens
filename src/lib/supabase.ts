@@ -272,9 +272,18 @@ export async function updateRoomState(
 ): Promise<boolean> {
   if (!supabase) return false;
 
+  // Convert camelCase to snake_case for DB
+  const dbUpdates: Record<string, unknown> = { state };
+  if (additionalUpdates) {
+    if (additionalUpdates.startedAt) dbUpdates.started_at = additionalUpdates.startedAt;
+    if (additionalUpdates.finishedAt) dbUpdates.finished_at = additionalUpdates.finishedAt;
+    if (additionalUpdates.questions) dbUpdates.questions = additionalUpdates.questions;
+    if (additionalUpdates.players) dbUpdates.players = additionalUpdates.players;
+  }
+
   const { error } = await supabase
     .from('multiplayer_rooms')
-    .update({ state, ...additionalUpdates })
+    .update(dbUpdates)
     .eq('id', roomId);
 
   return !error;
