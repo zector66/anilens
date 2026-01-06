@@ -291,7 +291,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, value: allEntries.length, icon: BarChart3 },
-          { label: 'Watched', value: analyzedEntries.length, icon: Activity },
+          { label: activeTab === 'ANIME' ? 'Watched' : 'Read', value: analyzedEntries.length, icon: Activity },
           { label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', value: totalProgressWatched, icon: Clock },
           { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, icon: Palette },
           { label: 'Mean Score', value: tasteProfile.scorePatterns.meanScore.toFixed(1), icon: TrendingUp },
@@ -396,7 +396,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       {/* Genre Affinity */}
       <div className="p-6 rounded-xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-2">Genre Affinity</h3>
-        <p className="text-sm text-gray-400 mb-6">Your favorite genres based on watch time and scores</p>
+        <p className="text-sm text-gray-400 mb-6">Your favorite genres based on {activeTab === 'ANIME' ? 'watch time' : 'reading'} and scores</p>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={tasteProfile.genreAffinity.slice(0, 8)} layout="vertical">
@@ -418,7 +418,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       </div>
 
-      {/* Studio Bias */}
+      {/* Studio/Author Bias */}
+      {activeTab === 'ANIME' && tasteProfile.studioBias.length > 0 && (
       <div className="p-6 rounded-xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-2">Favorite Studios</h3>
         <p className="text-sm text-gray-400 mb-6">Your most watched animation studios</p>
@@ -470,6 +471,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
 
       {/* Detailed Genre & Studio Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -488,7 +490,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                   </div>
                   <div>
                     <div className="text-white font-medium">{genre.genre}</div>
-                    <div className="text-xs text-gray-500">{genre.count} series watched</div>
+                    <div className="text-xs text-gray-500">{genre.count} series {activeTab === 'ANIME' ? 'watched' : 'read'}</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -513,7 +515,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           />
         </div>
 
-        {/* Studio Cards */}
+        {/* Studio Cards - Only show for Anime */}
+        {activeTab === 'ANIME' && tasteProfile.studioBias.length > 0 && (
         <div className="space-y-4 lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <Award className="w-5 h-5 text-blue-400" />
@@ -539,12 +542,13 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             ))}
           </div>
         </div>
+        )}
       </div>
 
       {/* Score Distribution */}
       <div className="p-6 rounded-xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-2">Score Distribution</h3>
-        <p className="text-sm text-gray-400 mb-6">How you rate your anime</p>
+        <p className="text-sm text-gray-400 mb-6">How you rate your {activeTab === 'ANIME' ? 'anime' : 'manga'}</p>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={tasteProfile.scorePatterns.scoreDistribution}>
@@ -646,9 +650,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <h3 className="text-lg font-semibold text-white mb-4">Behavioral Metrics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Completion Rate', value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(1)}%`, sub: 'anime completed' },
-            { label: 'Drop Rate', value: `${(tasteProfile.behavioralMetrics.dropRate * 100).toFixed(1)}%`, sub: 'anime dropped' },
-            { label: 'Rewatch Rate', value: `${(tasteProfile.behavioralMetrics.rewatchRate * 100).toFixed(1)}%`, sub: 'anime rewatched' },
+            { label: 'Completion Rate', value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(1)}%`, sub: `${activeTab === 'ANIME' ? 'anime' : 'manga'} completed` },
+            { label: 'Drop Rate', value: `${(tasteProfile.behavioralMetrics.dropRate * 100).toFixed(1)}%`, sub: `${activeTab === 'ANIME' ? 'anime' : 'manga'} dropped` },
+            { label: activeTab === 'ANIME' ? 'Rewatch Rate' : 'Reread Rate', value: `${(tasteProfile.behavioralMetrics.rewatchRate * 100).toFixed(1)}%`, sub: `${activeTab === 'ANIME' ? 'anime rewatched' : 'manga reread'}` },
             { 
               label: 'Binge Index', 
               value: bingeDataQuality > 10 ? (tasteProfile.behavioralMetrics.bingeIndex * 10).toFixed(1) : 'N/A', 
