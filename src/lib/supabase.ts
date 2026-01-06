@@ -233,11 +233,24 @@ export async function broadcastRoomUpdate(roomId: string, room: MultiplayerRoom)
   if (!supabase) return;
   
   const channel = supabase.channel(`room:${roomId}`);
+  
+  // Must subscribe before sending
+  await new Promise<void>((resolve) => {
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        resolve();
+      }
+    });
+  });
+  
   await channel.send({
     type: 'broadcast',
     event: 'room_update',
     payload: room,
   });
+  
+  // Unsubscribe after sending to clean up
+  await channel.unsubscribe();
 }
 
 // Update room data
