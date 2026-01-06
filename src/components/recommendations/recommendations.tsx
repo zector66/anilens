@@ -214,7 +214,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       </div>
 
       {/* Taste Summary */}
-      <div className="p-6 rounded-xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-white/10">
+      <div className="p-6 rounded-xl bg-linear-to-r from-purple-500/10 to-blue-500/10 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-purple-400" />
           Your Taste DNA
@@ -327,7 +327,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       </div>
 
       {/* Exploration Slider */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 via-purple-500/10 to-orange-500/10 border border-white/10">
+      <div className="p-4 rounded-xl bg-linear-to-r from-green-500/10 via-purple-500/10 to-orange-500/10 border border-white/10">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-green-400">Comfort</span>
           <span className="text-xs text-gray-400">Discovery Mode</span>
@@ -340,7 +340,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
           step="10"
           value={explorationLevel}
           onChange={(e) => setExplorationLevel(Number(e.target.value))}
-          className="w-full h-3 bg-gradient-to-r from-green-500/30 via-purple-500/30 to-orange-500/30 rounded-lg appearance-none cursor-pointer"
+          className="w-full h-3 bg-linear-to-r from-green-500/30 via-purple-500/30 to-orange-500/30 rounded-lg appearance-none cursor-pointer"
           style={{
             background: `linear-gradient(to right, rgb(34 197 94 / 0.5) 0%, rgb(168 85 247 / 0.5) 50%, rgb(249 115 22 / 0.5) 100%)`
           }}

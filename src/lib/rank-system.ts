@@ -93,7 +93,7 @@ export function calculateMMRChange(
   
   // Base K-factor (how much MMR can change)
   // New players have higher K for faster placement
-  let kFactor = gamesPlayed < 10 ? 50 : gamesPlayed < 30 ? 40 : 30;
+  const kFactor = gamesPlayed < 10 ? 50 : gamesPlayed < 30 ? 40 : 30;
   
   // Difficulty multiplier
   const difficultyMultiplier = 

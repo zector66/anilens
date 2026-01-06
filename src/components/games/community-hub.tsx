@@ -14,9 +14,6 @@ import {
 } from '@/lib/rating-system';
 import {
   Trophy,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Crown,
   Flame,
   Target,
@@ -28,17 +25,17 @@ import {
   Award,
   BarChart3,
   Swords,
-  Medal,
   Sparkles,
 } from 'lucide-react';
 import Image from 'next/image';
 
 interface CommunityHubProps {
-  onStartDailyChallenge: () => void;
-  onStartChallenge: (opponentId: number) => void;
+  onStartDailyChallenge?: () => void;
+  onStartChallenge?: (opponentId: number) => void;
+  onNavigateToGames?: () => void;
 }
 
-export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: CommunityHubProps) {
+export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNavigateToGames }: CommunityHubProps) {
   const { user, isOAuthAuthenticated, loginWithAniList } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'leaderboard' | 'history' | 'challenges'>('profile');
   const [dbProfile, setDbProfile] = useState<{
@@ -165,8 +162,30 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
 
   return (
     <div className="space-y-8">
+      {/* Quick Game Access - only show when used as standalone tab */}
+      {onNavigateToGames && (
+        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+              <Swords className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="font-medium text-white">Ready to play?</p>
+              <p className="text-xs text-gray-400">8+ game modes based on your anime list</p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToGames}
+            className="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors flex items-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            Play Games
+          </button>
+        </div>
+      )}
+
       {/* Header with Player Card */}
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 border border-white/20">
+      <div className="p-6 rounded-2xl bg-linear-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 border border-white/20">
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
           {/* Avatar & Basic Info */}
           <div className="flex items-center gap-4">

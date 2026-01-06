@@ -9,8 +9,7 @@ import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
 import { MultiplayerResults } from './multiplayer-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
-import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords } from 'lucide-react';
-import { CommunityHub } from './community-hub';
+import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen } from 'lucide-react';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
@@ -20,7 +19,6 @@ import { MultiplayerLobby } from './multiplayer-lobby';
 export function GameHub() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
-  const [mode, setMode] = useState<'games' | 'community'>('games');
   const { data: animeList, isLoading: isLoadingAnime } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: isLoadingManga } = useMangaList(user?.id || 0);
   
@@ -490,64 +488,8 @@ export function GameHub() {
     setCurrentGame(session);
   };
 
-  const handleStartChallenge = (opponentId: number) => {
-    console.log('Starting challenge with opponent:', opponentId);
-  };
-
-  // Community mode
-  if (mode === 'community') {
-    return (
-      <div className="space-y-8">
-        {/* Mode Toggle */}
-        <div className="flex justify-center">
-          <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
-            <button
-              onClick={() => setMode('games')}
-              className="px-6 py-2 rounded-lg font-bold text-sm transition-all text-gray-400 hover:text-white flex items-center gap-2"
-            >
-              <Gamepad2 className="w-4 h-4" />
-              Play Games
-            </button>
-            <button
-              onClick={() => setMode('community')}
-              className="px-6 py-2 rounded-lg font-bold text-sm transition-all bg-purple-500 text-white shadow-lg shadow-purple-500/25 flex items-center gap-2"
-            >
-              <Swords className="w-4 h-4" />
-              Community
-            </button>
-          </div>
-        </div>
-        
-        <CommunityHub 
-          onStartDailyChallenge={handleStartDailyChallenge}
-          onStartChallenge={handleStartChallenge}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
-      {/* Mode Toggle */}
-      <div className="flex justify-center">
-        <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
-          <button
-            onClick={() => setMode('games')}
-            className="px-6 py-2 rounded-lg font-bold text-sm transition-all bg-purple-500 text-white shadow-lg shadow-purple-500/25 flex items-center gap-2"
-          >
-            <Gamepad2 className="w-4 h-4" />
-            Play Games
-          </button>
-          <button
-            onClick={() => setMode('community')}
-            className="px-6 py-2 rounded-lg font-bold text-sm transition-all text-gray-400 hover:text-white flex items-center gap-2"
-          >
-            <Swords className="w-4 h-4" />
-            Community
-          </button>
-        </div>
-      </div>
-
       {/* Type Toggle */}
       <div className="flex justify-center">
         <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
