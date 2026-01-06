@@ -197,10 +197,15 @@ export async function joinRoom(
     return null;
   }
 
-  return { ...room, players: updatedPlayers };
+  const updatedRoom = { ...room, players: updatedPlayers };
+  
+  // Broadcast the join to all subscribers (including host)
+  await broadcastRoomUpdate(room.id, updatedRoom);
+
+  return updatedRoom;
 }
 
-// Subscribe to room changes
+// Subscribe to room changes using Broadcast (no database replication needed)
 export function subscribeToRoom(
   roomId: string,
   onUpdate: (room: MultiplayerRoom) => void
@@ -210,23 +215,29 @@ export function subscribeToRoom(
   const channel = supabase
     .channel(`room:${roomId}`)
     .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'multiplayer_rooms',
-        filter: `id=eq.${roomId}`,
-      },
+      'broadcast',
+      { event: 'room_update' },
       (payload) => {
-        if (payload.new) {
-          const room = dbRowToRoom(payload.new as Record<string, unknown>);
-          if (room) onUpdate(room);
+        if (payload.payload) {
+          onUpdate(payload.payload as MultiplayerRoom);
         }
       }
     )
     .subscribe();
 
   return channel;
+}
+
+// Broadcast room update to all subscribers
+export async function broadcastRoomUpdate(roomId: string, room: MultiplayerRoom): Promise<void> {
+  if (!supabase) return;
+  
+  const channel = supabase.channel(`room:${roomId}`);
+  await channel.send({
+    type: 'broadcast',
+    event: 'room_update',
+    payload: room,
+  });
 }
 
 // Update room data
@@ -244,7 +255,7 @@ export async function updateRoom(
   return !error;
 }
 
-// Update player state in room
+// Update player state in room and broadcast to all
 export async function updatePlayerState(
   roomId: string,
   playerId: string,
@@ -252,15 +263,18 @@ export async function updatePlayerState(
 ): Promise<boolean> {
   if (!supabase) return false;
 
-  const { data: room, error: findError } = await supabase
+  const { data: dbRoom, error: findError } = await supabase
     .from('multiplayer_rooms')
-    .select('players')
+    .select('*')
     .eq('id', roomId)
     .single();
 
-  if (findError || !room) return false;
+  if (findError || !dbRoom) return false;
 
-  const updatedPlayers = room.players.map((p: RoomPlayer) =>
+  const currentRoom = dbRowToRoom(dbRoom);
+  if (!currentRoom) return false;
+
+  const updatedPlayers = currentRoom.players.map((p: RoomPlayer) =>
     p.id === playerId ? { ...p, ...updates } : p
   );
 
@@ -269,16 +283,34 @@ export async function updatePlayerState(
     .update({ players: updatedPlayers })
     .eq('id', roomId);
 
+  if (!error) {
+    // Broadcast the update to all subscribers
+    const updatedRoom = { ...currentRoom, players: updatedPlayers };
+    await broadcastRoomUpdate(roomId, updatedRoom);
+  }
+
   return !error;
 }
 
-// Update room state
+// Update room state and broadcast to all
 export async function updateRoomState(
   roomId: string,
   state: RoomState,
   additionalUpdates?: Partial<MultiplayerRoom>
 ): Promise<boolean> {
   if (!supabase) return false;
+
+  // First get current room data
+  const { data: dbRoom, error: findError } = await supabase
+    .from('multiplayer_rooms')
+    .select('*')
+    .eq('id', roomId)
+    .single();
+
+  if (findError || !dbRoom) return false;
+
+  const currentRoom = dbRowToRoom(dbRoom);
+  if (!currentRoom) return false;
 
   // Convert camelCase to snake_case for DB
   const dbUpdates: Record<string, unknown> = { state };
@@ -293,6 +325,16 @@ export async function updateRoomState(
     .from('multiplayer_rooms')
     .update(dbUpdates)
     .eq('id', roomId);
+
+  if (!error) {
+    // Broadcast the update to all subscribers
+    const updatedRoom: MultiplayerRoom = {
+      ...currentRoom,
+      state,
+      ...additionalUpdates,
+    };
+    await broadcastRoomUpdate(roomId, updatedRoom);
+  }
 
   return !error;
 }
