@@ -12,6 +12,23 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+// Helper to convert snake_case DB row to camelCase app model
+function dbRowToRoom(row: Record<string, unknown>): MultiplayerRoom {
+  return {
+    id: row.id as string,
+    code: row.code as string,
+    hostId: row.host_id as string,
+    state: row.state as RoomState,
+    gameType: row.game_type as string,
+    players: row.players as RoomPlayer[],
+    questions: row.questions as unknown[],
+    settings: row.settings as MultiplayerRoom['settings'],
+    createdAt: row.created_at as string,
+    startedAt: row.started_at as string | undefined,
+    finishedAt: row.finished_at as string | undefined,
+  };
+}
+
 // Room states
 export type RoomState = 'waiting' | 'ready' | 'playing' | 'finished';
 
@@ -68,31 +85,49 @@ export async function createRoom(
     return null;
   }
 
+  const roomId = crypto.randomUUID();
+  const roomCode = generateRoomCode();
+  const createdAt = new Date().toISOString();
+  
+  const players: RoomPlayer[] = [
+    {
+      id: hostId,
+      name: hostName,
+      avatar: hostAvatar,
+      score: 0,
+      currentQuestion: 0,
+      isReady: false,
+      answers: [],
+    },
+  ];
+
+  // Insert with snake_case column names for Supabase
+  const { error } = await supabase
+    .from('multiplayer_rooms')
+    .insert({
+      id: roomId,
+      code: roomCode,
+      host_id: hostId,
+      state: 'waiting',
+      game_type: gameType,
+      players: players,
+      questions: [],
+      settings: settings,
+      created_at: createdAt,
+    });
+  
+  // Return camelCase for the app
   const room: MultiplayerRoom = {
-    id: crypto.randomUUID(),
-    code: generateRoomCode(),
+    id: roomId,
+    code: roomCode,
     hostId,
     state: 'waiting',
     gameType,
-    players: [
-      {
-        id: hostId,
-        name: hostName,
-        avatar: hostAvatar,
-        score: 0,
-        currentQuestion: 0,
-        isReady: false,
-        answers: [],
-      },
-    ],
+    players,
     questions: [],
     settings,
-    createdAt: new Date().toISOString(),
+    createdAt,
   };
-
-  const { error } = await supabase
-    .from('multiplayer_rooms')
-    .insert(room);
 
   if (error) {
     console.error('Failed to create room:', error);
@@ -112,22 +147,24 @@ export async function joinRoom(
   if (!supabase) return null;
 
   // Find the room
-  const { data: room, error: findError } = await supabase
+  const { data: dbRoom, error: findError } = await supabase
     .from('multiplayer_rooms')
     .select('*')
     .eq('code', code.toUpperCase())
     .eq('state', 'waiting')
     .single();
 
-  if (findError || !room) {
+  if (findError || !dbRoom) {
     console.error('Room not found:', findError);
     return null;
   }
 
+  const room = dbRowToRoom(dbRoom);
+
   // Check if player already in room
   const existingPlayer = room.players.find((p: RoomPlayer) => p.id === playerId);
   if (existingPlayer) {
-    return room as MultiplayerRoom;
+    return room;
   }
 
   // Add player to room
@@ -153,7 +190,7 @@ export async function joinRoom(
     return null;
   }
 
-  return { ...room, players: updatedPlayers } as MultiplayerRoom;
+  return { ...room, players: updatedPlayers };
 }
 
 // Subscribe to room changes
@@ -175,7 +212,7 @@ export function subscribeToRoom(
       },
       (payload) => {
         if (payload.new) {
-          onUpdate(payload.new as MultiplayerRoom);
+          onUpdate(dbRowToRoom(payload.new as Record<string, unknown>));
         }
       }
     )
@@ -255,8 +292,10 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
 
   if (findError || !room) return false;
 
+  const mappedRoom = dbRowToRoom(room);
+
   // If host leaves, delete the room
-  if (room.hostId === playerId) {
+  if (mappedRoom.hostId === playerId) {
     const { error } = await supabase
       .from('multiplayer_rooms')
       .delete()
@@ -265,7 +304,7 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
   }
 
   // Otherwise, remove player from room
-  const updatedPlayers = room.players.filter((p: RoomPlayer) => p.id !== playerId);
+  const updatedPlayers = mappedRoom.players.filter((p: RoomPlayer) => p.id !== playerId);
 
   const { error } = await supabase
     .from('multiplayer_rooms')
