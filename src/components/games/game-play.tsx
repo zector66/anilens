@@ -670,8 +670,13 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
 
     setAnswers(prev => [...prev, newAnswer]);
     setGameState(answer === '' && timeLeft === 0 ? 'times-up' : 'answered');
+  }, [gameState, currentQuestion]);
 
-    setTimeout(async () => {
+  // Advance to next question - in multiplayer, wait for both players
+  useEffect(() => {
+    if (gameState !== 'answered' && gameState !== 'times-up') return;
+    
+    const advanceToNext = async () => {
       if (currentQuestionIndex < game.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setGameState('playing');
@@ -685,13 +690,31 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
         }
         onComplete({
           ...game,
-          answers: [...answers, newAnswer],
+          answers,
           completed: true,
           endTime: Date.now(),
         });
       }
-    }, 2000);
-  }, [game, currentQuestion, currentQuestionIndex, onComplete, gameState, answers, multiplayerRoomId]);
+    };
+
+    // In multiplayer, wait for opponent to answer before advancing
+    if (multiplayerRoomId && room) {
+      const opponent = room.players.find(p => p.id !== String(user?.id));
+      const opponentAnsweredCurrent = opponent && opponent.answers.length > currentQuestionIndex;
+      
+      if (opponentAnsweredCurrent) {
+        // Both answered - advance after short delay to show results
+        const timer = setTimeout(advanceToNext, 1500);
+        return () => clearTimeout(timer);
+      }
+      // Still waiting for opponent - don't advance yet
+      return;
+    }
+    
+    // Single player - advance after 2 seconds
+    const timer = setTimeout(advanceToNext, 2000);
+    return () => clearTimeout(timer);
+  }, [gameState, currentQuestionIndex, game, answers, multiplayerRoomId, room, user, onComplete]);
 
   if (currentQuestionIndex >= game.questions.length) {
     return null;
