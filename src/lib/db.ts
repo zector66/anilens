@@ -32,13 +32,13 @@ export async function initializeDatabase() {
     )
   `;
 
-  // Player ratings table - MMR for each game type
+  // Player ratings table - MMR for each game type (starts at 0 = Iron IV)
   await getDb()`
     CREATE TABLE IF NOT EXISTS player_ratings (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       game_type VARCHAR(50) NOT NULL,
-      rating INTEGER DEFAULT 1000,
+      rating INTEGER DEFAULT 0,
       games_played INTEGER DEFAULT 0,
       wins INTEGER DEFAULT 0,
       best_streak INTEGER DEFAULT 0,
