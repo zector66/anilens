@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { 
   MatchHistoryEntry,
@@ -360,47 +360,146 @@ function PlayerStatsTab({ playerRating }: { playerRating: PlayerRating }) {
   );
 }
 
-function LeaderboardTab({ currentUserId: _currentUserId }: { currentUserId: number }) {
+function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
+  const [leaderboardType, setLeaderboardType] = useState<string>('global');
+  const [leaderboard, setLeaderboard] = useState<Array<{
+    anilist_id: number;
+    username: string;
+    avatar_url: string;
+    rating: number;
+    games_played: number;
+    wins: number;
+    best_streak: number;
+    rank: number;
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch leaderboard on mount and when type changes
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=50`);
+        const data = await response.json();
+        if (data.success) {
+          setLeaderboard(data.leaderboard || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch leaderboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLeaderboard();
+  }, [leaderboardType]);
+
+  const leaderboardTypes = [
+    { id: 'global', label: 'Overall' },
+    { id: 'op-guessing', label: 'OP/ED Guessing' },
+    { id: 'quote-guessing', label: 'Quote Master' },
+    { id: 'character-guessing', label: 'Character' },
+    { id: 'score-guessing', label: 'Memory Test' },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Leaderboard Type Selector */}
-      <div className="flex gap-2 overflow-x-auto">
-        {['Overall', 'OP/ED Guessing', 'Screenshot', 'Daily Challenge'].map((type) => (
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {leaderboardTypes.map((type) => (
           <button
-            key={type}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-              type === 'Overall' 
+            key={type.id}
+            onClick={() => setLeaderboardType(type.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+              leaderboardType === type.id 
                 ? 'bg-purple-500 text-white' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
           >
-            {type}
+            {type.label}
           </button>
         ))}
       </div>
 
-      {/* Leaderboard - Backend Required */}
+      {/* Leaderboard */}
       <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
         <div className="p-4 border-b border-white/10">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <Crown className="w-5 h-5 text-yellow-400" />
-            Global Rankings
+            {leaderboardType === 'global' ? 'Global Rankings' : leaderboardTypes.find(t => t.id === leaderboardType)?.label + ' Rankings'}
           </h3>
         </div>
-        <div className="p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
-            <Crown className="w-8 h-8 text-yellow-400" />
+        
+        {isLoading ? (
+          <div className="p-8 text-center">
+            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Loading leaderboard...</p>
           </div>
-          <h4 className="text-lg font-semibold text-white mb-2">Leaderboard Coming Soon</h4>
-          <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">
-            Global rankings require a backend service to track scores across all players. 
-            For now, your local game stats are saved and displayed in the Stats tab.
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm">
-            <span>💡</span>
-            <span>Play games to build your local stats!</span>
+        ) : leaderboard.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-8 h-8 text-yellow-400" />
+            </div>
+            <h4 className="text-lg font-semibold text-white mb-2">No Rankings Yet</h4>
+            <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">
+              Be the first to climb the leaderboard! Play games to earn your rank.
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {leaderboard.map((player, index) => {
+              const isCurrentUser = player.anilist_id === currentUserId;
+              const rankBadge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
+              
+              return (
+                <div 
+                  key={player.anilist_id}
+                  className={`p-4 flex items-center gap-4 ${isCurrentUser ? 'bg-purple-500/10' : ''}`}
+                >
+                  {/* Rank */}
+                  <div className="w-10 text-center">
+                    {rankBadge ? (
+                      <span className="text-2xl">{rankBadge}</span>
+                    ) : (
+                      <span className="text-lg font-bold text-gray-400">#{player.rank}</span>
+                    )}
+                  </div>
+                  
+                  {/* Avatar */}
+                  {player.avatar_url ? (
+                    <Image
+                      src={player.avatar_url}
+                      alt={player.username}
+                      width={40}
+                      height={40}
+                      className="rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-purple-400" />
+                    </div>
+                  )}
+                  
+                  {/* Player Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium truncate ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                      {player.username}
+                      {isCurrentUser && <span className="text-xs text-purple-400 ml-2">(You)</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {player.games_played} games • {player.wins} wins
+                    </p>
+                  </div>
+                  
+                  {/* Rating */}
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-white">{player.rating}</p>
+                    <p className="text-xs text-gray-500">MMR</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Season Info */}
@@ -409,7 +508,7 @@ function LeaderboardTab({ currentUserId: _currentUserId }: { currentUserId: numb
           <Sparkles className="w-5 h-5 text-blue-400" />
           <div>
             <p className="text-white font-medium">Season {RatingSystem.getCurrentSeason()}</p>
-            <p className="text-sm text-gray-400">Rankings reset at the end of each quarter</p>
+            <p className="text-sm text-gray-400">Compete to climb the rankings!</p>
           </div>
         </div>
       </div>
