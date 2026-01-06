@@ -13,15 +13,21 @@ export const supabase = supabaseUrl && supabaseAnonKey
   : null;
 
 // Helper to convert snake_case DB row to camelCase app model
-function dbRowToRoom(row: Record<string, unknown>): MultiplayerRoom {
+function dbRowToRoom(row: Record<string, unknown>): MultiplayerRoom | null {
+  // Defensive check - realtime payloads may be incomplete
+  if (!row || !row.id || !row.players) {
+    console.warn('Invalid room data received:', row);
+    return null;
+  }
+  
   return {
     id: row.id as string,
     code: row.code as string,
     hostId: row.host_id as string,
     state: row.state as RoomState,
     gameType: row.game_type as string,
-    players: row.players as RoomPlayer[],
-    questions: row.questions as unknown[],
+    players: (row.players as RoomPlayer[]) || [],
+    questions: (row.questions as unknown[]) || [],
     settings: row.settings as MultiplayerRoom['settings'],
     createdAt: row.created_at as string,
     startedAt: row.started_at as string | undefined,
@@ -160,6 +166,7 @@ export async function joinRoom(
   }
 
   const room = dbRowToRoom(dbRoom);
+  if (!room) return null;
 
   // Check if player already in room
   const existingPlayer = room.players.find((p: RoomPlayer) => p.id === playerId);
@@ -212,7 +219,8 @@ export function subscribeToRoom(
       },
       (payload) => {
         if (payload.new) {
-          onUpdate(dbRowToRoom(payload.new as Record<string, unknown>));
+          const room = dbRowToRoom(payload.new as Record<string, unknown>);
+          if (room) onUpdate(room);
         }
       }
     )
@@ -302,6 +310,7 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
   if (findError || !room) return false;
 
   const mappedRoom = dbRowToRoom(room);
+  if (!mappedRoom) return false;
 
   // If host leaves, delete the room
   if (mappedRoom.hostId === playerId) {
