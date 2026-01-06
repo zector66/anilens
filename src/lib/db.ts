@@ -136,10 +136,10 @@ export async function getPlayerRating(userId: number, gameType: string) {
   `;
 
   if (result.length === 0) {
-    // Create default rating
+    // Create default rating - start at 0 (Iron IV)
     const newRating = await getDb()`
       INSERT INTO player_ratings (user_id, game_type, rating)
-      VALUES (${userId}, ${gameType}, 1000)
+      VALUES (${userId}, ${gameType}, 0)
       RETURNING *
     `;
     return newRating[0];

@@ -196,12 +196,13 @@ export function GameHub() {
     {
       id: 'screenshot-guessing',
       title: 'Screenshot Challenge',
-      description: 'Identify anime from random screenshots',
+      description: 'Coming soon - Real anime screenshots',
       icon: ImageIcon,
-      gradient: 'from-blue-500 to-cyan-500',
-      difficulty: 'Hard',
-      difficultyColor: 'bg-red-500/20 text-red-400',
-      estimatedTime: '3-8 min',
+      gradient: 'from-gray-500 to-gray-600',
+      difficulty: 'Unavailable',
+      difficultyColor: 'bg-gray-500/20 text-gray-400',
+      estimatedTime: 'Coming Soon',
+      disabled: true,
     },
     {
       id: 'quote-guessing',
@@ -392,10 +393,13 @@ export function GameHub() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {gameTypes.map((gameType) => {
             const Icon = gameType.icon;
+            const isDisabled = 'disabled' in gameType && (gameType as { disabled?: boolean }).disabled === true;
             return (
               <div 
                 key={gameType.id} 
-                className="group p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+                className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 ${
+                  isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1'
+                }`}
               >
                 <div className="flex items-start gap-4 mb-4">
                   <div className={`w-12 h-12 rounded-xl bg-linear-to-br ${gameType.gradient} flex items-center justify-center shrink-0`}>
@@ -418,11 +422,16 @@ export function GameHub() {
                     </div>
                   </div>
                   <button
-                    onClick={() => openGameSettings(gameType.id)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+                    onClick={() => !isDisabled && openGameSettings(gameType.id)}
+                    disabled={isDisabled}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDisabled 
+                        ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
+                        : 'bg-white/10 hover:bg-white/20 text-white'
+                    }`}
                   >
                     <Play className="w-4 h-4" />
-                    Play
+                    {isDisabled ? 'Coming Soon' : 'Play'}
                   </button>
                 </div>
               </div>

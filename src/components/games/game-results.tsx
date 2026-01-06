@@ -1,16 +1,61 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { GameSession } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star } from 'lucide-react';
+import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star, Loader2 } from 'lucide-react';
+import { useGameStats } from '@/hooks/use-game-stats';
+import { RankBadge, MMRChange } from './rank-badge';
 
 interface GameResultsProps {
   results: GameSession;
   onPlayAgain: () => void;
   onBackToHub: () => void;
+  difficulty?: string;
 }
 
-export function GameResults({ results, onPlayAgain, onBackToHub }: GameResultsProps) {
+export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'mixed' }: GameResultsProps) {
+  const { submitGameResult, isSubmitting, canSubmitScores } = useGameStats();
+  const [mmrResult, setMmrResult] = useState<{
+    oldRating: number;
+    newRating: number;
+    ratingChange: number;
+  } | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Submit game results to database on mount
+  useEffect(() => {
+    if (submitted || !canSubmitScores) return;
+    
+    const submitResults = async () => {
+      const score = GameEngine.calculateScore(results);
+      const maxScore = results.questions.reduce((sum, q) => sum + q.points, 0);
+      const correctCount = results.answers.filter(a => a.correct).length;
+      const totalTime = Math.floor((results.endTime! - results.startTime) / 1000);
+      const avgTime = totalTime / results.answers.length;
+
+      const result = await submitGameResult(
+        results.type,
+        score,
+        maxScore,
+        correctCount,
+        results.questions.length,
+        avgTime,
+        difficulty
+      );
+
+      if (result.success && result.oldRating !== undefined) {
+        setMmrResult({
+          oldRating: result.oldRating,
+          newRating: result.newRating!,
+          ratingChange: result.ratingChange!,
+        });
+      }
+      setSubmitted(true);
+    };
+
+    submitResults();
+  }, [results, difficulty, submitGameResult, canSubmitScores, submitted]);
   const score = GameEngine.calculateScore(results);
   const accuracy = GameEngine.calculateAccuracy(results);
   const performanceLevel = GameEngine.getPerformanceLevel(score, results.questions.reduce((sum, q) => sum + q.points, 0));
@@ -48,9 +93,34 @@ export function GameResults({ results, onPlayAgain, onBackToHub }: GameResultsPr
       <div className="text-center p-8 rounded-2xl bg-white/5 border border-white/10">
         <div className="text-7xl mb-4 animate-bounce">{getPerformanceEmoji(performanceLevel)}</div>
         <h2 className="text-3xl font-black text-white mb-2">Game Complete!</h2>
-        <div className={`inline-block px-6 py-2 rounded-full bg-gradient-to-r ${getPerformanceGradient(performanceLevel)} text-white font-bold text-xl`}>
+        <div className={`inline-block px-6 py-2 rounded-full bg-linear-to-r ${getPerformanceGradient(performanceLevel)} text-white font-bold text-xl`}>
           {performanceLevel}
         </div>
+        
+        {/* MMR Change Display */}
+        {isSubmitting && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Saving results...</span>
+          </div>
+        )}
+        {mmrResult && (
+          <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
+            <MMRChange 
+              change={mmrResult.ratingChange} 
+              oldMMR={mmrResult.oldRating} 
+              newMMR={mmrResult.newRating} 
+            />
+            <div className="mt-3">
+              <RankBadge mmr={mmrResult.newRating} size="lg" showProgress />
+            </div>
+          </div>
+        )}
+        {!canSubmitScores && !isSubmitting && (
+          <p className="mt-4 text-xs text-gray-500">
+            Login with AniList to save your scores and compete in rankings!
+          </p>
+        )}
       </div>
 
       {/* Main Stats */}
