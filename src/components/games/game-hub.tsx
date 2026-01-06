@@ -10,6 +10,9 @@ import { GameResults } from './game-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
 import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords, Settings } from 'lucide-react';
 import { CommunityHub } from './community-hub';
+import { HangmanGame } from './hangman-game';
+import { WordleGame } from './wordle-game';
+import { BracketBattle } from './bracket-battle';
 
 export function GameHub() {
   const { user } = useAuth();
@@ -22,6 +25,7 @@ export function GameHub() {
   const [gameResults, setGameResults] = useState<GameSession | null>(null);
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [specialGame, setSpecialGame] = useState<'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga' | null>(null);
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
@@ -54,8 +58,13 @@ export function GameHub() {
     );
   }
 
-  // Open settings modal when clicking Play
+  // Open settings modal when clicking Play (or start special games directly)
   const openGameSettings = (gameType: string) => {
+    // Special games that don't need settings
+    if (gameType === 'hangman' || gameType === 'wordle' || gameType === 'bracket-anime' || gameType === 'bracket-manga') {
+      setSpecialGame(gameType as 'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga');
+      return;
+    }
     setSelectedGameType(gameType);
     setShowSettings(true);
   };
@@ -168,6 +177,47 @@ export function GameHub() {
     setGameResults(results);
   };
 
+  // Special games (Hangman, Wordle, Bracket Battle)
+  if (specialGame === 'hangman') {
+    return (
+      <HangmanGame
+        entries={allEntries}
+        onComplete={(score, maxScore, correct, total) => {
+          console.log('Hangman complete:', score, maxScore, correct, total);
+          setSpecialGame(null);
+        }}
+        onBack={() => setSpecialGame(null)}
+      />
+    );
+  }
+
+  if (specialGame === 'wordle') {
+    return (
+      <WordleGame
+        entries={allEntries}
+        onComplete={(score, maxScore, correct, total) => {
+          console.log('Wordle complete:', score, maxScore, correct, total);
+          setSpecialGame(null);
+        }}
+        onBack={() => setSpecialGame(null)}
+      />
+    );
+  }
+
+  if (specialGame === 'bracket-anime' || specialGame === 'bracket-manga') {
+    return (
+      <BracketBattle
+        entries={allEntries}
+        battleType={specialGame === 'bracket-anime' ? 'anime' : 'manga'}
+        onComplete={(winner) => {
+          console.log('Bracket winner:', winner);
+          setSpecialGame(null);
+        }}
+        onBack={() => setSpecialGame(null)}
+      />
+    );
+  }
+
   if (currentGame) {
     return <GamePlay game={currentGame} onComplete={handleGameComplete} />;
   }
@@ -194,17 +244,6 @@ export function GameHub() {
       estimatedTime: '5-10 min',
     },
     {
-      id: 'screenshot-guessing',
-      title: 'Screenshot Challenge',
-      description: 'Coming soon - Real anime screenshots',
-      icon: ImageIcon,
-      gradient: 'from-gray-500 to-gray-600',
-      difficulty: 'Unavailable',
-      difficultyColor: 'bg-gray-500/20 text-gray-400',
-      estimatedTime: 'Coming Soon',
-      disabled: true,
-    },
-    {
       id: 'quote-guessing',
       title: 'Quote Master',
       description: 'Guess anime from memorable quotes',
@@ -223,6 +262,39 @@ export function GameHub() {
       difficulty: 'Hard',
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-6 min',
+    },
+    {
+      id: 'hangman',
+      title: 'Anime Hangman',
+      description: 'Guess anime titles letter by letter',
+      icon: Gamepad2,
+      gradient: 'from-amber-500 to-orange-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '5-10 min',
+      special: true,
+    },
+    {
+      id: 'wordle',
+      title: 'Anime Wordle',
+      description: 'Guess 5-letter anime words',
+      icon: Zap,
+      gradient: 'from-lime-500 to-green-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '3-5 min',
+      special: true,
+    },
+    {
+      id: 'bracket-anime',
+      title: 'Anime Bracket Battle',
+      description: 'Tournament to crown your favorite anime',
+      icon: Swords,
+      gradient: 'from-red-500 to-pink-600',
+      difficulty: 'Fun',
+      difficultyColor: 'bg-pink-500/20 text-pink-400',
+      estimatedTime: '5-10 min',
+      special: true,
     },
   ];
 

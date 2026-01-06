@@ -1,0 +1,304 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { MediaListEntry } from '@/types/anilist';
+import { Trophy, Swords, Music, Tv, BookOpen, Heart, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
+
+interface BracketBattleProps {
+  entries: MediaListEntry[];
+  onComplete: (winner: BattleItem) => void;
+  onBack: () => void;
+  battleType: 'anime' | 'manga' | 'openings' | 'endings';
+}
+
+interface BattleItem {
+  id: number;
+  title: string;
+  image: string;
+  subtitle?: string;
+}
+
+type BracketRound = {
+  matches: [BattleItem, BattleItem][];
+  winners: BattleItem[];
+};
+
+function shuffleArray<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function getRoundName(remaining: number): string {
+  if (remaining === 2) return 'Finals';
+  if (remaining === 4) return 'Semi-Finals';
+  if (remaining === 8) return 'Quarter-Finals';
+  if (remaining === 16) return 'Round of 16';
+  return `Round of ${remaining}`;
+}
+
+export function BracketBattle({ entries, onComplete, onBack, battleType }: BracketBattleProps) {
+  const [items, setItems] = useState<BattleItem[]>([]);
+  const [currentRound, setCurrentRound] = useState<BracketRound | null>(null);
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [winner, setWinner] = useState<BattleItem | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
+
+  // Initialize battle items
+  useEffect(() => {
+    const shuffled = shuffleArray(entries).slice(0, 16);
+    const battleItems: BattleItem[] = shuffled.map(entry => ({
+      id: entry.media?.id || 0,
+      title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+      image: entry.media?.coverImage?.large || '',
+      subtitle: battleType === 'openings' || battleType === 'endings' 
+        ? `${battleType === 'openings' ? 'OP' : 'ED'}` 
+        : undefined,
+    }));
+    
+    // Ensure we have a power of 2
+    const targetCount = Math.pow(2, Math.floor(Math.log2(battleItems.length)));
+    const finalItems = battleItems.slice(0, Math.max(4, targetCount));
+    
+    setItems(finalItems);
+    
+    // Create first round
+    const matches: [BattleItem, BattleItem][] = [];
+    for (let i = 0; i < finalItems.length; i += 2) {
+      matches.push([finalItems[i], finalItems[i + 1]]);
+    }
+    setCurrentRound({ matches, winners: [] });
+  }, [entries, battleType]);
+
+  const handleVote = (item: BattleItem, side: 'left' | 'right') => {
+    if (!currentRound || isAnimating) return;
+    
+    setSelectedSide(side);
+    setIsAnimating(true);
+
+    setTimeout(() => {
+      const newWinners = [...currentRound.winners, item];
+      
+      if (matchIndex < currentRound.matches.length - 1) {
+        // More matches in this round
+        setCurrentRound({ ...currentRound, winners: newWinners });
+        setMatchIndex(m => m + 1);
+      } else {
+        // Round complete
+        if (newWinners.length === 1) {
+          // We have a winner!
+          setWinner(newWinners[0]);
+          onComplete(newWinners[0]);
+        } else {
+          // Start next round
+          const newMatches: [BattleItem, BattleItem][] = [];
+          for (let i = 0; i < newWinners.length; i += 2) {
+            newMatches.push([newWinners[i], newWinners[i + 1]]);
+          }
+          setCurrentRound({ matches: newMatches, winners: [] });
+          setMatchIndex(0);
+          setRoundNumber(r => r + 1);
+        }
+      }
+      
+      setIsAnimating(false);
+      setSelectedSide(null);
+    }, 500);
+  };
+
+  const getBattleIcon = () => {
+    switch (battleType) {
+      case 'openings':
+      case 'endings':
+        return <Music className="w-6 h-6" />;
+      case 'manga':
+        return <BookOpen className="w-6 h-6" />;
+      default:
+        return <Tv className="w-6 h-6" />;
+    }
+  };
+
+  const getBattleTitle = () => {
+    switch (battleType) {
+      case 'openings':
+        return 'Best Opening Tournament';
+      case 'endings':
+        return 'Best Ending Tournament';
+      case 'manga':
+        return 'Best Manga Tournament';
+      default:
+        return 'Best Anime Tournament';
+    }
+  };
+
+  if (items.length === 0 || !currentRound) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (winner) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-6">
+          <Trophy className="w-10 h-10 text-yellow-400" />
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-2">Champion!</h2>
+        <p className="text-gray-400 mb-6">Your {battleType} tournament winner is...</p>
+        
+        <div className="relative w-48 h-72 mx-auto mb-6 rounded-xl overflow-hidden border-4 border-yellow-500">
+          {winner.image && (
+            <Image
+              src={winner.image}
+              alt={winner.title}
+              fill
+              className="object-cover"
+            />
+          )}
+        </div>
+        <h3 className="text-2xl font-bold text-yellow-400 mb-8">{winner.title}</h3>
+        
+        <button
+          onClick={onBack}
+          className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
+        >
+          Back to Games
+        </button>
+      </div>
+    );
+  }
+
+  const currentMatch = currentRound.matches[matchIndex];
+  const remaining = currentRound.matches.length * 2 - currentRound.winners.length;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/20 text-purple-400 mb-4">
+          {getBattleIcon()}
+          <span>{getBattleTitle()}</span>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">{getRoundName(remaining)}</h2>
+        <p className="text-gray-400">
+          Match {matchIndex + 1} of {currentRound.matches.length} • Round {roundNumber}
+        </p>
+      </div>
+
+      {/* Battle Arena */}
+      <div className="flex items-center justify-center gap-4 md:gap-8">
+        {/* Left Contestant */}
+        <button
+          onClick={() => handleVote(currentMatch[0], 'left')}
+          disabled={isAnimating}
+          className={`group relative flex-1 max-w-xs transition-all duration-300 ${
+            selectedSide === 'left' ? 'scale-110 z-10' : 
+            selectedSide === 'right' ? 'scale-90 opacity-50' : 
+            'hover:scale-105'
+          }`}
+        >
+          <div className="relative aspect-[2/3] rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
+            {currentMatch[0].image && (
+              <Image
+                src={currentMatch[0].image}
+                alt={currentMatch[0].title}
+                fill
+                className="object-cover"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <p className="text-white font-bold text-lg line-clamp-2">{currentMatch[0].title}</p>
+              {currentMatch[0].subtitle && (
+                <p className="text-purple-400 text-sm">{currentMatch[0].subtitle}</p>
+              )}
+            </div>
+          </div>
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Heart className="w-8 h-8 text-pink-500 fill-pink-500" />
+          </div>
+        </button>
+
+        {/* VS */}
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center">
+            <Swords className="w-8 h-8 text-red-400" />
+          </div>
+          <span className="text-red-400 font-bold mt-2">VS</span>
+        </div>
+
+        {/* Right Contestant */}
+        <button
+          onClick={() => handleVote(currentMatch[1], 'right')}
+          disabled={isAnimating}
+          className={`group relative flex-1 max-w-xs transition-all duration-300 ${
+            selectedSide === 'right' ? 'scale-110 z-10' : 
+            selectedSide === 'left' ? 'scale-90 opacity-50' : 
+            'hover:scale-105'
+          }`}
+        >
+          <div className="relative aspect-[2/3] rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
+            {currentMatch[1].image && (
+              <Image
+                src={currentMatch[1].image}
+                alt={currentMatch[1].title}
+                fill
+                className="object-cover"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <p className="text-white font-bold text-lg line-clamp-2">{currentMatch[1].title}</p>
+              {currentMatch[1].subtitle && (
+                <p className="text-purple-400 text-sm">{currentMatch[1].subtitle}</p>
+              )}
+            </div>
+          </div>
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Heart className="w-8 h-8 text-pink-500 fill-pink-500" />
+          </div>
+        </button>
+      </div>
+
+      {/* Progress */}
+      <div className="flex items-center justify-center gap-2">
+        {Array.from({ length: items.length }).map((_, i) => {
+          const totalEliminated = (items.length - remaining);
+          const isEliminated = i < totalEliminated;
+          const isWinner = i < currentRound.winners.length + (items.length - currentRound.matches.length * 2);
+          
+          return (
+            <div
+              key={i}
+              className={`w-3 h-3 rounded-full transition-all ${
+                isEliminated ? 'bg-gray-600' : 
+                isWinner ? 'bg-green-500' : 'bg-purple-500/50'
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      {/* Instructions */}
+      <p className="text-center text-gray-500 text-sm">
+        Click on your favorite to advance it to the next round
+      </p>
+
+      {/* Back button */}
+      <button
+        onClick={onBack}
+        className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+      >
+        ← Back to Games
+      </button>
+    </div>
+  );
+}
