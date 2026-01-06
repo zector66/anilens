@@ -1,4 +1,19 @@
-import { sql } from '@vercel/postgres';
+import { neon } from '@neondatabase/serverless';
+
+// Lazy initialization of database connection
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sql: any = null;
+
+function getDb() {
+  if (!_sql) {
+    const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+    if (!url) {
+      throw new Error('DATABASE_URL or POSTGRES_URL environment variable is not set');
+    }
+    _sql = neon(url);
+  }
+  return _sql;
+}
 
 // ============================================================================
 // Database Schema Setup
@@ -6,7 +21,7 @@ import { sql } from '@vercel/postgres';
 
 export async function initializeDatabase() {
   // Users table - linked to AniList accounts
-  await sql`
+  await getDb()`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       anilist_id INTEGER UNIQUE NOT NULL,
@@ -18,7 +33,7 @@ export async function initializeDatabase() {
   `;
 
   // Player ratings table - MMR for each game type
-  await sql`
+  await getDb()`
     CREATE TABLE IF NOT EXISTS player_ratings (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -36,7 +51,7 @@ export async function initializeDatabase() {
   `;
 
   // Game sessions table - track individual games
-  await sql`
+  await getDb()`
     CREATE TABLE IF NOT EXISTS game_sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -53,7 +68,7 @@ export async function initializeDatabase() {
   `;
 
   // Leaderboard cache table - for fast leaderboard queries
-  await sql`
+  await getDb()`
     CREATE TABLE IF NOT EXISTS leaderboard_cache (
       id SERIAL PRIMARY KEY,
       game_type VARCHAR(50) NOT NULL,
@@ -66,11 +81,11 @@ export async function initializeDatabase() {
   `;
 
   // Create indexes for performance
-  await sql`CREATE INDEX IF NOT EXISTS idx_ratings_game_type ON player_ratings(game_type)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_ratings_rating ON player_ratings(rating DESC)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user ON game_sessions(user_id)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_sessions_game_type ON game_sessions(game_type)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type ON leaderboard_cache(game_type, rank)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_game_type ON player_ratings(game_type)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_rating ON player_ratings(rating DESC)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_user ON game_sessions(user_id)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_game_type ON game_sessions(game_type)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type ON leaderboard_cache(game_type, rank)`;
 }
 
 // ============================================================================
@@ -79,35 +94,35 @@ export async function initializeDatabase() {
 
 export async function getOrCreateUser(anilistId: number, username: string, avatarUrl?: string) {
   // Try to get existing user
-  const existing = await sql`
+  const existing = await getDb()`
     SELECT * FROM users WHERE anilist_id = ${anilistId}
   `;
 
-  if (existing.rows.length > 0) {
+  if (existing.length > 0) {
     // Update username/avatar if changed
-    await sql`
+    await getDb()`
       UPDATE users 
       SET username = ${username}, avatar_url = ${avatarUrl || null}, updated_at = CURRENT_TIMESTAMP
       WHERE anilist_id = ${anilistId}
     `;
-    return existing.rows[0];
+    return existing[0];
   }
 
   // Create new user
-  const result = await sql`
+  const result = await getDb()`
     INSERT INTO users (anilist_id, username, avatar_url)
     VALUES (${anilistId}, ${username}, ${avatarUrl || null})
     RETURNING *
   `;
 
-  return result.rows[0];
+  return result[0];
 }
 
 export async function getUserByAnilistId(anilistId: number) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT * FROM users WHERE anilist_id = ${anilistId}
   `;
-  return result.rows[0] || null;
+  return result[0] || null;
 }
 
 // ============================================================================
@@ -115,29 +130,29 @@ export async function getUserByAnilistId(anilistId: number) {
 // ============================================================================
 
 export async function getPlayerRating(userId: number, gameType: string) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT * FROM player_ratings 
     WHERE user_id = ${userId} AND game_type = ${gameType}
   `;
 
-  if (result.rows.length === 0) {
+  if (result.length === 0) {
     // Create default rating
-    const newRating = await sql`
+    const newRating = await getDb()`
       INSERT INTO player_ratings (user_id, game_type, rating)
       VALUES (${userId}, ${gameType}, 1000)
       RETURNING *
     `;
-    return newRating.rows[0];
+    return newRating[0];
   }
 
-  return result.rows[0];
+  return result[0];
 }
 
 export async function getAllPlayerRatings(userId: number) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT * FROM player_ratings WHERE user_id = ${userId}
   `;
-  return result.rows;
+  return result;
 }
 
 // Calculate rating change based on performance
@@ -178,7 +193,7 @@ export async function updateRatingAfterGame(
   const isWin = score / maxScore >= 0.7; // 70%+ is a win
   
   // Update rating
-  await sql`
+  await getDb()`
     UPDATE player_ratings
     SET 
       rating = ${newRating},
@@ -192,7 +207,7 @@ export async function updateRatingAfterGame(
   `;
 
   // Record game session
-  await sql`
+  await getDb()`
     INSERT INTO game_sessions (
       user_id, game_type, score, max_score, questions_count, 
       correct_count, avg_time_per_question, difficulty, rating_change
@@ -216,7 +231,7 @@ export async function updateRatingAfterGame(
 // ============================================================================
 
 export async function getLeaderboard(gameType: string, limit: number = 100) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT 
       u.anilist_id,
       u.username,
@@ -233,12 +248,12 @@ export async function getLeaderboard(gameType: string, limit: number = 100) {
     LIMIT ${limit}
   `;
 
-  return result.rows;
+  return result;
 }
 
 export async function getGlobalLeaderboard(limit: number = 100) {
   // Aggregate ratings across all game types
-  const result = await sql`
+  const result = await getDb()`
     SELECT 
       u.anilist_id,
       u.username,
@@ -257,11 +272,11 @@ export async function getGlobalLeaderboard(limit: number = 100) {
     LIMIT ${limit}
   `;
 
-  return result.rows;
+  return result;
 }
 
 export async function getUserRank(userId: number, gameType: string) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT rank FROM (
       SELECT 
         user_id,
@@ -272,7 +287,7 @@ export async function getUserRank(userId: number, gameType: string) {
     WHERE user_id = ${userId}
   `;
 
-  return result.rows[0]?.rank || null;
+  return result[0]?.rank || null;
 }
 
 // ============================================================================
@@ -280,18 +295,18 @@ export async function getUserRank(userId: number, gameType: string) {
 // ============================================================================
 
 export async function getGameHistory(userId: number, limit: number = 20) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT * FROM game_sessions
     WHERE user_id = ${userId}
     ORDER BY created_at DESC
     LIMIT ${limit}
   `;
 
-  return result.rows;
+  return result;
 }
 
 export async function getGameStats(userId: number) {
-  const result = await sql`
+  const result = await getDb()`
     SELECT 
       game_type,
       COUNT(*) as games_played,
@@ -304,5 +319,5 @@ export async function getGameStats(userId: number) {
     GROUP BY game_type
   `;
 
-  return result.rows;
+  return result;
 }
