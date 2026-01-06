@@ -322,7 +322,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
         <MatchHistoryTab history={matchHistory} />
       )}
       {activeTab === 'challenges' && (
-        <ChallengesTab onStartChallenge={onStartChallenge} />
+        <ChallengesTab onStartChallenge={onStartChallenge || (() => {})} />
       )}
     </div>
   );
