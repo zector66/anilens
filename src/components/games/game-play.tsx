@@ -8,11 +8,8 @@ import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon,
 import { useAnimeTheme } from '@/hooks/use-anime-theme';
 import { ThemePlayerCompact } from './theme-player';
 import { useSettings } from '@/contexts/settings-context';
-
-interface GamePlayProps {
-  game: GameSession;
-  onComplete: (results: GameSession) => void;
-}
+import { useAuth } from '@/hooks/use-auth';
+import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom } from '@/lib/supabase';
 
 // Component for OP/ED guessing with real audio from AnimeThemes
 function OPGuessContent({ 
@@ -143,7 +140,8 @@ function QuestionCard({
 
   // Reset timer pause when question changes
   useEffect(() => {
-    setTimerPaused(question?.type === 'OP_GUESS');
+    const isOpGuess = question?.type === 'OP_GUESS';
+    setTimerPaused(isOpGuess);
   }, [question?.id, question?.type]);
 
   useEffect(() => {
@@ -533,15 +531,62 @@ function QuestionCard({
   );
 }
 
-export function GamePlay({ game, onComplete }: GamePlayProps) {
+interface GamePlayProps {
+  game: GameSession;
+  onComplete: (results: GameSession) => void;
+  multiplayerRoomId?: string;
+}
+
+export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps) {
+  const { user } = useAuth();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [gameState, setGameState] = useState<'playing' | 'answered' | 'times-up'>('playing');
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<GameSession['answers']>([]);
+  const [room, setRoom] = useState<MultiplayerRoom | null>(null);
+  const [opponentAnswered, setOpponentAnswered] = useState(false);
+  const prevOpponentAnswersRef = useRef<number>(0);
+
+  // Sync multiplayer state
+  useEffect(() => {
+    if (!multiplayerRoomId || !user) return;
+
+    // Subscribe to room updates to see opponent progress
+    const channel = subscribeToRoom(multiplayerRoomId, (updatedRoom) => {
+      setRoom(updatedRoom);
+      
+      // Check if opponent just answered
+      const opponent = updatedRoom.players.find(p => p.id !== String(user?.id));
+      if (opponent && opponent.answers.length > prevOpponentAnswersRef.current) {
+        prevOpponentAnswersRef.current = opponent.answers.length;
+        // Flash indicator that opponent answered
+        setOpponentAnswered(true);
+        setTimeout(() => setOpponentAnswered(false), 1000);
+      }
+    });
+
+    return () => {
+      channel?.unsubscribe();
+    };
+  }, [multiplayerRoomId, user]);
+
+  // Update our progress in Supabase
+  useEffect(() => {
+    if (!multiplayerRoomId || !user) return;
+
+    updatePlayerState(multiplayerRoomId, String(user.id), {
+      score,
+      currentQuestion: currentQuestionIndex,
+      answers: answers.map(a => a.correct ? 1 : 0),
+    });
+  }, [multiplayerRoomId, user, score, currentQuestionIndex, answers]);
 
   const currentQuestion = game.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / game.questions.length) * 100;
+
+  // Find opponent for head-to-head display
+  const opponent = room?.players.find(p => p.id !== String(user?.id));
 
   // Skip question (when theme is unavailable for OP_GUESS)
   const handleSkip = useCallback(() => {
@@ -581,12 +626,18 @@ export function GamePlay({ game, onComplete }: GamePlayProps) {
     setAnswers(prev => [...prev, newAnswer]);
     setGameState(answer === '' && timeLeft === 0 ? 'times-up' : 'answered');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (currentQuestionIndex < game.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setGameState('playing');
         setSelectedAnswer('');
       } else {
+        // Mark room as finished if multiplayer
+        if (multiplayerRoomId) {
+          await updateRoomState(multiplayerRoomId, 'finished', { 
+            finishedAt: new Date().toISOString() 
+          });
+        }
         onComplete({
           ...game,
           answers: [...answers, newAnswer],
@@ -595,7 +646,7 @@ export function GamePlay({ game, onComplete }: GamePlayProps) {
         });
       }
     }, 2000);
-  }, [game, currentQuestion, currentQuestionIndex, onComplete, gameState, answers]);
+  }, [game, currentQuestion, currentQuestionIndex, onComplete, gameState, answers, multiplayerRoomId]);
 
   if (currentQuestionIndex >= game.questions.length) {
     return null;
@@ -611,6 +662,18 @@ export function GamePlay({ game, onComplete }: GamePlayProps) {
               <Trophy className="w-5 h-5 text-yellow-400" />
               <span className="font-bold text-yellow-400">{score}</span>
             </div>
+            {opponent && (
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${
+                opponentAnswered 
+                  ? 'bg-yellow-500/30 border-yellow-500/50 scale-105' 
+                  : 'bg-red-500/20 border-red-500/20'
+              }`}>
+                <Users className={`w-4 h-4 ${opponentAnswered ? 'text-yellow-400' : 'text-red-400'}`} />
+                <span className={`font-bold ${opponentAnswered ? 'text-yellow-400' : 'text-red-400'}`}>{opponent.score}</span>
+                <span className="text-[10px] text-red-400/60 uppercase ml-1">{opponent.name}</span>
+                {opponentAnswered && <span className="text-yellow-400 text-xs animate-pulse">⚡</span>}
+              </div>
+            )}
             <div className="text-sm text-gray-400">
               {game.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </div>
@@ -627,7 +690,7 @@ export function GamePlay({ game, onComplete }: GamePlayProps) {
         <div className="relative">
           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+              className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -646,6 +709,15 @@ export function GamePlay({ game, onComplete }: GamePlayProps) {
               </div>
             ))}
           </div>
+          
+          {/* Opponent Progress Marker */}
+          {opponent && (
+            <div 
+              className="absolute top-[-4px] w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-lg transition-all duration-500 z-10"
+              style={{ left: `${((opponent.currentQuestion + 1) / game.questions.length) * 100}%`, transform: 'translateX(-50%)' }}
+              title={`${opponent.name}'s progress`}
+            />
+          )}
         </div>
 
         {/* Keyboard shortcuts hint */}

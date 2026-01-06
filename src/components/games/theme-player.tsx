@@ -271,7 +271,24 @@ export function ThemePlayerCompact({
     setError(false);
     setIsPlaying(false);
     hasCalledOnPlay.current = false;
+
+    // Cleanup: pause video on unmount
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = "";
+        videoRef.current.load();
+      }
+    };
   }, [theme?.id]);
+
+  // Pause when autoPlay becomes false (e.g. when answer is shown)
+  useEffect(() => {
+    if (!autoPlay && videoRef.current && isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [autoPlay, isPlaying]);
 
   if (!theme) {
     return (

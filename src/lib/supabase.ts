@@ -184,6 +184,21 @@ export function subscribeToRoom(
   return channel;
 }
 
+// Update room data
+export async function updateRoom(
+  roomId: string,
+  updates: Partial<MultiplayerRoom>
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from('multiplayer_rooms')
+    .update(updates)
+    .eq('id', roomId);
+
+  return !error;
+}
+
 // Update player state in room
 export async function updatePlayerState(
   roomId: string,

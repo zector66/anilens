@@ -4,15 +4,18 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { GameSession, MediaListEntry } from '@/types/anilist';
+import { GameSession, MediaListEntry, GameQuestion } from '@/types/anilist';
 import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
+import { MultiplayerResults } from './multiplayer-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
-import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords, Settings } from 'lucide-react';
+import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords } from 'lucide-react';
 import { CommunityHub } from './community-hub';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
+import { MultiplayerRoom } from '@/lib/supabase';
+import { MultiplayerLobby } from './multiplayer-lobby';
 
 export function GameHub() {
   const { user } = useAuth();
@@ -27,6 +30,9 @@ export function GameHub() {
   const [showSettings, setShowSettings] = useState(false);
   const [specialGame, setSpecialGame] = useState<'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga' | null>(null);
   const [bracketSettings, setBracketSettings] = useState<{ size: number; category: string }>({ size: 16, category: 'anime' });
+  const [showMultiplayer, setShowMultiplayer] = useState(false);
+  const [multiplayerGameType, setMultiplayerGameType] = useState<string | null>(null);
+  const [multiplayerRoom, setMultiplayerRoom] = useState<MultiplayerRoom | null>(null);
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
@@ -86,6 +92,64 @@ export function GameHub() {
     // All other games (including bracket) use settings modal
     setSelectedGameType(gameType);
     setShowSettings(true);
+  };
+
+  // Open multiplayer lobby
+  const openMultiplayer = (gameType: string) => {
+    setMultiplayerGameType(gameType);
+    setShowMultiplayer(true);
+  };
+
+  const handleStartMultiplayer = async (room: MultiplayerRoom) => {
+    setMultiplayerRoom(room);
+    
+    // If we are the host and questions haven't been generated yet, generate them
+    if (room.hostId === String(user?.id) && (!room.questions || room.questions.length === 0)) {
+      const filteredEntries = filterEntriesByDifficulty(allEntries, room.settings.difficulty as GameSettings['difficulty']);
+      const questionCount = Math.min(room.settings.questionCount, filteredEntries.length);
+      
+      let questions;
+      switch (room.gameType) {
+        case 'op-guessing':
+          questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
+          break;
+        case 'screenshot-guessing':
+          questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
+          break;
+        case 'quote-guessing':
+          questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
+          break;
+        case 'score-guessing':
+          questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
+          break;
+        case 'character-guessing':
+          questions = GameEngine.generateCharacterQuestions(filteredEntries, questionCount);
+          break;
+        case 'season-matching':
+          questions = GameEngine.generateSeasonMatchQuestions(filteredEntries, questionCount);
+          break;
+        case 'cover-guessing':
+          questions = GameEngine.generateCoverGuessQuestions(filteredEntries, questionCount);
+          break;
+        case 'chapters-guessing':
+          questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
+          break;
+        default:
+          return;
+      }
+
+      const { updateRoom } = await import('@/lib/supabase');
+      await updateRoom(room.id, { questions });
+    }
+
+    // Hide lobby and show game when room is in playing state and has questions
+    if (room.state === 'playing' && room.questions && room.questions.length > 0) {
+      setShowMultiplayer(false);
+      setMultiplayerGameType(null);
+      
+      const session = GameEngine.createGameSession(room.gameType, room.questions as GameQuestion[]);
+      setCurrentGame(session);
+    }
   };
 
   // Start game with configured settings
@@ -206,6 +270,19 @@ export function GameHub() {
     setGameResults(results);
   };
 
+  if (showMultiplayer && multiplayerGameType) {
+    return (
+      <MultiplayerLobby
+        gameType={multiplayerGameType}
+        onStartGame={handleStartMultiplayer}
+        onBack={() => {
+          setShowMultiplayer(false);
+          setMultiplayerGameType(null);
+        }}
+      />
+    );
+  }
+
   // Special games (Hangman, Wordle, Bracket Battle)
   if (specialGame === 'hangman') {
     return (
@@ -253,10 +330,34 @@ export function GameHub() {
   }
 
   if (currentGame) {
-    return <GamePlay game={currentGame} onComplete={handleGameComplete} />;
+    return (
+      <GamePlay 
+        game={currentGame} 
+        onComplete={handleGameComplete} 
+        multiplayerRoomId={multiplayerRoom?.id}
+      />
+    );
   }
 
   if (gameResults) {
+    // Use multiplayer results screen for head-to-head games
+    if (multiplayerRoom && multiplayerRoom.players.length > 1) {
+      return (
+        <MultiplayerResults
+          results={gameResults}
+          room={multiplayerRoom}
+          onPlayAgain={() => {
+            setGameResults(null);
+            setMultiplayerRoom(null);
+          }}
+          onBackToHub={() => {
+            setGameResults(null);
+            setMultiplayerRoom(null);
+          }}
+        />
+      );
+    }
+    
     return (
       <GameResults 
         results={gameResults} 
@@ -527,18 +628,32 @@ export function GameHub() {
                       {gameType.difficulty}
                     </div>
                   </div>
-                  <button
-                    onClick={() => !isDisabled && openGameSettings(gameType.id)}
-                    disabled={isDisabled}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isDisabled 
-                        ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    <Play className="w-4 h-4" />
-                    {isDisabled ? 'Coming Soon' : 'Play'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => !isDisabled && openMultiplayer(gameType.id)}
+                      disabled={isDisabled}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isDisabled 
+                          ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
+                          : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      Battle
+                    </button>
+                    <button
+                      onClick={() => !isDisabled && openGameSettings(gameType.id)}
+                      disabled={isDisabled}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isDisabled 
+                          ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
+                          : 'bg-white/10 hover:bg-white/20 text-white'
+                      }`}
+                    >
+                      <Play className="w-4 h-4" />
+                      {isDisabled ? 'Coming Soon' : 'Play'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

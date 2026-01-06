@@ -66,7 +66,11 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
         });
         const data = await response.json();
         if (data.success) {
-          setDbProfile({ ratings: data.ratings || [], stats: data.stats || [] });
+          setDbProfile({ 
+            ratings: data.ratings || [], 
+            stats: data.stats || [],
+            overallRating: data.overallRating
+          });
         }
       } catch (error) {
         console.error('Failed to load profile:', error);
@@ -92,12 +96,12 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
   }, []);
 
   // Calculate totals from database profile
-  const totalGamesPlayed = dbProfile?.ratings.reduce((sum, r) => sum + r.games_played, 0) || 0;
-  const totalWins = dbProfile?.ratings.reduce((sum, r) => sum + r.wins, 0) || 0;
-  const bestStreak = dbProfile?.ratings.reduce((max, r) => Math.max(max, r.best_streak), 0) || 0;
-  const overallRating = dbProfile?.ratings.length 
-    ? Math.round(dbProfile.ratings.reduce((sum, r) => sum + r.rating, 0) / dbProfile.ratings.length)
-    : 0;
+  const totalGamesPlayed = dbProfile?.overallRating?.total_games || dbProfile?.ratings.reduce((sum, r) => sum + r.games_played, 0) || 0;
+  const totalWins = dbProfile?.overallRating?.total_wins || dbProfile?.ratings.reduce((sum, r) => sum + r.wins, 0) || 0;
+  const bestStreak = dbProfile?.overallRating?.best_streak || dbProfile?.ratings.reduce((max, r) => Math.max(max, r.best_streak), 0) || 0;
+  const overallRating = dbProfile?.overallRating?.total_rating || (dbProfile?.ratings.length 
+    ? dbProfile.ratings.reduce((sum, r) => sum + r.rating, 0)
+    : 0);
 
   if (!user || !isOAuthAuthenticated) {
     return (

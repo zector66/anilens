@@ -144,32 +144,30 @@ export class RatingSystem {
   }
 
   /**
-   * Calculate overall rating from per-game ratings
+   * Calculate overall rating from per-game ratings (SUM of all game type ratings)
    */
   static calculateOverallRating(ratings: PlayerRating['ratings']): number {
-    const weights = {
-      opGuessing: 1.2,
-      screenshotGuessing: 1.3,
-      quoteGuessing: 1.0,
-      scoreGuessing: 0.8,
-      characterGuessing: 1.1,
-      seasonMatching: 1.2,
-      coverGuessing: 1.0,
-      chapterGuessing: 0.9,
-    };
+    const gameTypeKeys: (keyof PlayerRating['ratings'])[] = [
+      'opGuessing',
+      'screenshotGuessing',
+      'quoteGuessing',
+      'scoreGuessing',
+      'characterGuessing',
+      'seasonMatching',
+      'coverGuessing',
+      'chapterGuessing',
+    ];
     
-    let totalWeight = 0;
-    let weightedSum = 0;
+    let sum = 0;
     
-    Object.entries(weights).forEach(([key, weight]) => {
-      const rating = ratings[key as keyof typeof weights];
+    gameTypeKeys.forEach((key) => {
+      const rating = ratings[key];
       if (rating !== DEFAULT_RATING) { // Only count if played
-        weightedSum += rating * weight;
-        totalWeight += weight;
+        sum += rating;
       }
     });
     
-    return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : DEFAULT_RATING;
+    return sum;
   }
 
   /**

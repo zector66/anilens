@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MediaListEntry } from '@/types/anilist';
 import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
+import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
 
 interface BracketBattleProps {
   entries: MediaListEntry[];
@@ -54,6 +55,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [audioLoading, setAudioLoading] = useState<number | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cleanup audio on unmount
@@ -136,69 +138,103 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
 
   // Initialize battle items based on battleType and bracketSize
   useEffect(() => {
-    let battleItems: BattleItem[] = [];
-    
-    // Get data based on battle type
-    if (battleType === 'openings') {
-      // For openings, get anime with theme songs
-      const shuffled = shuffleArray(entries).slice(0, bracketSize);
-      battleItems = shuffled.map(entry => ({
-        id: entry.media?.id || 0,
-        anilistId: entry.media?.id || 0,
-        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
-        image: entry.media?.coverImage?.large || '',
-        subtitle: 'Opening Theme',
-      }));
-    } else if (battleType === 'endings') {
-      // For endings, get anime with theme songs
-      const shuffled = shuffleArray(entries).slice(0, bracketSize);
-      battleItems = shuffled.map(entry => ({
-        id: entry.media?.id || 0,
-        anilistId: entry.media?.id || 0,
-        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
-        image: entry.media?.coverImage?.large || '',
-        subtitle: 'Ending Theme',
-      }));
-    } else if (battleType === 'characters') {
-      // For characters, get main characters from anime (using edges structure)
-      const shuffled = shuffleArray(entries).slice(0, bracketSize * 2);
-      battleItems = shuffled.flatMap(entry => {
-        const edges = entry.media?.characters?.edges || [];
-        return edges.slice(0, 1).map(edge => ({
-          id: edge?.node?.id || entry.media?.id || 0,
-          title: edge?.node?.name?.full || 'Unknown Character',
-          image: edge?.node?.image?.large || entry.media?.coverImage?.large || '',
-          subtitle: entry.media?.title.english || entry.media?.title.romaji,
+    let active = true;
+    const initBracket = async () => {
+      setIsInitializing(true);
+      let battleItems: BattleItem[] = [];
+      const shuffledEntries = shuffleArray(entries);
+      
+      // Get data based on battle type
+      if (battleType === 'openings' || battleType === 'endings') {
+        const targetType = battleType === 'openings' ? 'OP' : 'ED';
+        const filtered: BattleItem[] = [];
+        
+        // We need to find enough items with themes to fill the bracket
+        // We'll check entries one by one until we have bracketSize or run out
+        for (const entry of shuffledEntries) {
+          if (!active) return;
+          if (filtered.length >= bracketSize) break;
+          
+          try {
+            const themes = await getAnimeThemes(entry.media?.id || 0);
+            const targetThemes = themes.filter(t => t.type === targetType);
+            const playableTheme = targetThemes.find(t => getThemeAudioUrl(t) !== null);
+            
+            if (playableTheme) {
+              filtered.push({
+                id: entry.media?.id || 0,
+                anilistId: entry.media?.id || 0,
+                title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+                image: entry.media?.coverImage?.large || '',
+                subtitle: battleType === 'openings' ? 'Opening Theme' : 'Ending Theme',
+              });
+            }
+          } catch (e) {
+            console.error('Error checking theme for', entry.media?.title.english, e);
+          }
+        }
+        battleItems = filtered;
+      } else if (battleType === 'characters') {
+        // For characters, get main characters from anime (using edges structure)
+        const itemsToProcess = shuffledEntries.slice(0, bracketSize * 2);
+        battleItems = itemsToProcess.flatMap(entry => {
+          const edges = entry.media?.characters?.edges || [];
+          return edges.slice(0, 1).map(edge => ({
+            id: edge?.node?.id || entry.media?.id || 0,
+            title: edge?.node?.name?.full || 'Unknown Character',
+            image: edge?.node?.image?.large || entry.media?.coverImage?.large || '',
+            subtitle: entry.media?.title.english || entry.media?.title.romaji,
+          }));
+        }).filter(item => item.title !== 'Unknown Character').slice(0, bracketSize);
+      } else {
+        // For anime/manga, use cover images
+        battleItems = shuffledEntries.slice(0, bracketSize).map(entry => ({
+          id: entry.media?.id || 0,
+          title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+          image: entry.media?.coverImage?.large || '',
         }));
-      }).filter(item => item.title !== 'Unknown Character').slice(0, bracketSize);
-    } else {
-      // For anime/manga, use cover images
-      const shuffled = shuffleArray(entries).slice(0, bracketSize);
-      battleItems = shuffled.map(entry => ({
-        id: entry.media?.id || 0,
-        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
-        image: entry.media?.coverImage?.large || '',
-      }));
-    }
-    
-    // Ensure we have a power of 2 and respect bracketSize
-    const targetCount = Math.min(bracketSize, Math.pow(2, Math.floor(Math.log2(battleItems.length))));
-    const finalItems = battleItems.slice(0, Math.max(4, targetCount));
-    
-    setItems(finalItems);
-    
-    // Create first round
-    const matches: [BattleItem, BattleItem][] = [];
-    for (let i = 0; i < finalItems.length; i += 2) {
-      if (finalItems[i] && finalItems[i + 1]) {
-        matches.push([finalItems[i], finalItems[i + 1]]);
       }
-    }
-    setCurrentRound({ matches, winners: [] });
+      
+      if (!active) return;
+
+      // Ensure we have a power of 2 and respect bracketSize
+      const targetCount = Math.pow(2, Math.floor(Math.log2(battleItems.length)));
+      const finalItems = battleItems.slice(0, targetCount);
+      
+      if (finalItems.length < 2) {
+        console.error('Not enough items for a bracket battle');
+        setIsInitializing(false);
+        return;
+      }
+
+      setItems(finalItems);
+      
+      // Create first round
+      const matches: [BattleItem, BattleItem][] = [];
+      for (let i = 0; i < finalItems.length; i += 2) {
+        if (finalItems[i] && finalItems[i + 1]) {
+          matches.push([finalItems[i], finalItems[i + 1]]);
+        }
+      }
+      setCurrentRound({ matches, winners: [] });
+      setMatchIndex(0);
+      setRoundNumber(1);
+      setWinner(null);
+      setIsInitializing(false);
+    };
+
+    initBracket();
+    return () => { active = false; };
   }, [entries, battleType, bracketSize]);
 
   const handleVote = (item: BattleItem, side: 'left' | 'right') => {
     if (!currentRound || isAnimating) return;
+    
+    // Stop any playing audio when voting
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setPlayingId(null);
+    }
     
     setSelectedSide(side);
     setIsAnimating(true);
@@ -258,10 +294,15 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     }
   };
 
-  if (items.length === 0 || !currentRound) {
+  if (isInitializing || items.length === 0 || !currentRound) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-400 animate-pulse">
+          {battleType === 'openings' || battleType === 'endings' 
+            ? 'Finding themes for your tournament...' 
+            : 'Initializing bracket...'}
+        </p>
       </div>
     );
   }
