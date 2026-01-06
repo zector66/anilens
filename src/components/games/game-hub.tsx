@@ -9,7 +9,7 @@ import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
 import { MultiplayerResults } from './multiplayer-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
-import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen } from 'lucide-react';
+import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords } from 'lucide-react';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
