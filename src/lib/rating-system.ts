@@ -7,7 +7,7 @@ import {
   GameQuestion 
 } from '@/types/anilist';
 
-const DEFAULT_RATING = 1200;
+const DEFAULT_RATING = 0; // Start at Iron IV
 const K_FACTOR = 32; // ELO K-factor for rating changes
 const PERFORMANCE_K = 16; // K-factor for solo performance-based rating
 
@@ -257,24 +257,27 @@ export class RatingSystem {
    * Get rank title based on rating
    */
   static getRankTitle(rating: number): { title: string; color: string; icon: string } {
-    if (rating >= 2000) return { title: 'Grandmaster', color: 'text-red-400', icon: '👑' };
-    if (rating >= 1800) return { title: 'Master', color: 'text-purple-400', icon: '💎' };
-    if (rating >= 1600) return { title: 'Diamond', color: 'text-cyan-400', icon: '💠' };
-    if (rating >= 1400) return { title: 'Platinum', color: 'text-emerald-400', icon: '🏆' };
+    // New rank system: Iron IV (0) to Challenger (3000+)
+    if (rating >= 3000) return { title: 'Challenger', color: 'text-amber-300', icon: '👑' };
+    if (rating >= 2800) return { title: 'Grandmaster', color: 'text-red-400', icon: '🔥' };
+    if (rating >= 2400) return { title: 'Master', color: 'text-purple-400', icon: '💎' };
+    if (rating >= 2000) return { title: 'Diamond', color: 'text-cyan-400', icon: '💠' };
+    if (rating >= 1600) return { title: 'Platinum', color: 'text-emerald-400', icon: '🏆' };
     if (rating >= 1200) return { title: 'Gold', color: 'text-yellow-400', icon: '🥇' };
-    if (rating >= 1000) return { title: 'Silver', color: 'text-gray-300', icon: '🥈' };
-    if (rating >= 800) return { title: 'Bronze', color: 'text-orange-400', icon: '🥉' };
-    return { title: 'Unranked', color: 'text-gray-500', icon: '⚪' };
+    if (rating >= 800) return { title: 'Silver', color: 'text-gray-300', icon: '🥈' };
+    if (rating >= 400) return { title: 'Bronze', color: 'text-orange-400', icon: '🥉' };
+    return { title: 'Iron', color: 'text-stone-400', icon: '⚙️' };
   }
 
   /**
    * Calculate percentile from rating (approximate)
    */
   static estimatePercentile(rating: number): number {
-    // Assuming normal distribution centered at 1200 with std dev of 200
-    const z = (rating - 1200) / 200;
+    // Estimate percentile based on new rank system (0-3000+)
+    // Most players are in Iron-Gold range (0-1600)
+    const z = (rating - 800) / 400;
     // Approximate CDF using logistic function
-    const percentile = 100 / (1 + Math.exp(-1.7 * z));
+    const percentile = 100 / (1 + Math.exp(-1.2 * z));
     return Math.round(Math.max(1, Math.min(99, percentile)));
   }
 
