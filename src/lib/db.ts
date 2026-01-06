@@ -155,25 +155,43 @@ export async function getAllPlayerRatings(userId: number) {
   return result;
 }
 
-// Calculate rating change based on performance
+// Calculate rating change based on correct answers
 function calculateRatingChange(
   currentRating: number,
-  score: number,
-  maxScore: number,
+  correctCount: number,
+  questionsCount: number,
   difficulty: string
 ): number {
-  const percentage = score / maxScore;
-  const difficultyMultiplier = difficulty === 'hard' ? 1.5 : difficulty === 'easy' ? 0.75 : 1;
+  // Base MMR per correct answer (scales with difficulty)
+  const basePerCorrect = difficulty === 'hard' ? 15 : difficulty === 'easy' ? 8 : 10;
   
-  // K-factor decreases as rating increases (more stable at higher ratings)
-  const kFactor = currentRating < 1200 ? 40 : currentRating < 1600 ? 32 : 24;
+  // Penalty per wrong answer (smaller than reward to encourage playing)
+  const penaltyPerWrong = difficulty === 'hard' ? 5 : difficulty === 'easy' ? 3 : 4;
   
-  // Expected score based on difficulty
-  const expectedScore = 0.5;
+  const wrongCount = questionsCount - correctCount;
   
-  // Rating change formula
-  const change = Math.round(kFactor * (percentage - expectedScore) * difficultyMultiplier);
+  // Calculate change: gain MMR for correct, lose small amount for wrong
+  let change = (correctCount * basePerCorrect) - (wrongCount * penaltyPerWrong);
   
+  // Bonus for perfect games
+  if (correctCount === questionsCount && questionsCount >= 5) {
+    change += 25; // Perfect game bonus
+  }
+  
+  // High accuracy bonus (90%+)
+  const accuracy = correctCount / questionsCount;
+  if (accuracy >= 0.9 && questionsCount >= 5) {
+    change += 10;
+  }
+  
+  // At higher ratings, gains are slightly reduced (harder to climb)
+  if (currentRating >= 2000) {
+    change = Math.round(change * 0.8);
+  } else if (currentRating >= 1600) {
+    change = Math.round(change * 0.9);
+  }
+  
+  // Minimum change is 0 (can't lose MMR below 0, handled elsewhere)
   return change;
 }
 
@@ -188,7 +206,7 @@ export async function updateRatingAfterGame(
   difficulty: string
 ) {
   const rating = await getPlayerRating(userId, gameType);
-  const ratingChange = calculateRatingChange(rating.rating, score, maxScore, difficulty);
+  const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty);
   const newRating = Math.max(0, rating.rating + ratingChange);
   const isWin = score / maxScore >= 0.7; // 70%+ is a win
   
