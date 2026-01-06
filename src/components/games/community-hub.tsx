@@ -41,8 +41,42 @@ interface CommunityHubProps {
 export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: CommunityHubProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'leaderboard' | 'history' | 'challenges'>('profile');
+  const [dbProfile, setDbProfile] = useState<{
+    ratings: Array<{ game_type: string; rating: number; games_played: number; wins: number; best_streak: number }>;
+    stats: Array<{ game_type: string; games_played: number; avg_accuracy: number }>;
+  } | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
-  // Load data from localStorage using useMemo (sync operations)
+  // Fetch profile from database
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchProfile = async () => {
+      setIsLoadingProfile(true);
+      try {
+        const response = await fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            anilistId: user.id,
+            username: user.name,
+            avatarUrl: user.avatar?.large,
+          }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDbProfile({ ratings: data.ratings || [], stats: data.stats || [] });
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
+  // Load data from localStorage using useMemo (sync operations) - fallback
   const playerRating = useMemo<PlayerRating | null>(() => {
     if (!user) return null;
     return loadPlayerRating(user.id, user.name, user.avatar?.large);
@@ -56,7 +90,15 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
     return isDailyChallengeCompleted();
   }, []);
 
-  if (!user || !playerRating) {
+  // Calculate totals from database profile
+  const totalGamesPlayed = dbProfile?.ratings.reduce((sum, r) => sum + r.games_played, 0) || 0;
+  const totalWins = dbProfile?.ratings.reduce((sum, r) => sum + r.wins, 0) || 0;
+  const bestStreak = dbProfile?.ratings.reduce((max, r) => Math.max(max, r.best_streak), 0) || 0;
+  const overallRating = dbProfile?.ratings.length 
+    ? Math.round(dbProfile.ratings.reduce((sum, r) => sum + r.rating, 0) / dbProfile.ratings.length)
+    : 0;
+
+  if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
@@ -68,8 +110,10 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
     );
   }
 
-  const rankInfo = RatingSystem.getRankTitle(playerRating.ratings.overall);
-  const percentile = RatingSystem.estimatePercentile(playerRating.ratings.overall);
+  // Use database rating if available, otherwise fallback to localStorage
+  const displayRating = dbProfile?.ratings.length ? overallRating : (playerRating?.ratings.overall || 0);
+  const rankInfo = RatingSystem.getRankTitle(displayRating);
+  const percentile = RatingSystem.estimatePercentile(displayRating);
 
   return (
     <div className="space-y-8">
@@ -100,33 +144,33 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
             </div>
           </div>
 
-          {/* Rating Display */}
+          {/* Rating Display - Uses database values with localStorage fallback */}
           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-3 rounded-xl bg-white/5">
-              <p className="text-xs text-gray-400 mb-1">Overall Rating</p>
-              <p className="text-2xl font-bold text-white">{playerRating.ratings.overall}</p>
+              <p className="text-xs text-gray-400 mb-1">Overall MMR</p>
+              <p className="text-2xl font-bold text-white">{displayRating}</p>
               <p className="text-xs text-purple-400">Top {percentile}%</p>
             </div>
             <div className="p-3 rounded-xl bg-white/5">
               <p className="text-xs text-gray-400 mb-1">Games Played</p>
-              <p className="text-2xl font-bold text-white">{playerRating.stats.totalGamesPlayed}</p>
-              <p className="text-xs text-gray-500">{playerRating.stats.perfectGames} perfect</p>
+              <p className="text-2xl font-bold text-white">{totalGamesPlayed || playerRating?.stats.totalGamesPlayed || 0}</p>
+              <p className="text-xs text-gray-500">{dbProfile?.ratings.length || 0} game types</p>
             </div>
             <div className="p-3 rounded-xl bg-white/5">
               <p className="text-xs text-gray-400 mb-1">Win Rate</p>
               <p className="text-2xl font-bold text-white">
-                {playerRating.stats.totalGamesPlayed > 0 
-                  ? `${((playerRating.stats.totalWins / playerRating.stats.totalGamesPlayed) * 100).toFixed(0)}%`
+                {totalGamesPlayed > 0 
+                  ? `${((totalWins / totalGamesPlayed) * 100).toFixed(0)}%`
                   : 'N/A'}
               </p>
-              <p className="text-xs text-gray-500">{playerRating.stats.totalWins} wins</p>
+              <p className="text-xs text-gray-500">{totalWins} wins</p>
             </div>
             <div className="p-3 rounded-xl bg-white/5">
               <p className="text-xs text-gray-400 mb-1">Best Streak</p>
-              <p className="text-2xl font-bold text-white">{playerRating.stats.bestWinStreak}</p>
+              <p className="text-2xl font-bold text-white">{bestStreak || playerRating?.stats.bestWinStreak || 0}</p>
               <p className="text-xs text-orange-400 flex items-center gap-1">
                 <Flame className="w-3 h-3" />
-                Current: {playerRating.stats.winStreak}
+                Keep playing!
               </p>
             </div>
           </div>
@@ -197,7 +241,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'profile' && (
+      {activeTab === 'profile' && playerRating && (
         <PlayerStatsTab playerRating={playerRating} />
       )}
       {activeTab === 'leaderboard' && (
