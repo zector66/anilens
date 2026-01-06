@@ -11,9 +11,8 @@ export interface AuthState {
   accessToken: string | null;
 }
 
-// AniList OAuth configuration
+// AniList OAuth configuration (uses implicit grant flow)
 const ANILIST_AUTH_URL = 'https://anilist.co/api/v2/oauth/authorize';
-const ANILIST_TOKEN_URL = 'https://anilist.co/api/v2/oauth/token';
 
 export class AuthManager {
   private static instance: AuthManager;
@@ -72,7 +71,7 @@ export class AuthManager {
     };
   }
 
-  // Start OAuth flow - redirect to AniList
+  // Start OAuth flow - redirect to AniList (implicit grant)
   startOAuthLogin(): void {
     const clientId = process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID;
     if (!clientId) {
@@ -80,11 +79,10 @@ export class AuthManager {
       return;
     }
 
-    const redirectUri = typeof window !== 'undefined' 
-      ? `${window.location.origin}/`
-      : '';
-
-    const authUrl = `${ANILIST_AUTH_URL}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token`;
+    // AniList implicit grant flow - no redirect_uri needed if using the one registered in app settings
+    const authUrl = `${ANILIST_AUTH_URL}?client_id=${clientId}&response_type=token`;
+    
+    console.log('[AuthManager] Starting OAuth flow:', authUrl);
     
     if (typeof window !== 'undefined') {
       window.location.href = authUrl;
