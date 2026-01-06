@@ -55,11 +55,13 @@ export function Recommendations({ userId }: RecommendationsProps) {
   // Only include watched entries for recommendations (exclude Planning, Paused, Dropped)
   const allEntries = useMemo(() => {
     if (!currentList?.lists) return [];
-    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
+    const validStatuses = activeType === 'ANIME' 
+      ? ['COMPLETED', 'CURRENT', 'REPEATING']
+      : ['COMPLETED', 'CURRENT', 'REPEATING']; // For manga, these are also the discovery-relevant statuses
     return currentList.lists
       .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
       .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [currentList]);
+  }, [currentList, activeType]);
 
   const tasteProfile = useMemo(() => {
     if (allEntries.length === 0) return null;
@@ -88,9 +90,10 @@ export function Recommendations({ userId }: RecommendationsProps) {
       mode,
       minScore: adjustedMinScore,
       tagAffinity: tasteProfile?.tagAffinity || [],
+      studioBias: tasteProfile?.studioBias || [],
       explorationLevel, // Pass to backend for genre diversity
     };
-  }, [selectedGenre, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity]);
+  }, [selectedGenre, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias]);
 
   const { data: recommendedMedia, isLoading: isLoadingRecs, refetch: refetchRecs, isRefetching } = useRecommendations(
     tasteProfile?.genreAffinity || [],
@@ -128,8 +131,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
         <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
           <Heart className="w-8 h-8 text-purple-400" />
         </div>
-        <p className="text-white font-medium mb-2">No anime data found</p>
-        <p className="text-gray-400 text-sm">Watch some anime to get personalized recommendations!</p>
+        <p className="text-white font-medium mb-2">No {activeType.toLowerCase()} data found</p>
+        <p className="text-gray-400 text-sm">Read some {activeType.toLowerCase()} to get personalized recommendations!</p>
       </div>
     );
   }
@@ -201,7 +204,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Personalized Recommendations</h2>
-          <p className="text-gray-400">Based on your {activeType.toLowerCase()} DNA and {allEntries.length} titles discovered</p>
+          <p className="text-gray-400">Based on your {activeType.toLowerCase()} DNA and {allEntries.length} {activeType === 'ANIME' ? 'titles' : 'volumes'} discovered</p>
         </div>
         <button 
           onClick={() => refetchRecs()}

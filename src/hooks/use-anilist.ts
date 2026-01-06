@@ -58,7 +58,8 @@ export interface RecommendationOptions {
   selectedTags?: string[];
   mode?: 'safe' | 'experimental' | 'hidden-gem' | 'all' | 'opposite';
   minScore?: number;
-  tagAffinity?: { tag: string; affinity: number }[];
+  tagAffinity?: Array<{ tag: string; affinity: number; confidence?: number }>;
+  studioBias?: Array<{ studio: string; bias: number }>;
   explorationLevel?: number; // 0-100, affects genre diversity and risk tolerance
 }
 
@@ -68,7 +69,15 @@ export function useRecommendations(
   type: 'ANIME' | 'MANGA' = 'ANIME',
   options: RecommendationOptions = {}
 ) {
-  const { selectedGenre, selectedTags = [], mode = 'all', minScore = 60, tagAffinity = [], explorationLevel = 50 } = options;
+  const { 
+    selectedGenre, 
+    selectedTags = [], 
+    mode = 'all', 
+    minScore = 60, 
+    tagAffinity = [], 
+    studioBias = [],
+    explorationLevel = 50 
+  } = options;
   
   // Create a stable hash of watched IDs for cache key
   const watchedIdsHash = `${watchedIds.size}-${Array.from(watchedIds).slice(0, 10).join(',')}`;
@@ -83,7 +92,8 @@ export function useRecommendations(
       mode,
       selectedTags.join(','),
       minScore,
-      Math.floor(explorationLevel / 20) // Bucket exploration level for caching
+      Math.floor(explorationLevel / 20), // Bucket exploration level for caching
+      studioBias.slice(0, 3).map(s => s.studio).join(',')
     ],
     queryFn: async () => {
       const results = await anilistClient.getRecommendations(genreAffinity, watchedIds, type, {
@@ -92,6 +102,8 @@ export function useRecommendations(
         mode,
         minScore,
         tagAffinity,
+        studioBias,
+        explorationLevel,
         limit: 18
       });
       // Double-check filtering on client side to ensure no watched titles

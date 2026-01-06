@@ -282,6 +282,17 @@ export class AniListClient {
                   rank
                   category
                 }
+                staff(sort: RELEVANCE, perPage: 3) {
+                  edges {
+                    node {
+                      id
+                      name {
+                        full
+                      }
+                    }
+                    role
+                  }
+                }
               }
             }
           }
@@ -626,7 +637,9 @@ export class AniListClient {
       selectedTags?: string[];
       mode?: 'safe' | 'experimental' | 'hidden-gem' | 'all' | 'opposite';
       minScore?: number;
-      tagAffinity?: { tag: string; affinity: number }[];
+      tagAffinity?: Array<{ tag: string; affinity: number; confidence?: number }>;
+      studioBias?: Array<{ studio: string; bias: number }>;
+      explorationLevel?: number;
     } = {}
   ): Promise<Media[]> {
     const { 
@@ -635,7 +648,9 @@ export class AniListClient {
       selectedTags = [],
       mode = 'all',
       minScore = 60,
-      tagAffinity = []
+      tagAffinity = [],
+      studioBias = [],
+      explorationLevel = 50
     } = options;
 
     // OPPOSITE MODE: Intentionally invert taste preferences
@@ -655,8 +670,22 @@ export class AniListClient {
       const lowestAffinity = genreAffinity.slice(-5).map(g => g.genre);
       searchGenres = [...avoidedGenres.slice(0, 2), ...lowestAffinity.slice(0, 1)];
     } else {
+      // Logic for selecting genres to search
       const topGenres = genreAffinity.slice(0, 5).map(g => g.genre);
-      searchGenres = topGenres.sort(() => Math.random() - 0.5).slice(0, 3);
+      const midGenres = genreAffinity.slice(5, 10).map(g => g.genre);
+      
+      if (explorationLevel > 70) {
+        // High exploration: Pick a mix of top and less-watched genres
+        const randomTop = topGenres.sort(() => Math.random() - 0.5).slice(0, 1);
+        const randomMid = midGenres.sort(() => Math.random() - 0.5).slice(0, 2);
+        searchGenres = [...randomTop, ...randomMid];
+      } else if (explorationLevel < 30) {
+        // Comfort mode: Stick to top 2 genres
+        searchGenres = topGenres.slice(0, 2);
+      } else {
+        // Balanced: Top 3 genres randomized
+        searchGenres = topGenres.sort(() => Math.random() - 0.5).slice(0, 3);
+      }
     }
 
     // Determine tags to include
@@ -668,7 +697,9 @@ export class AniListClient {
       const lowestTags = tagAffinity.slice(-5).map(t => t.tag);
       searchTags = lowestTags.slice(0, 2);
     } else if (tagAffinity.length > 0) {
-      searchTags = tagAffinity.slice(0, 3).map(t => t.tag);
+      // Exploration affects how many tags we include
+      const tagCount = explorationLevel > 70 ? 1 : 3;
+      searchTags = tagAffinity.slice(0, tagCount).map(t => t.tag);
     }
 
     // Adjust query parameters based on mode
@@ -761,12 +792,24 @@ export class AniListClient {
               rank
               category
             }
+            staff(sort: RELEVANCE, perPage: 3) {
+              edges {
+                node {
+                  id
+                  name {
+                    full
+                  }
+                }
+                role
+              }
+            }
           }
         }
       }
     `;
 
     try {
+      // 1. Initial Attempt
       const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
         genres: searchGenres.length > 0 ? searchGenres : undefined,
         tags: searchTags.length > 0 ? searchTags : undefined,
@@ -776,15 +819,61 @@ export class AniListClient {
         sort: sortCriteria,
       });
 
-      let results = response.Page.media
-        .filter(media => !watchedIds.has(media.id));
+      let results = response.Page.media.filter(media => !watchedIds.has(media.id));
 
-      // Apply popularity filter based on mode
-      if (popularityRange.min) {
-        results = results.filter(m => m.popularity >= popularityRange.min!);
+      // 2. Fallback Attempt (Broaden search if no results)
+      if (results.length < 5 && (searchGenres.length > 0 || searchTags.length > 0)) {
+        // Try again with either just genres or just tags, and lower minScore
+        const fallbackMinScore = Math.max(40, minScore - 15);
+        
+        const fallbackResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
+          genres: searchGenres.length > 0 ? searchGenres : undefined,
+          tags: undefined, // Drop tags for broader search
+          type,
+          perPage: 100,
+          minScore: fallbackMinScore,
+          sort: sortCriteria,
+        });
+
+        const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        
+        // Merge results, prioritizing original results
+        const existingIds = new Set(results.map(m => m.id));
+        fallbackResults.forEach(m => {
+          if (!existingIds.has(m.id)) {
+            results.push(m);
+          }
+        });
       }
-      if (popularityRange.max) {
-        results = results.filter(m => m.popularity <= popularityRange.max!);
+
+      // 3. Last Resort (Global Trending/Popular if still low)
+      if (results.length < 5) {
+        const lastResortResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
+          genres: undefined,
+          tags: undefined,
+          type,
+          perPage: 50,
+          minScore: 50,
+          sort: ['TRENDING_DESC', 'POPULARITY_DESC'],
+        });
+        
+        const lastResortResults = lastResortResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        const existingIds = new Set(results.map(m => m.id));
+        lastResortResults.forEach(m => {
+          if (!existingIds.has(m.id)) {
+            results.push(m);
+          }
+        });
+      }
+
+      // Apply popularity filter based on mode (only if we have enough results)
+      if (results.length > 20) {
+        if (popularityRange.min) {
+          results = results.filter(m => m.popularity >= popularityRange.min!);
+        }
+        if (popularityRange.max) {
+          results = results.filter(m => m.popularity <= popularityRange.max!);
+        }
       }
 
       // Calculate match scores for each result with detailed multi-reason explanations
@@ -837,6 +926,27 @@ export class AniListClient {
             type: 'quality',
             text: `Highly rated (${media.meanScore}% score)`,
             weight: qualityScore
+          });
+        }
+
+        // Author/Studio match scoring (0-15 points)
+        const sourceLabel = type === 'ANIME' ? 'studio' : 'author';
+        const mediaSources = type === 'ANIME' 
+          ? media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name) || []
+          : media.staff?.edges?.map(e => e.node.name.full) || [];
+        
+        const matchingSources = mediaSources.filter(s => 
+          studioBias.some(sb => sb.studio === s && sb.bias > 0.4)
+        );
+
+        if (matchingSources.length > 0) {
+          const bias = studioBias.find(sb => sb.studio === matchingSources[0])?.bias || 0.5;
+          const score = bias * 15;
+          matchScore += score;
+          reasons.push({
+            type: 'staff',
+            text: `By a preferred ${sourceLabel}: ${matchingSources[0]}`,
+            weight: score
           });
         }
 
