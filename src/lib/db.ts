@@ -155,17 +155,33 @@ export async function getAllPlayerRatings(userId: number) {
   return result;
 }
 
-// Calculate rating change based on correct answers, difficulty, time, and question count
+// Calculate rating change based on correct answers, difficulty, time, question count, and game type
 function calculateRatingChange(
   currentRating: number,
   correctCount: number,
   questionsCount: number,
   difficulty: string,
+  gameType: string,
   avgTime?: number,
   timeLimit?: string
 ): number {
   // Base MMR per correct answer (scales with difficulty)
   const basePerCorrect = difficulty === 'hard' ? 15 : difficulty === 'easy' ? 8 : 10;
+  
+  // Game type difficulty modifier (some games are easier/harder)
+  // 1.0 = normal, <1.0 = easier game (less MMR), >1.0 = harder game (more MMR)
+  const gameTypeModifiers: Record<string, number> = {
+    'op-guessing': 1.0,         // Standard difficulty
+    'quote-guessing': 1.1,      // Harder - need to know quotes
+    'character-guessing': 0.7,  // Easier - visual recognition
+    'score-guessing': 0.9,      // Slightly easier
+    'season-matching': 1.2,     // Hard - need to know air dates
+    'cover-guessing': 0.8,      // Easier - visual recognition
+    'chapters-guessing': 1.1,   // Harder - need to know manga details
+    'hangman': 0.85,            // Medium-easy
+    'wordle': 0.8,              // Easier - common words
+  };
+  const gameModifier = gameTypeModifiers[gameType] || 1.0;
   
   // Penalty per wrong answer (smaller than reward to encourage playing)
   const penaltyPerWrong = difficulty === 'hard' ? 5 : difficulty === 'easy' ? 3 : 4;
@@ -218,6 +234,9 @@ function calculateRatingChange(
     change = Math.round(change * 0.9);
   }
   
+  // Apply game type modifier (easier games give less MMR)
+  change = Math.round(change * gameModifier);
+  
   return change;
 }
 
@@ -233,7 +252,7 @@ export async function updateRatingAfterGame(
   timeLimit?: string
 ) {
   const rating = await getPlayerRating(userId, gameType);
-  const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty, avgTime, timeLimit);
+  const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty, gameType, avgTime, timeLimit);
   const newRating = Math.max(0, rating.rating + ratingChange);
   const isWin = score / maxScore >= 0.7; // 70%+ is a win
   
