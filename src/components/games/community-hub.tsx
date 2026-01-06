@@ -39,7 +39,7 @@ interface CommunityHubProps {
 }
 
 export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: CommunityHubProps) {
-  const { user } = useAuth();
+  const { user, isOAuthAuthenticated, loginWithAniList } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'leaderboard' | 'history' | 'challenges'>('profile');
   const [dbProfile, setDbProfile] = useState<{
     ratings: Array<{ game_type: string; rating: number; games_played: number; wins: number; best_streak: number }>;
@@ -98,14 +98,57 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
     ? Math.round(dbProfile.ratings.reduce((sum, r) => sum + r.rating, 0) / dbProfile.ratings.length)
     : 0;
 
-  if (!user) {
+  if (!user || !isOAuthAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
-          <Users className="w-8 h-8 text-purple-400" />
+      <div className="max-w-lg mx-auto py-16">
+        <div className="p-8 rounded-2xl bg-linear-to-br from-purple-500/20 via-blue-500/10 to-pink-500/20 border border-white/20 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
+            <Trophy className="w-10 h-10 text-purple-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Join the Community</h2>
+          <p className="text-gray-400 mb-6 max-w-sm mx-auto">
+            Login with AniList to access leaderboards, track your rankings, compete with others, and save your game history.
+          </p>
+          
+          <button
+            onClick={loginWithAniList}
+            className="inline-flex items-center gap-3 px-8 py-4 bg-linear-to-r from-purple-500 to-blue-500 rounded-xl font-bold text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:-translate-y-0.5"
+          >
+            <Crown className="w-5 h-5" />
+            Login with AniList
+          </button>
+          
+          <div className="mt-8 grid grid-cols-2 gap-4 text-left">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 text-purple-400 font-medium mb-1">
+                <Trophy className="w-4 h-4" />
+                Leaderboards
+              </div>
+              <p className="text-xs text-gray-500">Compete globally and per game type</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 text-blue-400 font-medium mb-1">
+                <Target className="w-4 h-4" />
+                MMR Rankings
+              </div>
+              <p className="text-xs text-gray-500">Climb from Iron to Challenger</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 text-green-400 font-medium mb-1">
+                <Clock className="w-4 h-4" />
+                Match History
+              </div>
+              <p className="text-xs text-gray-500">Track all your games and progress</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 text-yellow-400 font-medium mb-1">
+                <Award className="w-4 h-4" />
+                Achievements
+              </div>
+              <p className="text-xs text-gray-500">Unlock badges and rewards</p>
+            </div>
+          </div>
         </div>
-        <p className="text-white font-medium mb-2">Login Required</p>
-        <p className="text-gray-400 text-sm">Connect your AniList account to access community features</p>
       </div>
     );
   }
