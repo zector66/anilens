@@ -58,13 +58,14 @@ export function GameHub() {
     );
   }
 
-  // Open settings modal when clicking Play (or start special games directly)
+  // Open settings modal when clicking Play
   const openGameSettings = (gameType: string) => {
-    // Special games that don't need settings
-    if (gameType === 'hangman' || gameType === 'wordle' || gameType === 'bracket-anime' || gameType === 'bracket-manga') {
-      setSpecialGame(gameType as 'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga');
+    // Hangman and Wordle start directly (no settings needed)
+    if (gameType === 'hangman' || gameType === 'wordle') {
+      setSpecialGame(gameType as 'hangman' | 'wordle');
       return;
     }
+    // All other games (including bracket) use settings modal
     setSelectedGameType(gameType);
     setShowSettings(true);
   };
@@ -107,6 +108,12 @@ export function GameHub() {
       case 'chapters-guessing':
         questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
         break;
+      case 'bracket-anime':
+        // Start bracket battle with settings
+        setSpecialGame('bracket-anime');
+        setShowSettings(false);
+        setSelectedGameType(null);
+        return;
       default:
         return;
     }
