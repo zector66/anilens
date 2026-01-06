@@ -9,9 +9,14 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = authManager.subscribe(setAuthState);
+    
+    // Check for OAuth callback on mount
+    authManager.handleOAuthCallback();
+    
     return unsubscribe;
   }, []);
 
+  // Login with username only (view-only mode, no rankings)
   const login = async (username: string) => {
     setIsLoggingIn(true);
     try {
@@ -25,14 +30,24 @@ export function useAuth() {
     }
   };
 
+  // Login with AniList OAuth (required for rankings)
+  const loginWithAniList = () => {
+    authManager.startOAuthLogin();
+  };
+
   const logout = () => {
     authManager.logout();
   };
+
+  // Check if user can submit scores to rankings
+  const canSubmitScores = authManager.canSubmitScores();
 
   return {
     ...authState,
     isLoggingIn,
     login,
+    loginWithAniList,
     logout,
+    canSubmitScores,
   };
 }
