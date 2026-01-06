@@ -19,6 +19,12 @@ export interface GameSettings {
   customTimeSeconds?: number;
   showHints: boolean;
   shuffleOptions: boolean;
+  // OP/ED specific
+  themeMode?: 'openings' | 'endings' | 'mix';
+  // Bracket specific
+  bracketSize?: 8 | 16 | 32 | 64;
+  bracketCategory?: 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
+  bracketGenre?: string;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -36,6 +42,7 @@ interface GameSettingsModalProps {
   gameTitle: string;
   gameDescription: string;
   maxQuestions: number;
+  gameType?: string;
 }
 
 export function GameSettingsModal({
@@ -45,9 +52,18 @@ export function GameSettingsModal({
   gameTitle,
   gameDescription,
   maxQuestions,
+  gameType,
 }: GameSettingsModalProps) {
-  const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<GameSettings>({
+    ...DEFAULT_SETTINGS,
+    themeMode: 'mix',
+    bracketSize: 16,
+    bracketCategory: 'anime',
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const isOpGame = gameType === 'op-guessing';
+  const isBracketGame = gameType?.startsWith('bracket-');
 
   if (!isOpen) return null;
 
@@ -123,7 +139,102 @@ export function GameSettingsModal({
             <p className="text-gray-300 text-sm">{gameDescription}</p>
           </div>
 
-          {/* Question Count */}
+          {/* OP/ED Mode Selection (for op-guessing game) */}
+          {isOpGame && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-white font-medium">
+                🎵 Theme Type
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'openings', label: 'Openings Only', icon: '🎬' },
+                  { id: 'endings', label: 'Endings Only', icon: '🎭' },
+                  { id: 'mix', label: 'Mix Both', icon: '🎵' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSettings({ ...settings, themeMode: option.id as 'openings' | 'endings' | 'mix' })}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                      settings.themeMode === option.id
+                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="text-2xl block mb-1">{option.icon}</span>
+                    <span className="text-xs font-medium">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bracket Battle Settings */}
+          {isBracketGame && (
+            <>
+              {/* Bracket Size */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-white font-medium">
+                  🏆 Bracket Size
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {([8, 16, 32, 64] as const).map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setSettings({ ...settings, bracketSize: size })}
+                      className={`py-3 rounded-xl font-bold transition-all ${
+                        settings.bracketSize === size
+                          ? 'bg-purple-500 text-white scale-105'
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {settings.bracketSize === 8 && '3 rounds to crown a champion'}
+                  {settings.bracketSize === 16 && '4 rounds to crown a champion'}
+                  {settings.bracketSize === 32 && '5 rounds to crown a champion'}
+                  {settings.bracketSize === 64 && '6 rounds to crown a champion'}
+                </p>
+              </div>
+
+              {/* Bracket Category */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-white font-medium">
+                  📂 Battle Category
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'anime', label: 'Anime', icon: '📺', desc: 'Your anime list' },
+                    { id: 'manga', label: 'Manga', icon: '📚', desc: 'Your manga list' },
+                    { id: 'characters', label: 'Characters', icon: '👤', desc: 'Favorite characters' },
+                    { id: 'openings', label: 'Openings', icon: '🎬', desc: 'Best OP tournament' },
+                    { id: 'endings', label: 'Endings', icon: '🎭', desc: 'Best ED tournament' },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setSettings({ ...settings, bracketCategory: option.id as GameSettings['bracketCategory'] })}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        settings.bracketCategory === option.id
+                          ? 'bg-pink-500/20 border-pink-500/50 text-pink-300'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 font-bold">
+                        <span className="text-xl">{option.icon}</span>
+                        {option.label}
+                      </span>
+                      <span className="text-xs opacity-70">{option.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Question Count (hide for bracket games) */}
+          {!isBracketGame && (
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-white font-medium">
               <Hash className="w-4 h-4 text-blue-400" />
@@ -145,9 +256,11 @@ export function GameSettingsModal({
               ))}
             </div>
           </div>
+          )}
 
-          {/* Difficulty */}
-          <div className="space-y-3">
+          {/* Difficulty (hide for bracket games) */}
+          {!isBracketGame && (
+            <div className="space-y-3">
             <label className="flex items-center gap-2 text-white font-medium">
               <Zap className="w-4 h-4 text-yellow-400" />
               Difficulty
@@ -169,30 +282,33 @@ export function GameSettingsModal({
               ))}
             </div>
           </div>
+          )}
 
-          {/* Time Limit */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-white font-medium">
-              <Clock className="w-4 h-4 text-green-400" />
-              Time per Question
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {timeOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setSettings({ ...settings, timeLimit: option.id as GameSettings['timeLimit'] })}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${
-                    settings.timeLimit === option.id
-                      ? 'bg-green-500/20 border-green-500/50 text-green-300'
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
-                  }`}
-                >
-                  <span className="font-bold block">{option.label}</span>
-                  <span className="text-xs opacity-70">{option.seconds}s</span>
-                </button>
-              ))}
+          {/* Time Limit (hide for bracket games) */}
+          {!isBracketGame && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-white font-medium">
+                <Clock className="w-4 h-4 text-green-400" />
+                Time per Question
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {timeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSettings({ ...settings, timeLimit: option.id as GameSettings['timeLimit'] })}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                      settings.timeLimit === option.id
+                        ? 'bg-green-500/20 border-green-500/50 text-green-300'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="font-bold block">{option.label}</span>
+                    <span className="text-xs opacity-70">{option.seconds}s</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Advanced Options Toggle */}
           <button

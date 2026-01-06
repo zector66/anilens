@@ -573,6 +573,7 @@ export function GameHub() {
             gameTitle={selectedGame?.title || ''}
             gameDescription={selectedGame?.description || ''}
             maxQuestions={allEntries.length}
+            gameType={selectedGameType || undefined}
           />
         );
       })()}
