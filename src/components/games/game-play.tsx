@@ -272,22 +272,22 @@ function QuestionCard({
         );
 
       case 'QUOTE_GUESS':
-        const quoteText = question?.question.replace('Guess the anime from this quote: ', '').replace(/"/g, '');
+        const synopsisText = question?.question.replace('Guess the anime from this synopsis snippet: ', '').replace(/"/g, '');
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10 relative overflow-hidden">
               <div className="absolute top-4 left-4 text-6xl text-purple-500/20 font-serif">&ldquo;</div>
               <div className="absolute bottom-4 right-4 text-6xl text-purple-500/20 font-serif rotate-180">&rdquo;</div>
-              <blockquote className="text-xl md:text-2xl italic text-white mb-6 relative z-10 px-8">
-                {quoteText}
+              <blockquote className="text-lg md:text-xl text-white mb-6 relative z-10 px-8">
+                {synopsisText}
               </blockquote>
               <div className="flex items-center justify-center gap-2">
                 <div className="w-8 h-0.5 bg-purple-500/50" />
-                <p className="text-sm text-purple-300">Unknown Character</p>
+                <p className="text-sm text-purple-300">Synopsis Snippet</p>
                 <div className="w-8 h-0.5 bg-purple-500/50" />
               </div>
               <p className="text-xs text-gray-500 mt-4">
-                Which anime features this memorable quote?
+                Which anime is this description from?
               </p>
             </div>
           </div>
