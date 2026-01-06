@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MediaListEntry } from '@/types/anilist';
-import { Trophy, Swords, Music, Tv, BookOpen, Heart, ChevronRight } from 'lucide-react';
+import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
 
 interface BracketBattleProps {
@@ -18,6 +18,8 @@ interface BattleItem {
   title: string;
   image: string;
   subtitle?: string;
+  audioUrl?: string;
+  anilistId?: number;
 }
 
 type BracketRound = {
@@ -50,6 +52,87 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [winner, setWinner] = useState<BattleItem | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
+  const [playingId, setPlayingId] = useState<number | null>(null);
+  const [audioLoading, setAudioLoading] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Toggle audio playback for openings/endings
+  const toggleAudio = async (item: BattleItem) => {
+    const isThemeBattle = battleType === 'openings' || battleType === 'endings';
+    if (!isThemeBattle) return;
+
+    // If already playing this item, pause it
+    if (playingId === item.id) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setPlayingId(null);
+      return;
+    }
+
+    // Stop current audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    setAudioLoading(item.id);
+
+    try {
+      // Fetch theme from AnimeThemes API
+      const anilistId = item.anilistId || item.id;
+      const response = await fetch(
+        `https://api.animethemes.moe/anime?filter[has]=resources&filter[site]=AniList&filter[external_id]=${anilistId}&include=animethemes.animethemeentries.videos`
+      );
+      
+      if (!response.ok) {
+        console.error('Failed to fetch themes');
+        setAudioLoading(null);
+        return;
+      }
+
+      const data = await response.json();
+      const anime = data.anime?.[0];
+      const themes = anime?.animethemes || [];
+      
+      // Filter for openings or endings based on battleType
+      const targetType = battleType === 'openings' ? 'OP' : 'ED';
+      const theme = themes.find((t: { type: string }) => t.type === targetType);
+      
+      if (!theme) {
+        console.log('No theme found for', item.title);
+        setAudioLoading(null);
+        return;
+      }
+
+      const videoUrl = theme.animethemeentries?.[0]?.videos?.[0]?.link;
+      
+      if (videoUrl) {
+        audioRef.current = new Audio(videoUrl);
+        audioRef.current.volume = 0.5;
+        audioRef.current.onended = () => setPlayingId(null);
+        audioRef.current.onerror = () => {
+          console.error('Audio playback error');
+          setPlayingId(null);
+        };
+        await audioRef.current.play();
+        setPlayingId(item.id);
+      }
+    } catch (error) {
+      console.error('Error fetching theme:', error);
+    }
+    
+    setAudioLoading(null);
+  };
 
   // Initialize battle items based on battleType and bracketSize
   useEffect(() => {
@@ -61,6 +144,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       const shuffled = shuffleArray(entries).slice(0, bracketSize);
       battleItems = shuffled.map(entry => ({
         id: entry.media?.id || 0,
+        anilistId: entry.media?.id || 0,
         title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
         image: entry.media?.coverImage?.large || '',
         subtitle: 'Opening Theme',
@@ -70,6 +154,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       const shuffled = shuffleArray(entries).slice(0, bracketSize);
       battleItems = shuffled.map(entry => ({
         id: entry.media?.id || 0,
+        anilistId: entry.media?.id || 0,
         title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
         image: entry.media?.coverImage?.large || '',
         subtitle: 'Ending Theme',
@@ -251,6 +336,30 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            {/* Play button for openings/endings */}
+            {(battleType === 'openings' || battleType === 'endings') && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAudio(currentMatch[0]);
+                }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-black/60 hover:bg-purple-600 flex items-center justify-center transition-all hover:scale-110"
+              >
+                {audioLoading === currentMatch[0].id ? (
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : playingId === currentMatch[0].id ? (
+                  <Pause className="w-8 h-8 text-white" />
+                ) : (
+                  <Play className="w-8 h-8 text-white ml-1" />
+                )}
+              </button>
+            )}
+            {playingId === currentMatch[0].id && (
+              <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-purple-600 text-white text-xs">
+                <Volume2 className="w-3 h-3" />
+                Playing
+              </div>
+            )}
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <p className="text-white font-bold text-lg line-clamp-2">{currentMatch[0].title}</p>
               {currentMatch[0].subtitle && (
@@ -291,6 +400,30 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            {/* Play button for openings/endings */}
+            {(battleType === 'openings' || battleType === 'endings') && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAudio(currentMatch[1]);
+                }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-black/60 hover:bg-purple-600 flex items-center justify-center transition-all hover:scale-110"
+              >
+                {audioLoading === currentMatch[1].id ? (
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : playingId === currentMatch[1].id ? (
+                  <Pause className="w-8 h-8 text-white" />
+                ) : (
+                  <Play className="w-8 h-8 text-white ml-1" />
+                )}
+              </button>
+            )}
+            {playingId === currentMatch[1].id && (
+              <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-purple-600 text-white text-xs">
+                <Volume2 className="w-3 h-3" />
+                Playing
+              </div>
+            )}
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <p className="text-white font-bold text-lg line-clamp-2">{currentMatch[1].title}</p>
               {currentMatch[1].subtitle && (
