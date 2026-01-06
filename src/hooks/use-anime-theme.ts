@@ -3,6 +3,31 @@
 import { useState, useEffect } from 'react';
 import { getThemeProvider, ThemeMetadata } from '@/lib/theme-provider';
 
+// Track recently played themes to avoid repetition
+const RECENT_THEMES_KEY = 'recent-played-themes';
+const MAX_RECENT_THEMES = 30;
+
+function getRecentThemeIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(RECENT_THEMES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentThemeId(themeId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const recent = getRecentThemeIds();
+    const updated = [themeId, ...recent.filter(id => id !== themeId)].slice(0, MAX_RECENT_THEMES);
+    localStorage.setItem(RECENT_THEMES_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 interface UseAnimeThemeResult {
   theme: ThemeMetadata | null;
   isLoading: boolean;
@@ -36,11 +61,37 @@ export function useAnimeTheme(anilistId: number | undefined): UseAnimeThemeResul
         if (cancelled) return;
         
         if (result.success && result.themes.length > 0) {
-          // Pick a random OP/ED theme
+          // Get recently played theme IDs to avoid repetition
+          const recentIds = new Set(getRecentThemeIds());
+          
+          // Filter to OPs first, then all themes
           const opThemes = result.themes.filter(t => t.type === 'OP');
-          const selectedTheme = opThemes.length > 0 
-            ? opThemes[Math.floor(Math.random() * opThemes.length)]
-            : result.themes[Math.floor(Math.random() * result.themes.length)];
+          const edThemes = result.themes.filter(t => t.type === 'ED');
+          const allThemes = [...opThemes, ...edThemes];
+          
+          // Try to find a theme that hasn't been played recently
+          let availableThemes = allThemes.filter(t => !recentIds.has(t.id));
+          
+          // If all themes were recently played, use all of them
+          if (availableThemes.length === 0) {
+            availableThemes = allThemes;
+          }
+          
+          // Truly random selection using crypto if available
+          let randomIndex: number;
+          if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const array = new Uint32Array(1);
+            crypto.getRandomValues(array);
+            randomIndex = array[0] % availableThemes.length;
+          } else {
+            randomIndex = Math.floor(Math.random() * availableThemes.length);
+          }
+          
+          const selectedTheme = availableThemes[randomIndex];
+          
+          // Save this theme as recently played
+          saveRecentThemeId(selectedTheme.id);
+          
           setTheme(selectedTheme);
         } else {
           setError(result.error || 'No theme found');
