@@ -270,23 +270,23 @@ export async function getLeaderboard(gameType: string, limit: number = 100) {
 }
 
 export async function getGlobalLeaderboard(limit: number = 100) {
-  // Aggregate ratings across all game types
+  // Aggregate ratings across all game types - use consistent column names
   const result = await getDb()`
     SELECT 
       u.anilist_id,
       u.username,
       u.avatar_url,
-      AVG(pr.rating)::INTEGER as avg_rating,
-      SUM(pr.games_played)::INTEGER as total_games,
-      SUM(pr.wins)::INTEGER as total_wins,
+      AVG(pr.rating)::INTEGER as rating,
+      SUM(pr.games_played)::INTEGER as games_played,
+      SUM(pr.wins)::INTEGER as wins,
       MAX(pr.best_streak) as best_streak,
       RANK() OVER (ORDER BY AVG(pr.rating) DESC) as rank
     FROM player_ratings pr
     JOIN users u ON pr.user_id = u.id
     WHERE pr.games_played > 0
     GROUP BY u.id, u.anilist_id, u.username, u.avatar_url
-    HAVING SUM(pr.games_played) >= 5
-    ORDER BY avg_rating DESC
+    HAVING SUM(pr.games_played) >= 1
+    ORDER BY rating DESC
     LIMIT ${limit}
   `;
 

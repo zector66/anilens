@@ -284,8 +284,8 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'profile' && playerRating && (
-        <PlayerStatsTab playerRating={playerRating} />
+      {activeTab === 'profile' && (
+        <PlayerStatsTab dbRatings={dbProfile?.ratings || []} dbStats={dbProfile?.stats || []} />
       )}
       {activeTab === 'leaderboard' && (
         <LeaderboardTab currentUserId={user.id} />
@@ -300,136 +300,138 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge }: Commun
   );
 }
 
-function PlayerStatsTab({ playerRating }: { playerRating: PlayerRating }) {
-  const gameTypes = [
-    { key: 'opGuessing', label: 'OP/ED Guessing', icon: '🎵' },
-    { key: 'screenshotGuessing', label: 'Screenshot', icon: '📸' },
-    { key: 'quoteGuessing', label: 'Quote Master', icon: '💬' },
-    { key: 'scoreGuessing', label: 'Memory Test', icon: '🎯' },
-    { key: 'characterGuessing', label: 'Character', icon: '👤' },
-    { key: 'seasonMatching', label: 'Season Nav', icon: '📅' },
-  ];
+interface DbRating {
+  game_type: string;
+  rating: number;
+  games_played: number;
+  wins: number;
+  best_streak: number;
+}
 
-  const topGenres = Object.entries(playerRating.knowledgeAxes.genreExpertise)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
+interface DbStats {
+  game_type: string;
+  games_played: number;
+  avg_accuracy: number;
+}
+
+function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats: DbStats[] }) {
+  const gameTypeInfo: Record<string, { label: string; icon: string }> = {
+    'op-guessing': { label: 'OP/ED Guessing', icon: '🎵' },
+    'quote-guessing': { label: 'Quote Master', icon: '💬' },
+    'score-guessing': { label: 'Memory Test', icon: '🎯' },
+    'character-guessing': { label: 'Character', icon: '👤' },
+    'season-matching': { label: 'Season Nav', icon: '📅' },
+    'cover-guessing': { label: 'Cover Art', icon: '🖼️' },
+    'chapters-guessing': { label: 'Chapter Count', icon: '📚' },
+  };
+
+  // Calculate achievements based on real stats
+  const achievements: string[] = [];
+  const totalGames = dbRatings.reduce((sum, r) => sum + r.games_played, 0);
+  const totalWins = dbRatings.reduce((sum, r) => sum + r.wins, 0);
+  const bestStreak = dbRatings.reduce((max, r) => Math.max(max, r.best_streak), 0);
+  const highestRating = dbRatings.reduce((max, r) => Math.max(max, r.rating), 0);
+
+  if (totalGames >= 1) achievements.push('First Game');
+  if (totalGames >= 10) achievements.push('Dedicated Player');
+  if (totalGames >= 50) achievements.push('Veteran');
+  if (totalWins >= 5) achievements.push('Winner');
+  if (totalWins >= 25) achievements.push('Champion');
+  if (bestStreak >= 3) achievements.push('On Fire');
+  if (bestStreak >= 10) achievements.push('Unstoppable');
+  if (highestRating >= 400) achievements.push('Bronze Tier');
+  if (highestRating >= 800) achievements.push('Silver Tier');
+  if (highestRating >= 1200) achievements.push('Gold Tier');
+  if (highestRating >= 1600) achievements.push('Platinum Tier');
+  if (highestRating >= 2000) achievements.push('Diamond Tier');
 
   return (
     <div className="space-y-6">
-      {/* Per-Game Ratings */}
+      {/* Per-Game Ratings from Database */}
       <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Trophy className="w-5 h-5 text-yellow-400" />
           Ratings by Game Type
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {gameTypes.map(({ key, label, icon }) => {
-            const rating = playerRating.ratings[key as keyof typeof playerRating.ratings];
-            const rankInfo = RatingSystem.getRankTitle(rating as number);
-            return (
-              <div key={key} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">{icon}</span>
-                  <span className="text-sm text-gray-400">{label}</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-white">{rating}</span>
-                  <span className={`text-xs ${rankInfo.color}`}>{rankInfo.title}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Knowledge Axes */}
-      <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Target className="w-5 h-5 text-blue-400" />
-          Knowledge Expertise
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Era Expertise */}
-          <div>
-            <p className="text-sm text-gray-400 mb-3">Era Expertise</p>
-            <div className="space-y-3">
-              {[
-                { key: 'modernEra', label: 'Modern (2015+)', color: 'bg-cyan-500' },
-                { key: 'goldenEra', label: 'Golden (2010-2015)', color: 'bg-purple-500' },
-                { key: 'classicEra', label: 'Classic (Pre-2010)', color: 'bg-amber-500' },
-              ].map(({ key, label, color }) => (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-300">{label}</span>
-                    <span className="text-white font-medium">
-                      {playerRating.knowledgeAxes[key as keyof typeof playerRating.knowledgeAxes] as number}%
-                    </span>
+        {dbRatings.length === 0 ? (
+          <p className="text-gray-500 text-sm">Play games to see your ratings here!</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {dbRatings.map((rating) => {
+              const info = gameTypeInfo[rating.game_type] || { label: rating.game_type, icon: '🎮' };
+              const rankInfo = RatingSystem.getRankTitle(rating.rating);
+              return (
+                <div key={rating.game_type} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{info.icon}</span>
+                    <span className="text-sm text-gray-400">{info.label}</span>
                   </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${color} rounded-full transition-all`}
-                      style={{ width: `${playerRating.knowledgeAxes[key as keyof typeof playerRating.knowledgeAxes]}%` }}
-                    />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-white">{rating.rating}</span>
+                    <span className={`text-xs ${rankInfo.color}`}>{rankInfo.title}</span>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    {rating.games_played} games • {rating.wins} wins
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Popularity Expertise */}
-          <div>
-            <p className="text-sm text-gray-400 mb-3">Popularity Range</p>
-            <div className="space-y-3">
-              {[
-                { key: 'mainstream', label: 'Mainstream (100k+)', color: 'bg-green-500' },
-                { key: 'obscurity', label: 'Obscure (<20k)', color: 'bg-pink-500' },
-              ].map(({ key, label, color }) => (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-300">{label}</span>
-                    <span className="text-white font-medium">
-                      {playerRating.knowledgeAxes[key as keyof typeof playerRating.knowledgeAxes] as number}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${color} rounded-full transition-all`}
-                      style={{ width: `${playerRating.knowledgeAxes[key as keyof typeof playerRating.knowledgeAxes]}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Top Genres */}
-        {topGenres.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-sm text-gray-400 mb-3">Top Genre Expertise</p>
-            <div className="flex flex-wrap gap-2">
-              {topGenres.map(([genre, expertise]) => (
-                <span 
-                  key={genre}
-                  className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-sm"
-                >
-                  {genre}: {expertise}%
-                </span>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Achievements */}
+      {/* Game Performance Stats from Database */}
+      <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Target className="w-5 h-5 text-blue-400" />
+          Performance by Game Type
+        </h3>
+        {dbStats.length === 0 ? (
+          <p className="text-gray-500 text-sm">Complete games to see your performance stats!</p>
+        ) : (
+          <div className="space-y-4">
+            {dbStats.map((stat) => {
+              const info = gameTypeInfo[stat.game_type] || { label: stat.game_type, icon: '🎮' };
+              const accuracy = stat.avg_accuracy || 0;
+              return (
+                <div key={stat.game_type}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300 flex items-center gap-2">
+                      <span>{info.icon}</span> {info.label}
+                    </span>
+                    <span className="text-white font-medium">
+                      {accuracy.toFixed(0)}% accuracy
+                    </span>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all ${
+                        accuracy >= 80 ? 'bg-green-500' : 
+                        accuracy >= 60 ? 'bg-yellow-500' : 
+                        accuracy >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(100, accuracy)}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {stat.games_played} games played
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Achievements based on real stats */}
       <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Award className="w-5 h-5 text-yellow-400" />
-          Achievements ({playerRating.achievements.length})
+          Achievements ({achievements.length})
         </h3>
-        {playerRating.achievements.length > 0 ? (
+        {achievements.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {playerRating.achievements.map((achievement) => (
+            {achievements.map((achievement) => (
               <span 
                 key={achievement}
                 className="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 text-sm flex items-center gap-1"
