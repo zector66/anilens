@@ -155,12 +155,14 @@ export async function getAllPlayerRatings(userId: number) {
   return result;
 }
 
-// Calculate rating change based on correct answers
+// Calculate rating change based on correct answers, difficulty, time, and question count
 function calculateRatingChange(
   currentRating: number,
   correctCount: number,
   questionsCount: number,
-  difficulty: string
+  difficulty: string,
+  avgTime?: number,
+  timeLimit?: string
 ): number {
   // Base MMR per correct answer (scales with difficulty)
   const basePerCorrect = difficulty === 'hard' ? 15 : difficulty === 'easy' ? 8 : 10;
@@ -170,17 +172,42 @@ function calculateRatingChange(
   
   const wrongCount = questionsCount - correctCount;
   
-  // Calculate change: gain MMR for correct, lose small amount for wrong
+  // Calculate base change: gain MMR for correct, lose small amount for wrong
   let change = (correctCount * basePerCorrect) - (wrongCount * penaltyPerWrong);
   
-  // Bonus for perfect games
-  if (correctCount === questionsCount && questionsCount >= 5) {
-    change += 25; // Perfect game bonus
+  // Time limit bonus: speed runs give more MMR
+  if (timeLimit === 'speed') {
+    change = Math.round(change * 1.25); // 25% bonus for speed mode (15 seconds)
+  } else if (timeLimit === 'relaxed') {
+    change = Math.round(change * 0.9); // 10% reduction for relaxed mode
+  }
+  
+  // Fast answer bonus: if average time per question is under 5 seconds
+  if (avgTime && avgTime < 5000) {
+    change += Math.round((5000 - avgTime) / 500); // Up to +10 bonus for very fast answers
+  }
+  
+  // Bonus for perfect games (scales with question count)
+  if (correctCount === questionsCount) {
+    if (questionsCount >= 15) {
+      change += 40; // Large perfect bonus for 15+ questions
+    } else if (questionsCount >= 10) {
+      change += 30; // Medium perfect bonus for 10+ questions
+    } else if (questionsCount >= 5) {
+      change += 20; // Small perfect bonus for 5+ questions
+    }
   }
   
   // High accuracy bonus (90%+)
   const accuracy = correctCount / questionsCount;
   if (accuracy >= 0.9 && questionsCount >= 5) {
+    change += 10;
+  }
+  
+  // Long game bonus: reward players who do more questions
+  if (questionsCount >= 20) {
+    change += 15; // Bonus for marathon games
+  } else if (questionsCount >= 15) {
     change += 10;
   }
   
@@ -191,7 +218,6 @@ function calculateRatingChange(
     change = Math.round(change * 0.9);
   }
   
-  // Minimum change is 0 (can't lose MMR below 0, handled elsewhere)
   return change;
 }
 
@@ -203,10 +229,11 @@ export async function updateRatingAfterGame(
   correctCount: number,
   questionsCount: number,
   avgTime: number,
-  difficulty: string
+  difficulty: string,
+  timeLimit?: string
 ) {
   const rating = await getPlayerRating(userId, gameType);
-  const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty);
+  const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty, avgTime, timeLimit);
   const newRating = Math.max(0, rating.rating + ratingChange);
   const isWin = score / maxScore >= 0.7; // 70%+ is a win
   

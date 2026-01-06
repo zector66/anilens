@@ -315,15 +315,22 @@ interface DbStats {
 }
 
 function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats: DbStats[] }) {
-  const gameTypeInfo: Record<string, { label: string; icon: string }> = {
-    'op-guessing': { label: 'OP/ED Guessing', icon: '🎵' },
-    'quote-guessing': { label: 'Quote Master', icon: '💬' },
-    'score-guessing': { label: 'Memory Test', icon: '🎯' },
-    'character-guessing': { label: 'Character', icon: '👤' },
-    'season-matching': { label: 'Season Nav', icon: '📅' },
-    'cover-guessing': { label: 'Cover Art', icon: '🖼️' },
-    'chapters-guessing': { label: 'Chapter Count', icon: '📚' },
-  };
+  // All available game types
+  const allGameTypes = [
+    { key: 'op-guessing', label: 'OP/ED Guessing', icon: '🎵' },
+    { key: 'quote-guessing', label: 'Quote Master', icon: '💬' },
+    { key: 'score-guessing', label: 'Memory Test', icon: '🎯' },
+    { key: 'character-guessing', label: 'Character', icon: '👤' },
+    { key: 'season-matching', label: 'Season Nav', icon: '📅' },
+    { key: 'cover-guessing', label: 'Cover Art', icon: '🖼️' },
+    { key: 'chapters-guessing', label: 'Chapter Count', icon: '📚' },
+    { key: 'hangman', label: 'Hangman', icon: '🎮' },
+    { key: 'wordle', label: 'Wordle', icon: '⚡' },
+  ];
+
+  // Create a map of ratings by game type for quick lookup
+  const ratingsMap = new Map(dbRatings.map(r => [r.game_type, r]));
+  const statsMap = new Map(dbStats.map(s => [s.game_type, s]));
 
   // Calculate achievements based on real stats
   const achievements: string[] = [];
@@ -347,37 +354,46 @@ function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats
 
   return (
     <div className="space-y-6">
-      {/* Per-Game Ratings from Database */}
+      {/* Per-Game Ratings - Shows ALL game types */}
       <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Trophy className="w-5 h-5 text-yellow-400" />
           Ratings by Game Type
         </h3>
-        {dbRatings.length === 0 ? (
-          <p className="text-gray-500 text-sm">Play games to see your ratings here!</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {dbRatings.map((rating) => {
-              const info = gameTypeInfo[rating.game_type] || { label: rating.game_type, icon: '🎮' };
-              const rankInfo = RatingSystem.getRankTitle(rating.rating);
-              return (
-                <div key={rating.game_type} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">{info.icon}</span>
-                    <span className="text-sm text-gray-400">{info.label}</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-white">{rating.rating}</span>
-                    <span className={`text-xs ${rankInfo.color}`}>{rankInfo.title}</span>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">
-                    {rating.games_played} games • {rating.wins} wins
-                  </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {allGameTypes.map(({ key, label, icon }) => {
+            const rating = ratingsMap.get(key);
+            const hasPlayed = rating && rating.games_played > 0;
+            const mmr = rating?.rating || 0;
+            const rankInfo = RatingSystem.getRankTitle(mmr);
+            
+            return (
+              <div 
+                key={key} 
+                className={`p-4 rounded-xl border ${
+                  hasPlayed 
+                    ? 'bg-white/5 border-white/10' 
+                    : 'bg-white/[0.02] border-white/5 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{icon}</span>
+                  <span className="text-sm text-gray-400">{label}</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-white">{mmr}</span>
+                  <span className={`text-xs ${rankInfo.color}`}>{rankInfo.title}</span>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  {hasPlayed 
+                    ? `${rating.games_played} games • ${rating.wins} wins`
+                    : 'Not played yet'
+                  }
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Game Performance Stats from Database */}
@@ -391,7 +407,8 @@ function PlayerStatsTab({ dbRatings, dbStats }: { dbRatings: DbRating[]; dbStats
         ) : (
           <div className="space-y-4">
             {dbStats.map((stat) => {
-              const info = gameTypeInfo[stat.game_type] || { label: stat.game_type, icon: '🎮' };
+              const gameType = allGameTypes.find(g => g.key === stat.game_type);
+              const info = gameType || { key: stat.game_type, label: stat.game_type, icon: '🎮' };
               const accuracy = stat.avg_accuracy || 0;
               return (
                 <div key={stat.game_type}>

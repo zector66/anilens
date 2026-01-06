@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
       correctCount, 
       questionsCount, 
       avgTime,
-      difficulty 
+      difficulty,
+      timeLimit
     } = await request.json();
 
     if (!anilistId || !username || !gameType || score === undefined) {
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest) {
       correctCount || 0,
       questionsCount || 10,
       avgTime || 0,
-      difficulty || 'mixed'
+      difficulty || 'mixed',
+      timeLimit
     );
 
     // Get updated rank
