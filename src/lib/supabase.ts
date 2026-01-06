@@ -46,7 +46,8 @@ export interface RoomPlayer {
   score: number;
   currentQuestion: number;
   isReady: boolean;
-  answers: number[];
+  answers: number[]; // 1 for correct, 0 for wrong
+  selectedAnswers?: number[]; // Index of selected option for each question
 }
 
 // Multiplayer room
@@ -197,60 +198,47 @@ export async function joinRoom(
     return null;
   }
 
-  const updatedRoom = { ...room, players: updatedPlayers };
-  
-  // Broadcast the join to all subscribers (including host)
-  await broadcastRoomUpdate(room.id, updatedRoom);
-
-  return updatedRoom;
+  return { ...room, players: updatedPlayers };
 }
 
-// Subscribe to room changes using Broadcast (no database replication needed)
+// Poll for room changes (simple and reliable)
 export function subscribeToRoom(
   roomId: string,
   onUpdate: (room: MultiplayerRoom) => void
-) {
+): { unsubscribe: () => void } | null {
   if (!supabase) return null;
 
-  const channel = supabase
-    .channel(`room:${roomId}`)
-    .on(
-      'broadcast',
-      { event: 'room_update' },
-      (payload) => {
-        if (payload.payload) {
-          onUpdate(payload.payload as MultiplayerRoom);
+  let isActive = true;
+  
+  const poll = async () => {
+    while (isActive) {
+      try {
+        const { data, error } = await supabase
+          .from('multiplayer_rooms')
+          .select('*')
+          .eq('id', roomId)
+          .single();
+        
+        if (!error && data) {
+          const room = dbRowToRoom(data);
+          if (room) onUpdate(room);
         }
+      } catch (e) {
+        console.error('Polling error:', e);
       }
-    )
-    .subscribe();
-
-  return channel;
-}
-
-// Broadcast room update to all subscribers
-export async function broadcastRoomUpdate(roomId: string, room: MultiplayerRoom): Promise<void> {
-  if (!supabase) return;
+      
+      // Poll every 500ms for responsive updates
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  };
   
-  const channel = supabase.channel(`room:${roomId}`);
+  poll();
   
-  // Must subscribe before sending
-  await new Promise<void>((resolve) => {
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        resolve();
-      }
-    });
-  });
-  
-  await channel.send({
-    type: 'broadcast',
-    event: 'room_update',
-    payload: room,
-  });
-  
-  // Unsubscribe after sending to clean up
-  await channel.unsubscribe();
+  return {
+    unsubscribe: () => {
+      isActive = false;
+    }
+  };
 }
 
 // Update room data
@@ -296,12 +284,6 @@ export async function updatePlayerState(
     .update({ players: updatedPlayers })
     .eq('id', roomId);
 
-  if (!error) {
-    // Broadcast the update to all subscribers
-    const updatedRoom = { ...currentRoom, players: updatedPlayers };
-    await broadcastRoomUpdate(roomId, updatedRoom);
-  }
-
   return !error;
 }
 
@@ -338,16 +320,6 @@ export async function updateRoomState(
     .from('multiplayer_rooms')
     .update(dbUpdates)
     .eq('id', roomId);
-
-  if (!error) {
-    // Broadcast the update to all subscribers
-    const updatedRoom: MultiplayerRoom = {
-      ...currentRoom,
-      state,
-      ...additionalUpdates,
-    };
-    await broadcastRoomUpdate(roomId, updatedRoom);
-  }
 
   return !error;
 }

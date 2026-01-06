@@ -122,6 +122,9 @@ interface QuestionCardProps {
   selectedAnswer: string;
   onSelect: (answer: string) => void;
   onSkip?: () => void;
+  room?: MultiplayerRoom | null;
+  questionIndex?: number;
+  currentUserId?: string;
 }
 
 function QuestionCard({ 
@@ -130,7 +133,10 @@ function QuestionCard({
   gameState, 
   selectedAnswer, 
   onSelect,
-  onSkip 
+  onSkip,
+  room,
+  questionIndex = 0,
+  currentUserId,
 }: QuestionCardProps) {
   const { getPreferredTitle } = useSettings();
   const [timeLeft, setTimeLeft] = useState(question.timeLimit || 30);
@@ -436,6 +442,11 @@ function QuestionCard({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
             {question.options.map((option: string, index: number) => {
               const optionImage = question.optionImages?.[option];
+              // Get players who selected this option (for multiplayer)
+              const playersWhoSelected = room?.players.filter(p => 
+                p.selectedAnswers?.[questionIndex] === index
+              ) || [];
+              
               return (
                 <button
                   key={index}
@@ -471,6 +482,34 @@ function QuestionCard({
                   <span className="absolute top-2 right-2 text-xs text-gray-500 font-mono opacity-50">
                     {index + 1}
                   </span>
+                  {/* Show profile pictures of players who selected this option */}
+                  {playersWhoSelected.length > 0 && (
+                    <div className="absolute -bottom-2 -right-2 flex -space-x-2">
+                      {playersWhoSelected.map((player) => (
+                        <div 
+                          key={player.id}
+                          className={`w-8 h-8 rounded-full border-2 overflow-hidden ${
+                            player.id === currentUserId ? 'border-purple-500' : 'border-blue-500'
+                          }`}
+                          title={player.name}
+                        >
+                          {player.avatar ? (
+                            <Image
+                              src={player.avatar}
+                              alt={player.name}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-600 flex items-center justify-center text-xs text-white">
+                              {player.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -544,6 +583,7 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
   const [gameState, setGameState] = useState<'playing' | 'answered' | 'times-up'>('playing');
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<GameSession['answers']>([]);
+  const [selectedAnswerIndices, setSelectedAnswerIndices] = useState<number[]>([]);
   const [room, setRoom] = useState<MultiplayerRoom | null>(null);
   const [opponentAnswered, setOpponentAnswered] = useState(false);
   const prevOpponentAnswersRef = useRef<number>(0);
@@ -579,8 +619,9 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
       score,
       currentQuestion: currentQuestionIndex,
       answers: answers.map(a => a.correct ? 1 : 0),
+      selectedAnswers: selectedAnswerIndices,
     });
-  }, [multiplayerRoomId, user, score, currentQuestionIndex, answers]);
+  }, [multiplayerRoomId, user, score, currentQuestionIndex, answers, selectedAnswerIndices]);
 
   const currentQuestion = game.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / game.questions.length) * 100;
@@ -610,6 +651,10 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
     const isCorrect = answer === currentQuestion.correctAnswer;
     const timeTaken = (currentQuestion.timeLimit || 30) - timeLeft;
     const points = isCorrect ? currentQuestion.points : 0;
+    
+    // Track selected answer index for multiplayer profile picture display
+    const answerIndex = currentQuestion.options?.indexOf(answer) ?? -1;
+    setSelectedAnswerIndices(prev => [...prev, answerIndex]);
 
     const newAnswer = {
       questionId: currentQuestion.id,
@@ -735,6 +780,9 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
         selectedAnswer={selectedAnswer}
         onSelect={setSelectedAnswer}
         onSkip={handleSkip}
+        room={room}
+        questionIndex={currentQuestionIndex}
+        currentUserId={user?.id ? String(user.id) : undefined}
       />
     </div>
   );
