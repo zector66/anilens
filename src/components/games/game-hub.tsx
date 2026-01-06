@@ -26,6 +26,7 @@ export function GameHub() {
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [specialGame, setSpecialGame] = useState<'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga' | null>(null);
+  const [bracketSettings, setBracketSettings] = useState<{ size: number; category: string }>({ size: 16, category: 'anime' });
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
@@ -109,7 +110,11 @@ export function GameHub() {
         questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
         break;
       case 'bracket-anime':
-        // Start bracket battle with settings
+        // Start bracket battle with settings from modal
+        setBracketSettings({
+          size: settings.bracketSize || 16,
+          category: settings.bracketCategory || 'anime',
+        });
         setSpecialGame('bracket-anime');
         setShowSettings(false);
         setSelectedGameType(null);
@@ -212,10 +217,13 @@ export function GameHub() {
   }
 
   if (specialGame === 'bracket-anime' || specialGame === 'bracket-manga') {
+    // Use category from settings, or fallback to specialGame type
+    const battleCategory = bracketSettings.category as 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
     return (
       <BracketBattle
         entries={allEntries}
-        battleType={specialGame === 'bracket-anime' ? 'anime' : 'manga'}
+        battleType={battleCategory}
+        bracketSize={bracketSettings.size}
         onComplete={(winner) => {
           console.log('Bracket winner:', winner);
           setSpecialGame(null);

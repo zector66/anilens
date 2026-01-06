@@ -9,7 +9,8 @@ interface BracketBattleProps {
   entries: MediaListEntry[];
   onComplete: (winner: BattleItem) => void;
   onBack: () => void;
-  battleType: 'anime' | 'manga' | 'openings' | 'endings';
+  battleType: 'anime' | 'manga' | 'openings' | 'endings' | 'characters';
+  bracketSize?: number;
 }
 
 interface BattleItem {
@@ -41,7 +42,7 @@ function getRoundName(remaining: number): string {
   return `Round of ${remaining}`;
 }
 
-export function BracketBattle({ entries, onComplete, onBack, battleType }: BracketBattleProps) {
+export function BracketBattle({ entries, onComplete, onBack, battleType, bracketSize = 16 }: BracketBattleProps) {
   const [items, setItems] = useState<BattleItem[]>([]);
   const [currentRound, setCurrentRound] = useState<BracketRound | null>(null);
   const [matchIndex, setMatchIndex] = useState(0);
@@ -50,20 +51,53 @@ export function BracketBattle({ entries, onComplete, onBack, battleType }: Brack
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
-  // Initialize battle items
+  // Initialize battle items based on battleType and bracketSize
   useEffect(() => {
-    const shuffled = shuffleArray(entries).slice(0, 16);
-    const battleItems: BattleItem[] = shuffled.map(entry => ({
-      id: entry.media?.id || 0,
-      title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
-      image: entry.media?.coverImage?.large || '',
-      subtitle: battleType === 'openings' || battleType === 'endings' 
-        ? `${battleType === 'openings' ? 'OP' : 'ED'}` 
-        : undefined,
-    }));
+    let battleItems: BattleItem[] = [];
     
-    // Ensure we have a power of 2
-    const targetCount = Math.pow(2, Math.floor(Math.log2(battleItems.length)));
+    // Get data based on battle type
+    if (battleType === 'openings') {
+      // For openings, get anime with theme songs
+      const shuffled = shuffleArray(entries).slice(0, bracketSize);
+      battleItems = shuffled.map(entry => ({
+        id: entry.media?.id || 0,
+        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+        image: entry.media?.coverImage?.large || '',
+        subtitle: 'Opening Theme',
+      }));
+    } else if (battleType === 'endings') {
+      // For endings, get anime with theme songs
+      const shuffled = shuffleArray(entries).slice(0, bracketSize);
+      battleItems = shuffled.map(entry => ({
+        id: entry.media?.id || 0,
+        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+        image: entry.media?.coverImage?.large || '',
+        subtitle: 'Ending Theme',
+      }));
+    } else if (battleType === 'characters') {
+      // For characters, get main characters from anime (using edges structure)
+      const shuffled = shuffleArray(entries).slice(0, bracketSize * 2);
+      battleItems = shuffled.flatMap(entry => {
+        const edges = entry.media?.characters?.edges || [];
+        return edges.slice(0, 1).map(edge => ({
+          id: edge?.node?.id || entry.media?.id || 0,
+          title: edge?.node?.name?.full || 'Unknown Character',
+          image: edge?.node?.image?.large || entry.media?.coverImage?.large || '',
+          subtitle: entry.media?.title.english || entry.media?.title.romaji,
+        }));
+      }).filter(item => item.title !== 'Unknown Character').slice(0, bracketSize);
+    } else {
+      // For anime/manga, use cover images
+      const shuffled = shuffleArray(entries).slice(0, bracketSize);
+      battleItems = shuffled.map(entry => ({
+        id: entry.media?.id || 0,
+        title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+        image: entry.media?.coverImage?.large || '',
+      }));
+    }
+    
+    // Ensure we have a power of 2 and respect bracketSize
+    const targetCount = Math.min(bracketSize, Math.pow(2, Math.floor(Math.log2(battleItems.length))));
     const finalItems = battleItems.slice(0, Math.max(4, targetCount));
     
     setItems(finalItems);
@@ -71,10 +105,12 @@ export function BracketBattle({ entries, onComplete, onBack, battleType }: Brack
     // Create first round
     const matches: [BattleItem, BattleItem][] = [];
     for (let i = 0; i < finalItems.length; i += 2) {
-      matches.push([finalItems[i], finalItems[i + 1]]);
+      if (finalItems[i] && finalItems[i + 1]) {
+        matches.push([finalItems[i], finalItems[i + 1]]);
+      }
     }
     setCurrentRound({ matches, winners: [] });
-  }, [entries, battleType]);
+  }, [entries, battleType, bracketSize]);
 
   const handleVote = (item: BattleItem, side: 'left' | 'right') => {
     if (!currentRound || isAnimating) return;

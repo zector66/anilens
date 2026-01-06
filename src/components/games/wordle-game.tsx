@@ -19,14 +19,17 @@ const KEYBOARD_ROWS = [
   ['ENTER', ...'ZXCVBNM'.split(''), 'BACK'],
 ];
 
-// Common 5-letter anime-related words
+// Common 5-letter anime-related words (EXACTLY 5 letters each)
 const ANIME_WORDS = [
-  'ANIME', 'MANGA', 'OTAKU', 'SENPAI', 'KAWAI', 'CHIBI', 'BENTO', 
-  'RAMEN', 'NINJA', 'SENSEI', 'KOHAI', 'DANGO', 'MOCHI', 'ONSEN',
-  'SHOJO', 'SEINEN', 'JOSEI', 'MECHA', 'ISEKAI', 'SLICE', 'HAREM',
-  'MAGIC', 'DEMON', 'GHOST', 'SWORD', 'POWER', 'TITAN', 'GUILD',
-  'DEATH', 'ANGEL', 'DEVIL', 'STORM', 'FLAME', 'LIGHT', 'BLADE',
-  'QUEST', 'DREAM', 'HEART', 'BLOOD', 'METAL', 'ROYAL', 'WORLD',
+  'ANIME', 'MANGA', 'OTAKU', 'KAWAI', 'CHIBI', 'BENTO', 'RAMEN',
+  'NINJA', 'KOHAI', 'DANGO', 'MOCHI', 'ONSEN', 'SHOJO', 'JOSEI',
+  'MECHA', 'SLICE', 'HAREM', 'MAGIC', 'DEMON', 'GHOST', 'SWORD',
+  'POWER', 'TITAN', 'GUILD', 'DEATH', 'ANGEL', 'DEVIL', 'STORM',
+  'FLAME', 'LIGHT', 'BLADE', 'QUEST', 'DREAM', 'HEART', 'BLOOD',
+  'METAL', 'ROYAL', 'WORLD', 'SHINY', 'CURSE', 'BRAVE', 'CHAOS',
+  'FAIRY', 'GIANT', 'HONOR', 'NOBLE', 'PRIDE', 'REBEL', 'SAINT',
+  'SHADE', 'SHINE', 'SKILL', 'SPEED', 'SPELL', 'SPEAR', 'STAFF',
+  'STEEL', 'STONE', 'ULTRA', 'UNITY', 'WITCH', 'WRATH', 'YOUTH',
 ];
 
 function getRandomWord(): string {
