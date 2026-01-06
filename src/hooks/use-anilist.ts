@@ -1,0 +1,119 @@
+'use client';
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { anilistClient } from '@/lib/anilist-client';
+
+export function useAnimeList(userId: number) {
+  return useQuery({
+    queryKey: ['animeList', userId],
+    queryFn: async () => {
+      console.log('[useAnimeList] queryFn triggered for userId:', userId);
+      return anilistClient.getAnimeList(userId);
+    },
+    enabled: !!userId && userId > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useMangaList(userId: number) {
+  return useQuery({
+    queryKey: ['mangaList', userId],
+    queryFn: () => anilistClient.getMangaList(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useUserStats(userId: number) {
+  return useQuery({
+    queryKey: ['userStats', userId],
+    queryFn: () => anilistClient.getUserStats(userId),
+    enabled: !!userId,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useMediaSearch(search: string, type: 'ANIME' | 'MANGA' = 'ANIME') {
+  return useQuery({
+    queryKey: ['mediaSearch', search, type],
+    queryFn: () => anilistClient.searchMedia(search, type),
+    enabled: search.length > 2,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+export function useMediaDetails(mediaId: number) {
+  return useQuery({
+    queryKey: ['mediaDetails', mediaId],
+    queryFn: () => anilistClient.getMediaDetails(mediaId),
+    enabled: !!mediaId,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+  });
+}
+
+export interface RecommendationOptions {
+  selectedGenre?: string | null;
+  selectedTags?: string[];
+  mode?: 'safe' | 'experimental' | 'hidden-gem' | 'all' | 'opposite';
+  minScore?: number;
+  tagAffinity?: { tag: string; affinity: number }[];
+  explorationLevel?: number; // 0-100, affects genre diversity and risk tolerance
+}
+
+export function useRecommendations(
+  genreAffinity: { genre: string; affinity: number }[], 
+  watchedIds: Set<number>, 
+  type: 'ANIME' | 'MANGA' = 'ANIME',
+  options: RecommendationOptions = {}
+) {
+  const { selectedGenre, selectedTags = [], mode = 'all', minScore = 60, tagAffinity = [], explorationLevel = 50 } = options;
+  
+  // Create a stable hash of watched IDs for cache key
+  const watchedIdsHash = `${watchedIds.size}-${Array.from(watchedIds).slice(0, 10).join(',')}`;
+  
+  return useQuery({
+    queryKey: [
+      'recommendations', 
+      watchedIdsHash,
+      genreAffinity.slice(0, 5).map(g => g.genre).join(','), 
+      type,
+      selectedGenre || 'all',
+      mode,
+      selectedTags.join(','),
+      minScore,
+      Math.floor(explorationLevel / 20) // Bucket exploration level for caching
+    ],
+    queryFn: async () => {
+      const results = await anilistClient.getRecommendations(genreAffinity, watchedIds, type, {
+        selectedGenre,
+        selectedTags,
+        mode,
+        minScore,
+        tagAffinity,
+        limit: 18
+      });
+      // Double-check filtering on client side to ensure no watched titles
+      return results.filter(media => !watchedIds.has(media.id)).slice(0, 12);
+    },
+    enabled: genreAffinity.length > 0 && watchedIds.size > 0,
+    staleTime: 3 * 60 * 1000,
+  });
+}
+
+export function useInvalidateAnimeList() {
+  const queryClient = useQueryClient();
+  
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['animeList'] });
+  };
+}
+
+export function useInvalidateUserStats() {
+  const queryClient = useQueryClient();
+  
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['userStats'] });
+  };
+}

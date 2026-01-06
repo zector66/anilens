@@ -1,0 +1,500 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
+import { GameEngine } from '@/lib/game-engine';
+import { GameSession, MediaListEntry } from '@/types/anilist';
+import { GamePlay } from './game-play';
+import { GameResults } from './game-results';
+import { GameSettingsModal, GameSettings } from './game-settings';
+import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords, Settings } from 'lucide-react';
+import { CommunityHub } from './community-hub';
+
+export function GameHub() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
+  const [mode, setMode] = useState<'games' | 'community'>('games');
+  const { data: animeList, isLoading: isLoadingAnime } = useAnimeList(user?.id || 0);
+  const { data: mangaList, isLoading: isLoadingManga } = useMangaList(user?.id || 0);
+  
+  const [currentGame, setCurrentGame] = useState<GameSession | null>(null);
+  const [gameResults, setGameResults] = useState<GameSession | null>(null);
+  const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
+  const currentList = activeTab === 'ANIME' ? animeList : mangaList;
+
+  // Only include entries the user has actually watched (exclude Planning, Paused, Dropped)
+  const allEntries = useMemo(() => {
+    if (!currentList?.lists) return [];
+    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
+    return currentList.lists
+      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
+      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
+  }, [currentList]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
+          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <p className="text-gray-400">Loading games...</p>
+      </div>
+    );
+  }
+
+  if (!animeList) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">No game data available.</p>
+      </div>
+    );
+  }
+
+  // Open settings modal when clicking Play
+  const openGameSettings = (gameType: string) => {
+    setSelectedGameType(gameType);
+    setShowSettings(true);
+  };
+
+  // Start game with configured settings
+  const startGameWithSettings = (settings: GameSettings) => {
+    if (!selectedGameType) return;
+    
+    // Filter entries based on difficulty
+    const filteredEntries = filterEntriesByDifficulty(allEntries, settings.difficulty);
+    const questionCount = Math.min(settings.questionCount, filteredEntries.length);
+    
+    // Get time limit based on setting
+    const timeMultiplier = settings.timeLimit === 'relaxed' ? 1.5 : settings.timeLimit === 'speed' ? 0.5 : 1;
+    
+    let questions;
+    
+    switch (selectedGameType) {
+      case 'op-guessing':
+        questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
+        break;
+      case 'screenshot-guessing':
+        questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
+        break;
+      case 'quote-guessing':
+        questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
+        break;
+      case 'score-guessing':
+        questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
+        break;
+      case 'character-guessing':
+        questions = GameEngine.generateCharacterQuestions(filteredEntries, questionCount);
+        break;
+      case 'season-matching':
+        questions = GameEngine.generateSeasonMatchQuestions(filteredEntries, questionCount);
+        break;
+      case 'cover-guessing':
+        questions = GameEngine.generateCoverGuessQuestions(filteredEntries, questionCount);
+        break;
+      case 'chapters-guessing':
+        questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
+        break;
+      default:
+        return;
+    }
+
+    // Apply time multiplier to questions
+    questions = questions.map(q => ({
+      ...q,
+      timeLimit: Math.round((q.timeLimit || 30) * timeMultiplier),
+    }));
+
+    const session = GameEngine.createGameSession(selectedGameType, questions);
+    setCurrentGame(session);
+    setGameResults(null);
+    setShowSettings(false);
+    setSelectedGameType(null);
+  };
+
+  // Filter entries based on difficulty setting
+  const filterEntriesByDifficulty = (entries: MediaListEntry[], difficulty: GameSettings['difficulty']): MediaListEntry[] => {
+    if (difficulty === 'mixed') return entries;
+    
+    const now = new Date();
+    const sortedEntries = [...entries].sort((a, b) => {
+      // Calculate "obscurity" score based on popularity and recency
+      const aPopularity = a.media?.popularity || 0;
+      const bPopularity = b.media?.popularity || 0;
+      const aYear = a.media?.startDate?.year || 2000;
+      const bYear = b.media?.startDate?.year || 2000;
+      const currentYear = now.getFullYear();
+      
+      // Combine popularity and recency into a single score
+      // Higher score = more popular/recent (easier)
+      const aScore = (aPopularity / 100000) + ((aYear - 1990) / (currentYear - 1990));
+      const bScore = (bPopularity / 100000) + ((bYear - 1990) / (currentYear - 1990));
+      
+      return bScore - aScore; // Sort by easiest first
+    });
+    
+    const totalEntries = sortedEntries.length;
+    
+    switch (difficulty) {
+      case 'easy':
+        // Top 40% most popular/recent
+        return sortedEntries.slice(0, Math.ceil(totalEntries * 0.4));
+      case 'medium':
+        // Middle 40%
+        return sortedEntries.slice(Math.ceil(totalEntries * 0.2), Math.ceil(totalEntries * 0.8));
+      case 'hard':
+        // Bottom 40% least popular/oldest
+        return sortedEntries.slice(Math.ceil(totalEntries * 0.6));
+      default:
+        return entries;
+    }
+  };
+
+  // Get selected game info for modal
+  const getSelectedGameInfo = () => {
+    const allGameTypes = [
+      ...animeGameTypes,
+      ...mangaGameTypes,
+      ...commonGameTypes,
+    ];
+    return allGameTypes.find(g => g.id === selectedGameType);
+  };
+
+  const handleGameComplete = (results: GameSession) => {
+    setCurrentGame(null);
+    setGameResults(results);
+  };
+
+  if (currentGame) {
+    return <GamePlay game={currentGame} onComplete={handleGameComplete} />;
+  }
+
+  if (gameResults) {
+    return (
+      <GameResults 
+        results={gameResults} 
+        onPlayAgain={() => setGameResults(null)}
+        onBackToHub={() => setGameResults(null)}
+      />
+    );
+  }
+
+  const animeGameTypes = [
+    {
+      id: 'op-guessing',
+      title: 'OP/ED Guessing',
+      description: 'Guess anime from their opening and ending themes',
+      icon: Music,
+      gradient: 'from-purple-500 to-violet-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '5-10 min',
+    },
+    {
+      id: 'screenshot-guessing',
+      title: 'Screenshot Challenge',
+      description: 'Identify anime from random screenshots',
+      icon: ImageIcon,
+      gradient: 'from-blue-500 to-cyan-500',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '3-8 min',
+    },
+    {
+      id: 'quote-guessing',
+      title: 'Quote Master',
+      description: 'Guess anime from memorable quotes',
+      icon: Quote,
+      gradient: 'from-green-500 to-emerald-500',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '4-7 min',
+    },
+    {
+      id: 'season-matching',
+      title: 'Season Navigator',
+      description: 'Test your memory of when anime aired',
+      icon: Calendar,
+      gradient: 'from-indigo-500 to-blue-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '3-6 min',
+    },
+  ];
+
+  const mangaGameTypes = [
+    {
+      id: 'cover-guessing',
+      title: 'Cover Art Expert',
+      description: 'Guess the manga from its cover illustration',
+      icon: ImageIcon,
+      gradient: 'from-orange-500 to-red-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '4-8 min',
+    },
+    {
+      id: 'chapters-guessing',
+      title: 'Chapter Count',
+      description: 'How well do you know the length of your manga?',
+      icon: BookOpen,
+      gradient: 'from-teal-500 to-emerald-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '3-5 min',
+    },
+  ];
+
+  const commonGameTypes = [
+    {
+      id: 'character-guessing',
+      title: 'Character Expert',
+      description: `Match characters to their respective ${activeTab.toLowerCase()}`,
+      icon: Users,
+      gradient: 'from-pink-500 to-rose-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '4-8 min',
+    },
+    {
+      id: 'score-guessing',
+      title: 'Memory Test',
+      description: `Remember what scores you gave to ${activeTab.toLowerCase()}`,
+      icon: Target,
+      gradient: 'from-orange-500 to-amber-500',
+      difficulty: 'Easy',
+      difficultyColor: 'bg-green-500/20 text-green-400',
+      estimatedTime: '2-5 min',
+    },
+  ];
+
+  const gameTypes = [
+    ...(activeTab === 'ANIME' ? animeGameTypes : mangaGameTypes),
+    ...commonGameTypes,
+  ];
+
+  const handleStartDailyChallenge = () => {
+    const questions = GameEngine.generateOPGuessingQuestions(allEntries, 10);
+    const session = GameEngine.createGameSession('daily-challenge', questions);
+    setCurrentGame(session);
+  };
+
+  const handleStartChallenge = (opponentId: number) => {
+    console.log('Starting challenge with opponent:', opponentId);
+  };
+
+  // Community mode
+  if (mode === 'community') {
+    return (
+      <div className="space-y-8">
+        {/* Mode Toggle */}
+        <div className="flex justify-center">
+          <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
+            <button
+              onClick={() => setMode('games')}
+              className="px-6 py-2 rounded-lg font-bold text-sm transition-all text-gray-400 hover:text-white flex items-center gap-2"
+            >
+              <Gamepad2 className="w-4 h-4" />
+              Play Games
+            </button>
+            <button
+              onClick={() => setMode('community')}
+              className="px-6 py-2 rounded-lg font-bold text-sm transition-all bg-purple-500 text-white shadow-lg shadow-purple-500/25 flex items-center gap-2"
+            >
+              <Swords className="w-4 h-4" />
+              Community
+            </button>
+          </div>
+        </div>
+        
+        <CommunityHub 
+          onStartDailyChallenge={handleStartDailyChallenge}
+          onStartChallenge={handleStartChallenge}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Mode Toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
+          <button
+            onClick={() => setMode('games')}
+            className="px-6 py-2 rounded-lg font-bold text-sm transition-all bg-purple-500 text-white shadow-lg shadow-purple-500/25 flex items-center gap-2"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            Play Games
+          </button>
+          <button
+            onClick={() => setMode('community')}
+            className="px-6 py-2 rounded-lg font-bold text-sm transition-all text-gray-400 hover:text-white flex items-center gap-2"
+          >
+            <Swords className="w-4 h-4" />
+            Community
+          </button>
+        </div>
+      </div>
+
+      {/* Type Toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
+          <button
+            onClick={() => setActiveTab('ANIME')}
+            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+              activeTab === 'ANIME' 
+                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Anime
+          </button>
+          <button
+            onClick={() => setActiveTab('MANGA')}
+            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+              activeTab === 'MANGA' 
+                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Manga
+          </button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-sm text-purple-400 mb-4">
+          <Gamepad2 className="w-4 h-4" />
+          <span>{allEntries.length} {activeTab.toLowerCase()} in your collection</span>
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-3">Game Arena</h2>
+        <p className="text-gray-400 max-w-xl mx-auto">
+          Test your anime knowledge with personalized challenges based on your watch history
+        </p>
+      </div>
+
+      {allEntries.length === 0 ? (
+        <div className="max-w-md mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+            <Trophy className="w-8 h-8 text-yellow-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">No Anime Data</h3>
+          <p className="text-gray-400">
+            You need anime in your AniList to play games. Start watching and come back!
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {gameTypes.map((gameType) => {
+            const Icon = gameType.icon;
+            return (
+              <div 
+                key={gameType.id} 
+                className="group p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="flex items-start gap-4 mb-4">
+                  <div className={`w-12 h-12 rounded-xl bg-linear-to-br ${gameType.gradient} flex items-center justify-center shrink-0`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-white mb-1">{gameType.title}</h3>
+                    <p className="text-sm text-gray-400">{gameType.description}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {gameType.estimatedTime}
+                    </div>
+                    <div className={`px-2 py-0.5 rounded-full ${gameType.difficultyColor}`}>
+                      {gameType.difficulty}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openGameSettings(gameType.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    Play
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Community Features Teaser */}
+      <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">Community Features</h3>
+            <p className="text-sm text-gray-400">Track your progress and compete with friends</p>
+          </div>
+        </div>
+        
+        <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
+          <p className="text-purple-300 mb-2">🏆 Switch to Community mode to view:</p>
+          <div className="flex flex-wrap justify-center gap-2 text-sm">
+            <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Your Rating</span>
+            <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Match History</span>
+            <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Achievements</span>
+            <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Daily Challenges</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Section */}
+      <div className="p-6 rounded-2xl bg-linear-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <Zap className="w-5 h-5 text-purple-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">How It Works</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-purple-400 font-medium mb-1">Personalized</div>
+            <div className="text-gray-400">Questions based on your actual anime list</div>
+          </div>
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-blue-400 font-medium mb-1">Adaptive</div>
+            <div className="text-gray-400">Difficulty scales with your collection</div>
+          </div>
+          <div className="p-3 rounded-lg bg-white/5">
+            <div className="text-green-400 font-medium mb-1">Competitive</div>
+            <div className="text-gray-400">Track your scores and improve over time</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Game Settings Modal */}
+      {(() => {
+        const selectedGame = getSelectedGameInfo();
+        return (
+          <GameSettingsModal
+            isOpen={showSettings}
+            onClose={() => {
+              setShowSettings(false);
+              setSelectedGameType(null);
+            }}
+            onStart={startGameWithSettings}
+            gameTitle={selectedGame?.title || ''}
+            gameDescription={selectedGame?.description || ''}
+            maxQuestions={allEntries.length}
+          />
+        );
+      })()}
+    </div>
+  );
+}
