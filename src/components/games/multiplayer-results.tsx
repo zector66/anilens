@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { GameSession } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { Trophy, Target, Clock, Crown, Swords, Users, RotateCcw, ArrowLeft, Star, Zap } from 'lucide-react';
+import { Trophy, Target, Clock, Crown, Swords, Users, RotateCcw, ArrowLeft, Star, Zap, TrendingUp } from 'lucide-react';
 import { MultiplayerRoom, RoomPlayer } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
+import { useGameStats } from '@/hooks/use-game-stats';
+import { RankBadge, MMRChange } from './rank-badge';
 
 interface MultiplayerResultsProps {
   results: GameSession;
@@ -17,7 +19,15 @@ interface MultiplayerResultsProps {
 
 export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: MultiplayerResultsProps) {
   const { user } = useAuth();
+  const { submitGameResult, canSubmitScores } = useGameStats();
   const [showConfetti, setShowConfetti] = useState(false);
+  const [mmrResult, setMmrResult] = useState<{
+    oldRating: number;
+    newRating: number;
+    change: number;
+    isWin: boolean;
+  } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Find current player and opponent
   const currentPlayer = room.players.find(p => p.id === String(user?.id));
@@ -34,6 +44,43 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
   const accuracy = GameEngine.calculateAccuracy(results);
   const correctAnswers = results.answers.filter(a => a.correct).length;
   const totalQuestions = results.questions.length;
+
+  // Submit results on mount
+  useEffect(() => {
+    const submitResults = async () => {
+      if (!canSubmitScores || isSubmitting || mmrResult) return;
+      
+      setIsSubmitting(true);
+      try {
+        const avgTime = results.answers.reduce((acc, a) => acc + a.timeTaken, 0) / (results.answers.length || 1) * 1000;
+        
+        const result = await submitGameResult(
+          room.gameType,
+          score,
+          totalQuestions * 100, // Estimate max score
+          correctAnswers,
+          totalQuestions,
+          avgTime,
+          room.settings.difficulty
+        );
+
+        if (result.success) {
+          setMmrResult({
+            oldRating: result.oldRating || 0,
+            newRating: result.newRating || 0,
+            change: result.ratingChange || 0,
+            isWin: result.isWin || false,
+          });
+        }
+      } catch (error) {
+        console.error('Error submitting multiplayer results:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    submitResults();
+  }, [canSubmitScores, room.gameType, score, correctAnswers, totalQuestions, results.answers, room.settings.difficulty, submitGameResult, isSubmitting, mmrResult]);
 
   useEffect(() => {
     if (isWinner) {
@@ -83,11 +130,28 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
         <h2 className={`text-4xl font-black mb-2 ${resultInfo.color}`}>
           {resultInfo.text}
         </h2>
-        <p className="text-gray-400">
+        <p className="text-gray-400 mb-6">
           {isDraw ? 'You both played equally well!' : 
            isWinner ? 'You outplayed your opponent!' : 
            'Better luck next time!'}
         </p>
+
+        {/* MMR Change Display */}
+        {mmrResult && (
+          <div className="flex flex-col items-center gap-4 bg-white/5 p-6 rounded-xl border border-white/10 max-w-sm mx-auto">
+            <div className="flex items-center gap-2 text-sm text-gray-400 uppercase tracking-widest">
+              <TrendingUp className="w-4 h-4" />
+              Rating Updated
+            </div>
+            <div className="flex items-center gap-6">
+              <RankBadge mmr={mmrResult.newRating} size="lg" />
+              <MMRChange change={mmrResult.change} oldMMR={mmrResult.oldRating} newMMR={mmrResult.newRating} />
+            </div>
+            <div className="text-xs text-gray-500">
+              {mmrResult.oldRating} → {mmrResult.newRating} MMR
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Head-to-Head Comparison */}

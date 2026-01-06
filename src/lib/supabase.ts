@@ -105,6 +105,7 @@ export async function createRoom(
       currentQuestion: 0,
       isReady: false,
       answers: [],
+      selectedAnswers: [],
     },
   ];
 
@@ -184,6 +185,7 @@ export async function joinRoom(
     currentQuestion: 0,
     isReady: false,
     answers: [],
+    selectedAnswers: [],
   };
 
   const updatedPlayers = [...room.players, newPlayer];
@@ -256,35 +258,53 @@ export async function updateRoom(
   return !error;
 }
 
-// Update player state in room and broadcast to all
+// Update player state in room with retry logic to avoid race conditions
 export async function updatePlayerState(
   roomId: string,
   playerId: string,
-  updates: Partial<RoomPlayer>
+  updates: Partial<RoomPlayer>,
+  maxRetries = 3
 ): Promise<boolean> {
   if (!supabase) return false;
 
-  const { data: dbRoom, error: findError } = await supabase
-    .from('multiplayer_rooms')
-    .select('*')
-    .eq('id', roomId)
-    .single();
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      // 1. Get the latest room state
+      const { data: dbRoom, error: findError } = await supabase
+        .from('multiplayer_rooms')
+        .select('*')
+        .eq('id', roomId)
+        .single();
 
-  if (findError || !dbRoom) return false;
+      if (findError || !dbRoom) return false;
 
-  const currentRoom = dbRowToRoom(dbRoom);
-  if (!currentRoom) return false;
+      const currentRoom = dbRowToRoom(dbRoom);
+      if (!currentRoom) return false;
 
-  const updatedPlayers = currentRoom.players.map((p: RoomPlayer) =>
-    p.id === playerId ? { ...p, ...updates } : p
-  );
+      // 2. Update the specific player
+      const updatedPlayers = currentRoom.players.map((p: RoomPlayer) =>
+        p.id === playerId ? { ...p, ...updates } : p
+      );
 
-  const { error } = await supabase
-    .from('multiplayer_rooms')
-    .update({ players: updatedPlayers })
-    .eq('id', roomId);
+      // 3. Write back the entire players array
+      const { error: updateError } = await supabase
+        .from('multiplayer_rooms')
+        .update({ players: updatedPlayers })
+        .eq('id', roomId);
 
-  return !error;
+      if (!updateError) return true;
+      
+      // If we failed, wait a bit and retry
+      retries++;
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 200 * retries));
+    } catch (e) {
+      console.error('Error updating player state:', e);
+      retries++;
+    }
+  }
+
+  return false;
 }
 
 // Update room state and broadcast to all
@@ -339,8 +359,9 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
   const mappedRoom = dbRowToRoom(room);
   if (!mappedRoom) return false;
 
-  // If host leaves, delete the room
-  if (mappedRoom.hostId === playerId) {
+  // If host leaves and game hasn't started, delete the room
+  // If game is in progress or finished, just remove the player record (unless it's the last player)
+  if (mappedRoom.hostId === playerId && mappedRoom.state === 'waiting') {
     const { error } = await supabase
       .from('multiplayer_rooms')
       .delete()
@@ -350,6 +371,15 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
 
   // Otherwise, remove player from room
   const updatedPlayers = mappedRoom.players.filter((p: RoomPlayer) => p.id !== playerId);
+
+  // If no players left, delete the room regardless of state
+  if (updatedPlayers.length === 0) {
+    const { error } = await supabase
+      .from('multiplayer_rooms')
+      .delete()
+      .eq('id', roomId);
+    return !error;
+  }
 
   const { error } = await supabase
     .from('multiplayer_rooms')

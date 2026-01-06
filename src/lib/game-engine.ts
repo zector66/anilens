@@ -54,6 +54,44 @@ function prioritizeUnused(entries: MediaListEntry[], recentIds: number[]): Media
 }
 
 export class GameEngine {
+  // Filter entries based on difficulty setting
+  static filterEntriesByDifficulty(entries: MediaListEntry[], difficulty: 'easy' | 'medium' | 'hard' | 'mixed'): MediaListEntry[] {
+    if (difficulty === 'mixed') return entries;
+    
+    const now = new Date();
+    const sortedEntries = [...entries].sort((a, b) => {
+      // Calculate "obscurity" score based on popularity and recency
+      const aPopularity = a.media?.popularity || 0;
+      const bPopularity = b.media?.popularity || 0;
+      const aYear = a.media?.startDate?.year || 2000;
+      const bYear = b.media?.startDate?.year || 2000;
+      const currentYear = now.getFullYear();
+      
+      // Combine popularity and recency into a single score
+      // Higher score = more popular/recent (easier)
+      const aScore = (aPopularity / 100000) + ((aYear - 1990) / (currentYear - 1990));
+      const bScore = (bPopularity / 100000) + ((bYear - 1990) / (currentYear - 1990));
+      
+      return bScore - aScore; // Sort by easiest first
+    });
+    
+    const totalEntries = sortedEntries.length;
+    
+    switch (difficulty) {
+      case 'easy':
+        // Top 40% most popular/recent
+        return sortedEntries.slice(0, Math.ceil(totalEntries * 0.4));
+      case 'medium':
+        // Middle 40%
+        return sortedEntries.slice(Math.ceil(totalEntries * 0.2), Math.ceil(totalEntries * 0.8));
+      case 'hard':
+        // Bottom 40%
+        return sortedEntries.slice(Math.floor(totalEntries * 0.6));
+      default:
+        return sortedEntries;
+    }
+  }
+
   static generateOPGuessingQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
@@ -152,7 +190,7 @@ export class GameEngine {
       const difficulty = this.calculateDifficulty(entry);
       
       // Extract a snippet from the actual anime description
-      const snippet = this.extractDescriptionSnippet(media.description, difficulty);
+      const snippet = this.extractDescriptionSnippet(media, difficulty);
       if (!snippet) continue;
       
       const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
@@ -179,7 +217,10 @@ export class GameEngine {
     return questions;
   }
   
-  private static extractDescriptionSnippet(description: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD'): string | null {
+  private static extractDescriptionSnippet(media: Media, difficulty: 'EASY' | 'MEDIUM' | 'HARD'): string | null {
+    const description = media.description;
+    if (!description) return null;
+
     // Clean HTML tags from description
     const cleaned = description.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
     if (cleaned.length < 50) return null;
@@ -189,17 +230,38 @@ export class GameEngine {
     if (sentences.length === 0) return null;
     
     // For harder difficulty, pick shorter/less obvious snippets
-    let snippetLength = difficulty === 'EASY' ? 150 : difficulty === 'MEDIUM' ? 100 : 70;
+    const snippetLength = difficulty === 'EASY' ? 150 : difficulty === 'MEDIUM' ? 100 : 70;
     
     // Try to find a good sentence that doesn't contain the anime title
-    const goodSentences = sentences.filter(s => s.length > 30 && s.length < 200);
+    const titles = [
+      media.title.romaji?.toLowerCase(),
+      media.title.english?.toLowerCase(),
+      media.title.userPreferred?.toLowerCase()
+    ].filter(Boolean) as string[];
+
+    const goodSentences = sentences.filter(s => {
+      const sentenceLower = s.toLowerCase();
+      // Avoid sentences that are too long or contain the titles
+      return s.length > 30 && s.length < 200 && !titles.some(t => sentenceLower.includes(t));
+    });
+
     if (goodSentences.length === 0) {
-      // Fall back to truncating the description
-      return cleaned.substring(0, snippetLength) + '...';
+      // Fall back to first few sentences but still try to hide title if it's right at start
+      const fallback = cleaned.substring(0, 300);
+      let snippet = fallback.substring(0, snippetLength);
+    // Simple attempt to hide titles if they are in the snippet
+      titles.forEach(t => {
+        if (!t) return;
+        // Escape special characters for regex
+        const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(escaped, 'gi');
+        snippet = snippet.replace(reg, '___');
+      });
+      return snippet + (fallback.length > snippetLength ? '...' : '');
     }
     
     // Pick a random sentence from the middle (avoid spoilery endings)
-    const middleSentences = goodSentences.slice(0, Math.max(1, Math.floor(goodSentences.length * 0.6)));
+    const middleSentences = goodSentences.slice(0, Math.max(1, Math.floor(goodSentences.length * 0.7)));
     const picked = middleSentences[Math.floor(Math.random() * middleSentences.length)];
     
     return picked.trim().substring(0, snippetLength) + (picked.length > snippetLength ? '...' : '');
@@ -575,7 +637,7 @@ export class GameEngine {
     return {
       id: `game-${Date.now()}`,
       type,
-      questions: questions.sort(() => Math.random() - 0.5),
+      questions, // Don't reshuffle here, order is determined by generator
       currentQuestionIndex: 0,
       score: 0,
       answers: [],

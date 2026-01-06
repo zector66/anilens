@@ -101,45 +101,6 @@ export function GameHub() {
   const handleStartMultiplayer = async (room: MultiplayerRoom) => {
     setMultiplayerRoom(room);
     
-    // If we are the host and questions haven't been generated yet, generate them
-    if (room.hostId === String(user?.id) && (!room.questions || room.questions.length === 0)) {
-      const filteredEntries = filterEntriesByDifficulty(allEntries, room.settings.difficulty as GameSettings['difficulty']);
-      const questionCount = Math.min(room.settings.questionCount, filteredEntries.length);
-      
-      let questions;
-      switch (room.gameType) {
-        case 'op-guessing':
-          questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
-          break;
-        case 'screenshot-guessing':
-          questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
-          break;
-        case 'quote-guessing':
-          questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
-          break;
-        case 'score-guessing':
-          questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
-          break;
-        case 'character-guessing':
-          questions = GameEngine.generateCharacterQuestions(filteredEntries, questionCount);
-          break;
-        case 'season-matching':
-          questions = GameEngine.generateSeasonMatchQuestions(filteredEntries, questionCount);
-          break;
-        case 'cover-guessing':
-          questions = GameEngine.generateCoverGuessQuestions(filteredEntries, questionCount);
-          break;
-        case 'chapters-guessing':
-          questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
-          break;
-        default:
-          return;
-      }
-
-      const { updateRoom } = await import('@/lib/supabase');
-      await updateRoom(room.id, { questions });
-    }
-
     // Hide lobby and show game when room is in playing state and has questions
     if (room.state === 'playing' && room.questions && room.questions.length > 0) {
       setShowMultiplayer(false);
@@ -155,7 +116,7 @@ export function GameHub() {
     if (!selectedGameType) return;
     
     // Filter entries based on difficulty
-    const filteredEntries = filterEntriesByDifficulty(allEntries, settings.difficulty);
+    const filteredEntries = GameEngine.filterEntriesByDifficulty(allEntries, settings.difficulty);
     const questionCount = Math.min(settings.questionCount, filteredEntries.length);
     
     // Get time limit based on setting
@@ -215,44 +176,6 @@ export function GameHub() {
     setSelectedGameType(null);
   };
 
-  // Filter entries based on difficulty setting
-  const filterEntriesByDifficulty = (entries: MediaListEntry[], difficulty: GameSettings['difficulty']): MediaListEntry[] => {
-    if (difficulty === 'mixed') return entries;
-    
-    const now = new Date();
-    const sortedEntries = [...entries].sort((a, b) => {
-      // Calculate "obscurity" score based on popularity and recency
-      const aPopularity = a.media?.popularity || 0;
-      const bPopularity = b.media?.popularity || 0;
-      const aYear = a.media?.startDate?.year || 2000;
-      const bYear = b.media?.startDate?.year || 2000;
-      const currentYear = now.getFullYear();
-      
-      // Combine popularity and recency into a single score
-      // Higher score = more popular/recent (easier)
-      const aScore = (aPopularity / 100000) + ((aYear - 1990) / (currentYear - 1990));
-      const bScore = (bPopularity / 100000) + ((bYear - 1990) / (currentYear - 1990));
-      
-      return bScore - aScore; // Sort by easiest first
-    });
-    
-    const totalEntries = sortedEntries.length;
-    
-    switch (difficulty) {
-      case 'easy':
-        // Top 40% most popular/recent
-        return sortedEntries.slice(0, Math.ceil(totalEntries * 0.4));
-      case 'medium':
-        // Middle 40%
-        return sortedEntries.slice(Math.ceil(totalEntries * 0.2), Math.ceil(totalEntries * 0.8));
-      case 'hard':
-        // Bottom 40% least popular/oldest
-        return sortedEntries.slice(Math.ceil(totalEntries * 0.6));
-      default:
-        return entries;
-    }
-  };
-
   // Get selected game info for modal
   const getSelectedGameInfo = () => {
     const allGameTypes = [
@@ -263,15 +186,19 @@ export function GameHub() {
     return allGameTypes.find(g => g.id === selectedGameType);
   };
 
-  const handleGameComplete = (results: GameSession) => {
+  const handleGameComplete = (results: GameSession, finalRoom?: MultiplayerRoom) => {
     setCurrentGame(null);
     setGameResults(results);
+    if (finalRoom) {
+      setMultiplayerRoom(finalRoom);
+    }
   };
 
   if (showMultiplayer && multiplayerGameType) {
     return (
       <MultiplayerLobby
         gameType={multiplayerGameType}
+        allEntries={multiplayerGameType?.includes('chapters') || multiplayerGameType?.includes('volumes') ? mangaEntries : allEntries}
         onStartGame={handleStartMultiplayer}
         onBack={() => {
           setShowMultiplayer(false);

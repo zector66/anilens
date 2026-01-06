@@ -21,17 +21,20 @@ import {
   updateRoomState,
   leaveRoom,
   MultiplayerRoom,
-  RoomPlayer,
 } from '@/lib/supabase';
 import Image from 'next/image';
+import { MediaListEntry, GameQuestion } from '@/types/anilist';
+import { GameEngine } from '@/lib/game-engine';
+import { GameSettings } from './game-settings';
 
 interface MultiplayerLobbyProps {
   gameType: string;
+  allEntries: MediaListEntry[];
   onStartGame: (room: MultiplayerRoom) => void;
   onBack: () => void;
 }
 
-export function MultiplayerLobby({ gameType, onStartGame, onBack }: MultiplayerLobbyProps) {
+export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: MultiplayerLobbyProps) {
   const { user } = useAuth();
   const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'lobby'>('menu');
   const [room, setRoom] = useState<MultiplayerRoom | null>(null);
@@ -40,18 +43,16 @@ export function MultiplayerLobby({ gameType, onStartGame, onBack }: MultiplayerL
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check if Supabase is configured
-  const isConfigured = !!supabase;
-
-  // Subscribe to room updates
+  // Sync room state when in lobby
   useEffect(() => {
-    if (!room) return;
+    const roomId = room?.id;
+    if (!roomId || mode !== 'lobby') return;
 
-    const channel = subscribeToRoom(room.id, (updatedRoom) => {
+    const channel = subscribeToRoom(roomId, (updatedRoom) => {
       setRoom(updatedRoom);
       
       // If game started, notify parent
-      if (updatedRoom.state === 'playing') {
+      if (updatedRoom.state === 'playing' && updatedRoom.questions?.length > 0) {
         onStartGame(updatedRoom);
       }
     });
@@ -59,13 +60,18 @@ export function MultiplayerLobby({ gameType, onStartGame, onBack }: MultiplayerL
     return () => {
       channel?.unsubscribe();
     };
-  }, [room?.id, onStartGame]);
+  }, [room?.id, mode, onStartGame]);
+
+  // Check if Supabase is configured
+  const isConfigured = !!supabase;
 
   // Cleanup on unmount
   useEffect(() => {
+    const roomId = room?.id;
+    const userId = user?.id;
     return () => {
-      if (room && user) {
-        leaveRoom(room.id, String(user.id));
+      if (roomId && userId) {
+        leaveRoom(roomId, String(userId));
       }
     };
   }, [room?.id, user?.id]);
@@ -129,7 +135,7 @@ export function MultiplayerLobby({ gameType, onStartGame, onBack }: MultiplayerL
   };
 
   const handleStartGame = async () => {
-    if (!room) return;
+    if (!room || !user || !allEntries.length) return;
     
     // Check if all players are ready
     const allReady = room.players.every(p => p.isReady);
@@ -138,7 +144,58 @@ export function MultiplayerLobby({ gameType, onStartGame, onBack }: MultiplayerL
       return;
     }
 
-    await updateRoomState(room.id, 'playing', { startedAt: new Date().toISOString() });
+    setIsLoading(true);
+    try {
+      // 1. Generate questions first as host
+      const filteredEntries = GameEngine.filterEntriesByDifficulty(allEntries, room.settings.difficulty as GameSettings['difficulty']);
+      const questionCount = Math.min(room.settings.questionCount, filteredEntries.length);
+      
+      let questions: GameQuestion[] = [];
+      switch (gameType) {
+        case 'op-guessing':
+          questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
+          break;
+        case 'screenshot-guessing':
+          questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
+          break;
+        case 'quote-guessing':
+          questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
+          break;
+        case 'score-guessing':
+          questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
+          break;
+        case 'character-guessing':
+          questions = GameEngine.generateCharacterQuestions(filteredEntries, questionCount);
+          break;
+        case 'season-matching':
+          questions = GameEngine.generateSeasonMatchQuestions(filteredEntries, questionCount);
+          break;
+        case 'cover-guessing':
+          questions = GameEngine.generateCoverGuessQuestions(filteredEntries, questionCount);
+          break;
+        case 'chapters-guessing':
+          questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
+          break;
+      }
+
+      if (questions.length === 0) {
+        setError('Failed to generate questions. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Update room with questions AND set state to playing in one go
+      // This ensures guests see both at the same time and eliminates race conditions
+      await updateRoomState(room.id, 'playing', { 
+        questions,
+        startedAt: new Date().toISOString() 
+      });
+    } catch (err) {
+      console.error('Error starting game:', err);
+      setError('Failed to start game.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyRoomCode = () => {

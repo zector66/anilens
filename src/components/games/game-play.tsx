@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { GameSession, GameQuestion } from '@/types/anilist';
-import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon } from 'lucide-react';
 import { useAnimeTheme } from '@/hooks/use-anime-theme';
 import { ThemePlayerCompact } from './theme-player';
 import { useSettings } from '@/contexts/settings-context';
@@ -148,7 +148,8 @@ function QuestionCard({
   useEffect(() => {
     const isOpGuess = question?.type === 'OP_GUESS';
     setTimerPaused(isOpGuess);
-  }, [question?.id, question?.type]);
+    setTimeLeft(question?.timeLimit || 30);
+  }, [questionIndex, question?.id, question?.type, question?.timeLimit]); // Reset timer and pause state on question change
 
   useEffect(() => {
     // Don't run timer if paused (waiting for audio to start)
@@ -572,7 +573,7 @@ function QuestionCard({
 
 interface GamePlayProps {
   game: GameSession;
-  onComplete: (results: GameSession) => void;
+  onComplete: (results: GameSession, finalRoom?: MultiplayerRoom) => void;
   multiplayerRoomId?: string;
 }
 
@@ -693,21 +694,35 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
           answers,
           completed: true,
           endTime: Date.now(),
-        });
+        }, room || undefined);
       }
     };
 
     // In multiplayer, wait for opponent to answer before advancing
     if (multiplayerRoomId && room) {
       const opponent = room.players.find(p => p.id !== String(user?.id));
-      const opponentAnsweredCurrent = opponent && opponent.answers.length > currentQuestionIndex;
+      const myProgress = answers.length;
+      const opponentProgress = opponent?.answers?.length || 0;
       
-      if (opponentAnsweredCurrent) {
+      console.log('Progress Sync:', {
+        myProgress,
+        opponentProgress,
+        currentQuestionIndex,
+        answersCount: answers.length,
+        opponentAnswersCount: opponent?.answers?.length
+      });
+
+      // We only care about the current question index
+      // Both must have answered the current question (index)
+      const bothAnswered = myProgress > currentQuestionIndex && opponentProgress > currentQuestionIndex;
+      
+      if (bothAnswered) {
+        console.log('Both answered, advancing...');
         // Both answered - advance after short delay to show results
-        const timer = setTimeout(advanceToNext, 1500);
+        const timer = setTimeout(advanceToNext, 2000);
         return () => clearTimeout(timer);
       }
-      // Still waiting for opponent - don't advance yet
+      // Still waiting for someone - don't advance yet
       return;
     }
     
