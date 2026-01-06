@@ -220,42 +220,48 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       value: tasteProfile.personalityTraits.completionist, 
       icon: Target,
       color: 'from-green-500 to-emerald-500',
-      description: 'Your drive to finish what you start'
+      description: 'Your drive to finish what you start',
+      tooltip: 'Measures your completion rate minus drop rate. High score = you finish most titles you start and rarely drop.'
     },
     { 
       label: 'Seasonal Tourist', 
       value: tasteProfile.personalityTraits.seasonalTourist, 
       icon: Clock,
       color: 'from-blue-500 to-cyan-500',
-      description: 'Following current season trends'
+      description: 'Following current season trends',
+      tooltip: 'Based on % of your list from the current/last year. High score = you watch lots of currently airing or recent titles.'
     },
     { 
       label: 'Cult Hunter', 
       value: tasteProfile.personalityTraits.cultHunter, 
       icon: Zap,
       color: 'from-yellow-500 to-orange-500',
-      description: 'Seeking hidden gems and classics'
+      description: 'Seeking hidden gems and classics',
+      tooltip: 'Measures how many low-popularity titles you watch. High score = you dig deep for obscure gems others miss.'
     },
     { 
       label: 'Art Snob', 
       value: tasteProfile.personalityTraits.artSnob, 
       icon: Palette,
       color: 'from-pink-500 to-rose-500',
-      description: 'Appreciation for visual excellence'
+      description: 'Appreciation for visual excellence',
+      tooltip: 'Based on experimental/avant-garde titles in your list. High score = you appreciate unique visual styles and art.'
     },
     { 
       label: 'Mainstream Maxxer', 
       value: tasteProfile.personalityTraits.mainstreamMaxxer, 
       icon: Zap,
       color: 'from-blue-400 to-indigo-600',
-      description: 'Following the cultural phenomena'
+      description: 'Following the cultural phenomena',
+      tooltip: 'Measures how many highly popular titles you watch. High score = you watch what everyone is talking about.'
     },
     { 
       label: 'Nostalgia Addict', 
       value: tasteProfile.personalityTraits.nostalgiaAddict, 
       icon: Clock,
       color: 'from-amber-700 to-orange-800',
-      description: 'Classic-focused taste'
+      description: 'Classic-focused taste',
+      tooltip: 'Based on older titles in your list. High score = your heart belongs to anime from previous decades.'
     },
   ];
 
@@ -312,7 +318,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <h3 className="text-lg font-semibold text-white mb-4">Personality Traits</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {personalityCards.map((trait, i) => (
-            <div key={i} className="p-5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
+            <div 
+              key={i} 
+              className="p-5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors group relative"
+              title={trait.tooltip}
+            >
               <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${trait.color} flex items-center justify-center mb-3`}>
                 <trait.icon className="w-5 h-5 text-white" />
               </div>
@@ -325,6 +335,10 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-2">{trait.description}</p>
+              {/* Tooltip on hover */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-48 text-center z-10 shadow-xl">
+                {trait.tooltip}
+              </div>
             </div>
           ))}
         </div>
@@ -339,7 +353,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             </div>
             <div>
               <h4 className="text-white font-semibold">Emotional Damage Index</h4>
-              <p className="text-sm text-gray-400">How much suffering do you seek?</p>
+              <p className="text-sm text-gray-400" title="Based on Drama, Tragedy, Psychological, and emotionally heavy genres in your list">How much suffering do you seek?</p>
             </div>
           </div>
           <div className="text-4xl font-bold text-red-400 mb-3">
@@ -369,7 +383,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             </div>
             <div>
               <h4 className="text-white font-semibold">Chaos Level</h4>
-              <p className="text-sm text-gray-400">How wild is your taste?</p>
+              <p className="text-sm text-gray-400" title="Based on Ecchi, Harem, Comedy, Parody, Gore, Psychological, and other chaotic genres/tags">How wild is your taste?</p>
             </div>
           </div>
           <div className="text-4xl font-bold text-purple-400 mb-3">
