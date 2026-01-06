@@ -544,12 +544,33 @@ export class TasteAnalyzer {
     if (mediaList.length === 0) return 0;
 
     const currentYear = new Date().getFullYear();
-    const seasonalEntries = mediaList.filter(entry => {
+    
+    // Count anime by recency
+    let currentYearCount = 0;
+    let lastYearCount = 0;
+    let twoYearsAgoCount = 0;
+    
+    mediaList.forEach(entry => {
       const year = entry.media?.startDate?.year;
-      return year === currentYear || year === currentYear - 1;
+      if (year === currentYear) currentYearCount++;
+      else if (year === currentYear - 1) lastYearCount++;
+      else if (year === currentYear - 2) twoYearsAgoCount++;
     });
-
-    return (seasonalEntries.length / mediaList.length) * 10;
+    
+    // Weight recent anime more heavily
+    const weightedSeasonalCount = (currentYearCount * 1.5) + (lastYearCount * 1.0) + (twoYearsAgoCount * 0.5);
+    
+    // Base score on absolute count of recent anime (not just percentage)
+    // Someone with 50+ seasonal anime is definitely a seasonal watcher
+    const absoluteScore = Math.min(5, (currentYearCount + lastYearCount) / 10);
+    
+    // Also consider percentage for balance (capped contribution)
+    const percentageScore = Math.min(3, (weightedSeasonalCount / mediaList.length) * 15);
+    
+    // Bonus for having many current year anime specifically
+    const currentYearBonus = Math.min(2, currentYearCount / 15);
+    
+    return Math.min(10, absoluteScore + percentageScore + currentYearBonus);
   }
 
   private static calculateNostalgiaScore(yearData: Map<number, { count: number; totalScore: number; episodes: number }>): number {
