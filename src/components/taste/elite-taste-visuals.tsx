@@ -28,6 +28,7 @@ import {
   Flame,
   Shield,
   Compass,
+  Info,
 } from 'lucide-react';
 
 interface EmotionalProfileChartProps {
@@ -48,6 +49,19 @@ export function EmotionalProfileChart({ emotionalProfile }: EmotionalProfileChar
       <div className="flex items-center gap-2 mb-4">
         <Heart className="w-5 h-5 text-pink-400" />
         <h3 className="text-lg font-semibold text-white">Emotional Profile</h3>
+        <div className="group relative ml-auto">
+          <Info className="w-4 h-4 text-gray-500 cursor-help" />
+          <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+            <p className="font-bold text-white mb-2">What This Measures:</p>
+            <ul className="space-y-1">
+              <li><strong>Escapism:</strong> Fantasy vs grounded content</li>
+              <li><strong>Intensity:</strong> Action/thriller vs calm shows</li>
+              <li><strong>Bleakness:</strong> Tragedy/dark vs wholesome</li>
+              <li><strong>Sentimentality:</strong> Romance/drama focus</li>
+              <li><strong>Idealism:</strong> Hopeful vs cynical themes</li>
+            </ul>
+          </div>
+        </div>
       </div>
       <p className="text-sm text-gray-400 mb-4">How you experience stories emotionally</p>
       
@@ -116,7 +130,7 @@ function EmotionalAxisLabel({ value, lowLabel, highLabel }: {
       </div>
       <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div 
-          className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
+          className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -138,6 +152,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       rightLabel: 'Serialized',
       value: structuralPreferences.episodicVsSerial,
       icon: Brain,
+      tooltip: 'Standalone episodes vs continuous story arcs',
     },
     {
       key: 'pacingPreference',
@@ -146,6 +161,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       rightLabel: 'Fast Paced',
       value: structuralPreferences.pacingPreference,
       icon: Zap,
+      tooltip: 'Gradual buildup vs action-packed pacing',
     },
     {
       key: 'plotVsCharacter',
@@ -154,6 +170,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       rightLabel: 'Plot',
       value: structuralPreferences.plotVsCharacter,
       icon: Compass,
+      tooltip: 'Character development vs plot-driven narratives',
     },
     {
       key: 'complexityPreference',
@@ -162,6 +179,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       rightLabel: 'Complex',
       value: structuralPreferences.complexityPreference,
       icon: Flame,
+      tooltip: 'Easy-to-follow vs layered, complex storytelling',
     },
   ];
 
@@ -170,6 +188,13 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       <div className="flex items-center gap-2 mb-4">
         <Brain className="w-5 h-5 text-blue-400" />
         <h3 className="text-lg font-semibold text-white">Structural Preferences</h3>
+        <div className="group relative ml-auto">
+          <Info className="w-4 h-4 text-gray-500 cursor-help" />
+          <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+            <p className="font-bold text-white mb-2">How It Works:</p>
+            <p>These sliders show where your taste falls on each spectrum based on tags in your completed anime. The dot position indicates your preference balance.</p>
+          </div>
+        </div>
       </div>
       <p className="text-sm text-gray-400 mb-6">How you like stories constructed</p>
 
@@ -179,6 +204,12 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
             <div className="flex items-center gap-2 mb-2">
               <axis.icon className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-medium text-white">{axis.label}</span>
+              <div className="group relative">
+                <Info className="w-3 h-3 text-gray-600 cursor-help" />
+                <div className="absolute left-0 bottom-full mb-1 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                  {axis.tooltip}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-500 w-20 text-right">{axis.leftLabel}</span>
@@ -219,6 +250,19 @@ export function RiskProfileChart({ riskProfile }: RiskProfileChartProps) {
         <div className="flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-green-400" />
           <h3 className="text-lg font-semibold text-white">Risk Tolerance</h3>
+          <div className="group relative">
+            <Info className="w-4 h-4 text-gray-500 cursor-help" />
+            <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+              <p className="font-bold text-white mb-2">Popularity Tiers:</p>
+              <ul className="space-y-1">
+                <li><strong>&lt;5k:</strong> Hidden gems, very niche</li>
+                <li><strong>5k-20k:</strong> Cult classics, niche favorites</li>
+                <li><strong>20k-100k:</strong> Well-known, solid picks</li>
+                <li><strong>100k+:</strong> Mainstream hits</li>
+              </ul>
+              <p className="mt-2 text-gray-500">Higher risk tolerance = more obscure titles</p>
+            </div>
+          </div>
         </div>
         <div className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">
           Prefers: {riskProfile.preferredTier}
@@ -356,7 +400,7 @@ export function TasteFingerprintCard({ fingerprint }: TasteFingerprintProps) {
   };
 
   return (
-    <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 border border-white/20">
+    <div className="p-6 rounded-2xl bg-linear-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 border border-white/20">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-400" />
@@ -401,7 +445,7 @@ export function TasteFingerprintCard({ fingerprint }: TasteFingerprintProps) {
         </div>
         <div className="h-2 bg-white/10 rounded-full mt-2 overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+            className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full"
             style={{ width: `${fingerprint.uniquenessScore * 100}%` }}
           />
         </div>

@@ -41,7 +41,9 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const [activeType, setActiveType] = useState<'ANIME' | 'MANGA'>('ANIME');
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'experimental' | 'hidden-gem' | 'opposite'>('all');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
   const [showGenrePicker, setShowGenrePicker] = useState(false);
+  const [showFormatPicker, setShowFormatPicker] = useState(false);
   const [minScore, setMinScore] = useState(60);
   const [explorationLevel, setExplorationLevel] = useState(50); // 0 = comfort, 100 = full exploration
   const [anchorToFavorites, setAnchorToFavorites] = useState(true);
@@ -99,6 +101,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
     
     return {
       selectedGenre,
+      formats: selectedFormats,
       mode,
       minScore: adjustedMinScore,
       tagAffinity: tasteProfile?.tagAffinity || [],
@@ -114,7 +117,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       favoritesInfluence,
       explorationLevel, // Pass to backend for genre diversity
     };
-  }, [selectedGenre, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias, tasteProfile?.formatWeights, favoritesProfile, anchorToFavorites, favoritesInfluence]);
+  }, [selectedGenre, selectedFormats, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias, tasteProfile?.formatWeights, favoritesProfile, anchorToFavorites, favoritesInfluence]);
 
   const { data: recommendedMedia, isLoading: isLoadingRecs, refetch: refetchRecs, isRefetching } = useRecommendations(
     tasteProfile?.genreAffinity || [],
@@ -335,6 +338,53 @@ export function Recommendations({ userId }: RecommendationsProps) {
           </div>
         )}
       </div>
+
+      {/* Format Picker */}
+      {tasteProfile.formatPreference.length > 0 && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-white flex items-center gap-2">
+              <Play className="w-4 h-4 text-green-400" />
+              Filter by Format
+            </h4>
+            <button
+              onClick={() => setShowFormatPicker(!showFormatPicker)}
+              className="text-xs text-green-400 hover:text-green-300"
+            >
+              {showFormatPicker ? 'Hide' : 'Show All'}
+              <ChevronDown className={`w-3 h-3 inline ml-1 transition-transform ${showFormatPicker ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(showFormatPicker ? tasteProfile.formatPreference : tasteProfile.formatPreference.slice(0, 5)).map((f: { format: string; preference: number }) => (
+              <button
+                key={f.format}
+                onClick={() => {
+                  if (selectedFormats.includes(f.format)) {
+                    setSelectedFormats(selectedFormats.filter(fmt => fmt !== f.format));
+                  } else {
+                    setSelectedFormats([...selectedFormats, f.format]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                  selectedFormats.includes(f.format)
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                {f.format}
+                <span className="text-xs opacity-60">({(f.preference * 100).toFixed(0)}%)</span>
+              </button>
+            ))}
+          </div>
+          {selectedFormats.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">
+              <Info className="w-4 h-4" />
+              <span>Showing recommendations for <strong className="text-green-300">{selectedFormats.join(', ')}</strong></span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Min Score Slider */}
       <div className="flex items-center gap-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10">

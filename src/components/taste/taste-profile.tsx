@@ -278,11 +278,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       ]
     },
     { 
-      label: 'Art Snob', 
-      value: tasteProfile.personalityTraits.artSnob, 
+      label: 'Avant-Garde', 
+      value: tasteProfile.personalityTraits.avantGarde, 
       icon: Palette,
       color: 'from-pink-500 to-rose-500',
-      description: 'Appreciation for visual excellence',
+      description: 'Appreciation for experimental works',
       tooltip: 'Based on experimental/avant-garde titles in your list.',
       receipts: [
         { label: 'Experimental Index', value: (tasteProfile.behavioralMetrics.experimentalIndex * 10).toFixed(1) },
@@ -608,7 +608,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
       {/* Favorites DNA vs List DNA */}
       {favoritesProfile && favoritesProfile.count > 0 && favoritesComparison && (
-        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/20">
+        <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-purple-500/20">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -630,7 +630,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
                 <div className="text-sm text-gray-300">
-                  {favoritesComparison.insights.map((insight, i) => (
+                  {favoritesComparison.insights.map((insight: string, i: number) => (
                     <p key={i} className={i > 0 ? 'mt-1' : ''}>{insight}</p>
                   ))}
                 </div>
@@ -644,9 +644,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               <p className="text-xs text-gray-400 mb-2 font-medium">Top in Favorites (vs List)</p>
               <div className="space-y-2">
                 {favoritesComparison.genreSkew
-                  .filter(g => g.diff > 5)
+                  .filter((g: { genre: string; listPct: number; favPct: number; diff: number }) => g.diff > 5)
                   .slice(0, 4)
-                  .map(g => (
+                  .map((g: { genre: string; listPct: number; favPct: number; diff: number }) => (
                     <div key={g.genre} className="flex items-center justify-between">
                       <span className="text-sm text-white">{g.genre}</span>
                       <div className="flex items-center gap-2">
@@ -663,9 +663,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               <p className="text-xs text-gray-400 mb-2 font-medium">More Consumed Than Favorited</p>
               <div className="space-y-2">
                 {favoritesComparison.genreSkew
-                  .filter(g => g.diff < -5)
+                  .filter((g: { genre: string; listPct: number; favPct: number; diff: number }) => g.diff < -5)
                   .slice(0, 4)
-                  .map(g => (
+                  .map((g: { genre: string; listPct: number; favPct: number; diff: number }) => (
                     <div key={g.genre} className="flex items-center justify-between">
                       <span className="text-sm text-white">{g.genre}</span>
                       <div className="flex items-center gap-2">
@@ -687,7 +687,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                 {activeTab === 'ANIME' ? 'Studios' : 'Authors'} in Your Favorites
               </p>
               <div className="flex flex-wrap gap-2">
-                {favoritesProfile.staffAffinity.slice(0, 6).map(s => (
+                {favoritesProfile.staffAffinity.slice(0, 6).map((s: { name: string; affinity: number }) => (
                   <span 
                     key={s.name}
                     className="px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-medium"

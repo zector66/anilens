@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { TasteProfile } from '@/types/anilist';
-import { Share2, Download, Copy, Check } from 'lucide-react';
+import { Share2, Download, Copy, Check, Loader2 } from 'lucide-react';
 
 interface ShareableTasteCardProps {
   profile: TasteProfile;
@@ -13,18 +13,117 @@ interface ShareableTasteCardProps {
 
 export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTasteCardProps) {
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const topGenres = profile.genreAffinity.slice(0, 3);
   const topStudios = profile.studioBias.slice(0, 3);
+  const topTags = profile.tagAffinity.slice(0, 3);
+
+  // Generate shareable text summary
+  const getShareText = useCallback(() => {
+    const archetype = profile.fingerprint?.primaryArchetype || 'Anime Fan';
+    const chaosLevel = profile.personalityTraits.chaosLevel.toFixed(1);
+    const meanScore = profile.scorePatterns.meanScore.toFixed(1);
+    return `🎬 My Anime DNA via AniLens\n\n` +
+      `🎭 Archetype: ${archetype}\n` +
+      `📊 Mean Score: ${meanScore}/10\n` +
+      `🌀 Chaos Level: ${chaosLevel}/10\n` +
+      `🎯 Top Genres: ${topGenres.map(g => g.genre).join(', ')}\n` +
+      `🏢 Favorite Studios: ${topStudios.map(s => s.studio).join(', ')}\n` +
+      `🏷️ Top Tags: ${topTags.map(t => t.tag).join(', ')}\n\n` +
+      `Discover your anime DNA at anilens.app!`;
+  }, [profile, topGenres, topStudios, topTags]);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(`Check out my Anime Taste Profile! Top Genres: ${topGenres.map(g => g.genre).join(', ')}. My personality: ${profile.personalityTraits.completionist > 7 ? 'Completionist' : 'Adventurer'}!`);
+      await navigator.clipboard.writeText(getShareText());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy!', err);
+    }
+  };
+
+  const handleSaveImage = async () => {
+    if (!cardRef.current) return;
+    setSaving(true);
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#0f172a',
+      });
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `${username}-anime-taste.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to save image:', err);
+      // Fallback: copy text instead
+      handleCopy();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    
+    try {
+      // Try Web Share API first
+      if (navigator.share) {
+        // Try to share with image if possible
+        if (cardRef.current) {
+          try {
+            const { toPng } = await import('html-to-image');
+            const dataUrl = await toPng(cardRef.current, {
+              quality: 0.95,
+              pixelRatio: 2,
+              backgroundColor: '#0f172a',
+            });
+            
+            // Convert data URL to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `${username}-anime-taste.png`, { type: 'image/png' });
+            
+            await navigator.share({
+              title: `${username}'s Anime Taste DNA`,
+              text: getShareText(),
+              files: [file],
+            });
+          } catch {
+            // Fallback to text-only share
+            await navigator.share({
+              title: `${username}'s Anime Taste DNA`,
+              text: getShareText(),
+            });
+          }
+        } else {
+          await navigator.share({
+            title: `${username}'s Anime Taste DNA`,
+            text: getShareText(),
+          });
+        }
+      } else {
+        // Fallback: copy to clipboard
+        await handleCopy();
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Failed to share:', err);
+        // Fallback to copy
+        handleCopy();
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -120,16 +219,20 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
           {copied ? 'Copied!' : 'Copy Summary'}
         </button>
         <button 
-          className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-purple-500/20"
+          onClick={handleSaveImage}
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-purple-500/20"
         >
-          <Download className="w-4 h-4" />
-          Save Image
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {saving ? 'Saving...' : 'Save Image'}
         </button>
         <button 
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-blue-500/20"
+          onClick={handleShare}
+          disabled={sharing}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-blue-500/20"
         >
-          <Share2 className="w-4 h-4" />
-          Share
+          {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+          {sharing ? 'Sharing...' : 'Share'}
         </button>
       </div>
     </div>

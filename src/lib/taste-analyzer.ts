@@ -236,7 +236,7 @@ export class TasteAnalyzer {
     const mainstreamIndex = this.calculateMainstreamIndex(analyzedList);
     const nicheIndex = this.calculateNicheIndex(analyzedList);
     const experimentalIndex = this.calculateExperimentalIndex(analyzedList);
-    const diversityIndex = this.calculateDiversityIndex(genreData);
+    const diversityIndex = this.calculateDiversityIndex(genreData, tagData);
 
     const popularities = analyzedList.map(e => e.media?.popularity || 0).filter(p => p > 0).sort((a, b) => a - b);
     const medianPopularity = popularities.length > 0 ? popularities[Math.floor(popularities.length / 2)] : 0;
@@ -257,7 +257,7 @@ export class TasteAnalyzer {
       cultHunter: nicheIndex * 10,
       nostalgiaAddict: this.calculateNostalgiaScore(yearData),
       mainstreamMaxxer: mainstreamIndex * 10,
-      artSnob: experimentalIndex * 10,
+      avantGarde: experimentalIndex * 10,
       emotionalDamageIndex: this.calculateEmotionalDamageIndex(analyzedList),
       chaosLevel: this.calculateChaosLevel(analyzedList),
       genreDiversity: diversityIndex * 10,
@@ -398,7 +398,22 @@ export class TasteAnalyzer {
   }
 
   private static calculateExperimentalIndex(mediaList: MediaListEntry[]): number {
-    const expTags = ['Surreal', 'Avant Garde', 'Psychological', 'Abstract', 'Non-linear', 'Fragmented', 'Philosophical', 'Meta', 'Episodic', 'Iyashikei', 'Primarily Adult Cast'];
+    const expTags = [
+      // Core experimental tags
+      'Surreal', 'Avant Garde', 'Psychological', 'Abstract', 'Non-linear', 'Fragmented',
+      'Philosophical', 'Meta', 'Experimental', 'Art House', 'Denpa', 'Thought Provoking',
+      // Narrative complexity
+      'Unreliable Narrator', 'Multiple Timelines', 'Time Loop', 'Time Manipulation',
+      'Anachronistic', 'Anthology', 'Vignette', 'Tragedy',
+      // Mature/unconventional themes
+      'Primarily Adult Cast', 'Seinen', 'Josei', 'Body Horror', 'Cosmic Horror',
+      'Existential', 'Deconstruction', 'Satire', 'Subversive',
+      // Visual/stylistic
+      'Rotoscoping', 'Minimalist', 'Noir', 'Neo-noir', 'Cyberpunk', 'Steampunk',
+      // Psychological depth
+      'Mind Game', 'Dissociative Identity', 'Memory Manipulation', 'Dream World',
+      'Alternate Reality', 'Virtual Reality', 'Dystopian', 'Utopian'
+    ];
     if (mediaList.length === 0) return 0;
     let expW = 0, totalW = 0;
     mediaList.forEach(e => {
@@ -429,48 +444,157 @@ export class TasteAnalyzer {
   }
 
   private static calculateEmotionalDamageIndex(mediaList: MediaListEntry[]): number {
-    const emotionalTags = ['Tragedy', 'Drama', 'Psychological', 'Horror', 'Thriller', 'Gore', 'Tearjerker', 'Depression'];
+    const emotionalTags = [
+      // Core emotional damage
+      'Tragedy', 'Drama', 'Psychological', 'Horror', 'Thriller', 'Gore', 'Tearjerker',
+      // Mental health & trauma
+      'Depression', 'Suicide', 'Angst', 'PTSD', 'Mental Illness', 'Self-Harm',
+      'Dissociative Identity', 'Amnesia', 'Trauma', 'Grief',
+      // Physical suffering
+      'Terminal Illness', 'Disability', 'Body Horror', 'Torture', 'Cannibalism',
+      // Interpersonal trauma
+      'Abuse', 'Bullying', 'Netorare', 'Infidelity', 'Toxic Relationship',
+      'Domestic Abuse', 'Child Abuse', 'Abandonment', 'Orphan', 'Slavery',
+      // World-scale suffering
+      'Post-Apocalyptic', 'War', 'Genocide', 'Dystopia', 'Famine', 'Pandemic',
+      // Dark themes
+      'Dark Fantasy', 'Cosmic Horror', 'Lovecraftian', 'Nihilism', 'Existential',
+      'Death', 'Murder', 'Revenge', 'Betrayal', 'Corruption',
+      // Mature/heavy
+      'Mature', 'Seinen', 'Utsuge', 'Nakige', 'Bittersweet'
+    ];
     if (mediaList.length === 0) return 0;
     let score = 0;
     mediaList.forEach(e => {
       const pct = Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1));
-      const matches = (e.media?.tags || []).filter(t => emotionalTags.includes(t.name));
+      const matches = (e.media?.tags || []).filter(t => emotionalTags.some(et => t.name.includes(et)));
       if (matches.length > 0) score += (matches.reduce((s, t) => s + (t.rank || 0), 0) / 100) * pct;
     });
     return Math.min(10, (score / (mediaList.length * 0.3)) * 10);
   }
 
   private static calculateChaosLevel(mediaList: MediaListEntry[]): number {
-    const chaosTags = ['Ecchi', 'Harem', 'Comedy', 'Parody', 'Gore', 'Action', 'Psychological', 'Dementia', 'Surreal', 'Supernatural'];
+    const chaosTags = [
+      // Core chaos
+      'Ecchi', 'Harem', 'Reverse Harem', 'Comedy', 'Parody', 'Gore', 'Action',
+      'Psychological', 'Dementia', 'Surreal', 'Supernatural', 'Slapstick',
+      // Fanservice & fetish
+      'Fan Service', 'Nudity', 'Sexual Content', 'Exhibitionism', 'Voyeur',
+      'Bondage', 'Masochism', 'Sadism', 'Tentacles', 'Futanari',
+      // Character archetypes
+      'Gender Bending', 'Crossdressing', 'Trap', 'Tomboy', 'Femboy',
+      'Monster Girl', 'Kemonomimi', 'Nekomimi', 'Yandere', 'Tsundere', 'Kuudere',
+      // Relationship chaos
+      'Love Triangle', 'Love Polygon', 'Polyamory', 'Netorare', 'Incest',
+      'Age Gap', 'Student-Teacher Relationship', 'Forbidden Love',
+      // Otaku & meta
+      'Otaku Culture', 'Chuunibyou', 'NEET', 'Shut-In', 'Idol', 'Doujinshi',
+      'Cosplay', '4th Wall', 'Meta', 'Self-Insert', 'Isekai', 'Reincarnation',
+      // Trope-heavy
+      'School Battle Harem', 'Battle Harem', 'Accidental Pervert', 'Hot Springs',
+      'Beach Episode', 'Festival', 'Cultural Festival', 'Sports Festival',
+      // Wild premises
+      'Absurdist', 'Random', 'Gag Humor', 'Dark Comedy', 'Deadpan', 'Satire',
+      'Delinquents', 'Yakuza', 'Gambling', 'Death Game', 'Battle Royale',
+      // Violence & intensity
+      'Splatter', 'Body Horror', 'Mutilation', 'Graphic', 'Violence'
+    ];
     if (mediaList.length === 0) return 0;
     let score = 0;
     mediaList.forEach(e => {
       const pct = Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1));
-      const matches = (e.media?.tags || []).filter(t => chaosTags.includes(t.name));
+      const matches = (e.media?.tags || []).filter(t => chaosTags.some(ct => t.name.includes(ct)));
       if (matches.length > 0) score += (matches.reduce((s, t) => s + (t.rank || 0), 0) / 100) * pct;
     });
     return Math.min(10, (score / (mediaList.length * 0.4)) * 10);
   }
 
-  private static calculateDiversityIndex(genreData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>): number {
-    const total = Array.from(genreData.values()).reduce((s, d) => s + d.count, 0);
-    if (total === 0) return 0;
-    let shannon = 0;
-    genreData.forEach(d => { const p = d.count / total; if (p > 0) shannon -= p * Math.log(p); });
-    return Math.min(1, shannon / 2.2);
-  }
-
   private static calculateEmotionalProfile(mediaList: MediaListEntry[]): { escapism: number; bleakness: number; idealism: number; intensity: number; sentimentality: number } {
-    const escapismTags = ['Isekai', 'Fantasy', 'Magic', 'Virtual World', 'Reincarnation', 'Alternate Universe'];
-    const groundedTags = ['Slice of Life', 'Workplace', 'School', 'Family Life', 'Realistic'];
-    const bleakTags = ['Tragedy', 'Death', 'War', 'Survival', 'Gore', 'Dystopian', 'Post-Apocalyptic'];
-    const wholesomeTags = ['Iyashikei', 'Cute Girls Doing Cute Things', 'Found Family', 'Heartwarming'];
-    const idealisticGenres = ['Shounen', 'Mahou Shoujo', 'Sports'];
-    const cynicalTags = ['Seinen', 'Psychological', 'Noir', 'Anti-Hero', 'Moral Ambiguity'];
-    const intenseTags = ['Action', 'Thriller', 'Horror', 'Battle Royale', 'Survival'];
-    const calmTags = ['Slice of Life', 'Iyashikei', 'Music', 'Gourmet'];
-    const sentimentalTags = ['Romance', 'Drama', 'Tragedy', 'Coming of Age', 'Tearjerker'];
-    
+    const escapismTags = [
+      // Fantasy & otherworldly
+      'Fantasy', 'Isekai', 'Magic', 'Supernatural', 'Virtual World', 'Reincarnation',
+      'Time Travel', 'Parallel Universe', 'Alternate Universe', 'Portal Fantasy',
+      // Sci-fi escapism
+      'Space', 'Space Opera', 'Mecha', 'Cyberpunk', 'Steampunk', 'Post-Apocalyptic',
+      // Adventure & exploration
+      'Adventure', 'Quest', 'Dungeon', 'RPG', 'VRMMO', 'Game',
+      // Power fantasy
+      'Super Power', 'Overpowered', 'Cultivation', 'Martial Arts', 'Battle',
+      'Shounen', 'Transformation', 'Magical Girl'
+    ];
+    const groundedTags = [
+      // Daily life
+      'Slice of Life', 'School', 'Workplace', 'Daily Life', 'Realistic', 'Documentary',
+      // Relationships & social
+      'School Club', 'College', 'Office Lady', 'Salaryman', 'Part-Time Job',
+      // Hobbies & activities
+      'Cooking', 'Food', 'Music', 'Band', 'Sports', 'Camping', 'Fishing',
+      // Grounded genres
+      'Drama', 'Josei', 'Seinen', 'Historical', 'Period Piece'
+    ];
+    const bleakTags = [
+      // Death & suffering
+      'Tragedy', 'Death', 'War', 'Post-Apocalyptic', 'Dystopia', 'Genocide',
+      // Psychological darkness
+      'Psychological', 'Gore', 'Dark Fantasy', 'Suicide', 'Depression', 'Trauma',
+      // Horror elements
+      'Horror', 'Body Horror', 'Cosmic Horror', 'Survival Horror',
+      // Moral darkness
+      'Nihilism', 'Corruption', 'Betrayal', 'Revenge', 'Murder', 'Crime',
+      // Heavy themes
+      'Abuse', 'Slavery', 'Torture', 'Terminal Illness', 'PTSD'
+    ];
+    const wholesomeTags = [
+      // Healing & comfort
+      'Cute Girls Doing Cute Things', 'Iyashikei', 'Wholesome', 'Feel-Good', 'Heartwarming',
+      // Family & bonds
+      'Family', 'Found Family', 'Friendship', 'Pets', 'Childcare',
+      // Light & fluffy
+      'Cute', 'Moe', 'Slice of Life', 'Comedy', 'Gag Humor',
+      // Positive themes
+      'Coming of Age', 'Self-Discovery', 'Redemption', 'Happy Ending'
+    ];
+    const idealisticGenres = ['Comedy', 'Romance', 'Adventure', 'Sports', 'Music', 'Slice of Life'];
+    const cynicalTags = [
+      // Anti-establishment
+      'Anti-Hero', 'Revenge', 'Nihilism', 'Corruption', 'Betrayal', 'Morally Grey',
+      // Dark worldviews
+      'Dystopia', 'Conspiracy', 'Political', 'War', 'Crime', 'Mafia',
+      // Character cynicism
+      'Villain Protagonist', 'Antihero', 'Manipulative', 'Sociopath',
+      // System critique
+      'Satire', 'Deconstruction', 'Subversive'
+    ];
+    const intenseTags = [
+      // Action & combat
+      'Action', 'Thriller', 'Horror', 'Suspense', 'Battle Royale', 'Survival', 'Gore',
+      // High stakes
+      'Death Game', 'War', 'Military', 'Martial Arts', 'Fighting',
+      // Adrenaline
+      'Racing', 'Sports', 'Competition', 'Tournament', 'Esports',
+      // Psychological intensity
+      'Psychological', 'Mind Game', 'Conspiracy', 'Mystery'
+    ];
+    const calmTags = [
+      // Healing & relaxing
+      'Slice of Life', 'Iyashikei', 'Relaxing', 'Cute', 'Peaceful', 'Wholesome',
+      // Slow activities
+      'Cooking', 'Gardening', 'Fishing', 'Camping', 'Travel',
+      // Contemplative
+      'Philosophical', 'Atmospheric', 'Scenery', 'Nature'
+    ];
+    const sentimentalTags = [
+      // Romance & love
+      'Romance', 'Drama', 'Coming of Age', 'Family', 'Tearjerker',
+      'Love Triangle', 'Unrequited Love', 'First Love', 'Childhood Friends',
+      // Emotional bonds
+      'Friendship', 'Found Family', 'Pets', 'Parenting', 'Sibling',
+      // Life stages
+      'School', 'Graduation', 'Marriage', 'Pregnancy', 'Aging',
+      // Specific romance types
+      'Shoujo', 'Josei', 'BL', 'GL', 'Yuri', 'Yaoi', 'Otome'
+    ];
+
     let esc = 0, grd = 0, blk = 0, whl = 0, idl = 0, cyn = 0, inten = 0, clm = 0, sen = 0, totalW = 0;
     mediaList.forEach(e => {
       const weight = e.status === 'COMPLETED' ? 1.0 : 0.5; totalW += weight;
@@ -495,14 +619,83 @@ export class TasteAnalyzer {
     };
   }
 
+  private static calculateDiversityIndex(
+    genreData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>,
+    tagData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number; avgRank: number }>
+  ): number {
+    // Genre Entropy
+    const totalGenres = Array.from(genreData.values()).reduce((s, d) => s + d.count, 0);
+    let genreEntropy = 0;
+    if (totalGenres > 0) {
+      genreData.forEach(d => { const p = d.count / totalGenres; if (p > 0) genreEntropy -= p * Math.log(p); });
+    }
+
+    // Tag Entropy (use top 50 tags to reduce noise from very rare tags)
+    const sortedTags = Array.from(tagData.values()).sort((a, b) => b.count - a.count).slice(0, 50);
+    const totalTags = sortedTags.reduce((s, d) => s + d.count, 0);
+    let tagEntropy = 0;
+    if (totalTags > 0) {
+      sortedTags.forEach(d => { const p = d.count / totalTags; if (p > 0) tagEntropy -= p * Math.log(p); });
+    }
+
+    // Weighted average: 40% Genre, 60% Tag (Tags provide more granular diversity info)
+    // Normalize by approximate max entropy (Genre ~3.0, Tag ~4.0 for varied tastes)
+    const normGenre = Math.min(1, genreEntropy / 2.5);
+    const normTag = Math.min(1, tagEntropy / 3.5);
+    
+    return (normGenre * 0.4) + (normTag * 0.6);
+  }
+
   private static calculateStructuralPreferences(mediaList: MediaListEntry[]): { episodicVsSerial: number; pacingPreference: number; plotVsCharacter: number; complexityPreference: number } {
-    const epi = ['Episodic', 'Anthology', 'Slice of Life', 'Comedy'];
-    const ser = ['Story Arc', 'Shounen', 'Plot Continuity', 'Mystery'];
-    const slw = ['Slow Burn', 'Slice of Life', 'Iyashikei', 'Character Development'];
-    const fst = ['Action', 'Thriller', 'Battle Royale', 'Fast-Paced'];
-    const chr = ['Character Development', 'Ensemble Cast', 'Coming of Age', 'Psychological'];
-    const plt = ['Plot Twists', 'Mystery', 'Conspiracy', 'War'];
-    const cpx = ['Non-linear', 'Philosophical', 'Psychological', 'Time Manipulation', 'Unreliable Narrator'];
+    // Episodic: standalone stories, each episode works alone
+    const epi = [
+      'Episodic', 'Anthology', 'Slice of Life', 'Comedy', 'Gag Humor',
+      'Monster of the Week', 'Sketch Comedy', 'Vignette', 'Short Episodes',
+      'Iyashikei', 'Cute Girls Doing Cute Things', 'Daily Life'
+    ];
+    // Serialized: continuous plot across episodes
+    const ser = [
+      'Story Arc', 'Shounen', 'Plot Continuity', 'Mystery', 'Thriller',
+      'Epic', 'Saga', 'War', 'Revenge', 'Conspiracy', 'Tournament',
+      'Survival', 'Death Game', 'Battle Royale', 'Cultivation'
+    ];
+    // Slow-paced: deliberate, contemplative
+    const slw = [
+      'Slow Burn', 'Slice of Life', 'Iyashikei', 'Character Development',
+      'Atmospheric', 'Scenery', 'Philosophical', 'Drama', 'Romance',
+      'Cooking', 'Fishing', 'Gardening', 'Travel', 'Countryside',
+      'Coming of Age', 'Primarily Adult Cast', 'Josei', 'Seinen'
+    ];
+    // Fast-paced: action-heavy, quick progression
+    const fst = [
+      'Action', 'Thriller', 'Battle Royale', 'Fast-Paced', 'Fighting',
+      'Martial Arts', 'Sports', 'Racing', 'Esports', 'Competition',
+      'Shounen', 'Battle', 'War', 'Military', 'Mecha', 'Superhero',
+      'Death Game', 'Survival', 'Chase', 'Heist'
+    ];
+    // Character-driven: focus on character growth and relationships
+    const chr = [
+      'Character Development', 'Ensemble Cast', 'Coming of Age', 'Psychological',
+      'Slice of Life', 'Romance', 'Drama', 'Family', 'Friendship',
+      'Found Family', 'Redemption', 'Self-Discovery', 'Trauma',
+      'Bildungsroman', 'Aging', 'Identity', 'LGBT'
+    ];
+    // Plot-driven: focus on events and story
+    const plt = [
+      'Plot Twists', 'Mystery', 'Conspiracy', 'War', 'Thriller',
+      'Detective', 'Crime', 'Heist', 'Revenge', 'Political',
+      'Death Game', 'Survival', 'Battle Royale', 'Tournament',
+      'Shounen', 'Epic', 'Isekai', 'Quest', 'Adventure'
+    ];
+    // Complex narratives: require attention, layered storytelling
+    const cpx = [
+      'Non-linear', 'Philosophical', 'Psychological', 'Time Manipulation',
+      'Unreliable Narrator', 'Multiple Timelines', 'Time Loop', 'Mind Game',
+      'Surreal', 'Abstract', 'Avant Garde', 'Experimental', 'Meta',
+      'Deconstruction', 'Subversive', 'Cosmic Horror', 'Existential',
+      'Amnesia', 'Memory Manipulation', 'Dream World', 'Alternate Reality',
+      'Parallel Universe', 'Anthology', 'Fragmented'
+    ];
     
     let epiS = 0, serS = 0, slwS = 0, fstS = 0, chrS = 0, pltS = 0, cpxS = 0, totalW = 0;
     mediaList.forEach(e => {

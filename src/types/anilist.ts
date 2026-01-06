@@ -384,7 +384,7 @@ export interface TasteProfile {
     cultHunter: number;
     nostalgiaAddict: number;
     mainstreamMaxxer: number;
-    artSnob: number;
+    avantGarde: number;
     emotionalDamageIndex: number;
     chaosLevel: number;
     genreDiversity: number;
