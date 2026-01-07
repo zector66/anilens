@@ -268,6 +268,7 @@ export class TasteAnalyzer {
     const nicheIndex = this.calculateNicheIndex(analyzedList, type);
     const experimentalIndex = this.calculateExperimentalIndex(analyzedList, type);
     const diversityIndex = this.calculateDiversityIndex(genreData, tagData);
+    const effectiveCategories = this.calculateEffectiveCategories(genreData, tagData);
 
     const popularities = analyzedList.map(e => e.media?.popularity || 0).filter(p => p > 0).sort((a, b) => a - b);
     const medianPopularity = popularities.length > 0 ? popularities[Math.floor(popularities.length / 2)] : 0;
@@ -303,6 +304,7 @@ export class TasteAnalyzer {
       scorePatterns: { meanScore, scoreDistribution, scoreInflation, consistency },
       behavioralMetrics: {
         completionRate, dropRate, rewatchRate, bingeIndex, mainstreamIndex, nicheIndex, experimentalIndex, diversityIndex,
+        effectiveCategories,
         medianPopularity, percentMainstream, logNormalizedPopularity, popularityQuantile,
         rawCompletionRate: n > 0 ? completedCount / n : 0,
         rawDropRate: n > 0 ? droppedCount / n : 0
@@ -673,27 +675,124 @@ export class TasteAnalyzer {
     genreData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>,
     tagData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>
   ): number {
-    // Genre Entropy
-    const totalGenres = Array.from(genreData.values()).reduce((s, d) => s + d.count, 0);
-    let genreEntropy = 0;
-    if (totalGenres > 0) {
-      genreData.forEach(d => { const p = d.count / totalGenres; if (p > 0) genreEntropy -= p * Math.log(p); });
-    }
-
-    // Tag Entropy (use top 50 tags to reduce noise from very rare tags)
-    const sortedTags = Array.from(tagData.values()).sort((a, b) => b.count - a.count).slice(0, 50);
-    const totalTags = sortedTags.reduce((s, d) => s + d.count, 0);
-    let tagEntropy = 0;
-    if (totalTags > 0) {
-      sortedTags.forEach(d => { const p = d.count / totalTags; if (p > 0) tagEntropy -= p * Math.log(p); });
-    }
-
-    // Weighted average: 40% Genre, 60% Tag (Tags provide more granular diversity info)
-    // Normalize by approximate max entropy (Genre ~3.0, Tag ~4.0 for varied tastes)
-    const normGenre = Math.min(1, genreEntropy / 2.5);
-    const normTag = Math.min(1, tagEntropy / 3.5);
+    // Build fractional mass allocation for genres
+    const genreMass = new Map<string, number>();
+    let totalGenreMass = 0;
     
+    genreData.forEach((data, genre) => {
+      // Distribute mass evenly across genres per title
+      // Each title contributes 1/N mass where N = number of genres it has
+      // We approximate this by dividing by average genres per title (≈3)
+      const mass = data.count / 3.0; // Fractional allocation
+      genreMass.set(genre, mass);
+      totalGenreMass += mass;
+    });
+
+    // Calculate genre entropy with proper normalization
+    let genreEntropy = 0;
+    const genreThreshold = 0.02; // 2% threshold for K_used
+    let genreKUsed = 0;
+    
+    if (totalGenreMass > 0) {
+      genreMass.forEach((mass) => {
+        const p = mass / totalGenreMass;
+        if (p > 0) {
+          genreEntropy -= p * Math.log(p);
+          if (p >= genreThreshold) genreKUsed++;
+        }
+      });
+    }
+
+    // Build fractional mass allocation for tags (top 20 for less saturation)
+    const sortedTags = Array.from(tagData.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 20); // Reduced from 50 to 20
+    
+    const tagMass = new Map<string, number>();
+    let totalTagMass = 0;
+    
+    sortedTags.forEach(([tag, data]) => {
+      // Fractional allocation - average tags per title ≈ 8
+      const mass = data.count / 8.0;
+      tagMass.set(tag, mass);
+      totalTagMass += mass;
+    });
+
+    // Calculate tag entropy with proper normalization
+    let tagEntropy = 0;
+    const tagThreshold = 0.02; // 2% threshold for K_used
+    let tagKUsed = 0;
+    
+    if (totalTagMass > 0) {
+      tagMass.forEach((mass) => {
+        const p = mass / totalTagMass;
+        if (p > 0) {
+          tagEntropy -= p * Math.log(p);
+          if (p >= tagThreshold) tagKUsed++;
+        }
+      });
+    }
+
+    // Proper normalization using log(K_used)
+    const genreMaxEntropy = genreKUsed > 1 ? Math.log(genreKUsed) : 1;
+    const tagMaxEntropy = tagKUsed > 1 ? Math.log(tagKUsed) : 1;
+    
+    const normGenre = genreKUsed > 1 ? Math.min(1, genreEntropy / genreMaxEntropy) : 0;
+    const normTag = tagKUsed > 1 ? Math.min(1, tagEntropy / tagMaxEntropy) : 0;
+    
+    // Weighted average: 40% Genre, 60% Tag
     return (normGenre * 0.4) + (normTag * 0.6);
+  }
+
+  // Helper to calculate effective number of categories for display
+  private static calculateEffectiveCategories(
+    genreData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>,
+    tagData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>
+  ): { effectiveGenres: number; effectiveTags: number } {
+    // Use same fractional allocation as diversity calculation
+    const genreMass = new Map<string, number>();
+    let totalGenreMass = 0;
+    
+    genreData.forEach((data, genre) => {
+      const mass = data.count / 3.0;
+      genreMass.set(genre, mass);
+      totalGenreMass += mass;
+    });
+
+    let genreEntropy = 0;
+    if (totalGenreMass > 0) {
+      genreMass.forEach((mass) => {
+        const p = mass / totalGenreMass;
+        if (p > 0) genreEntropy -= p * Math.log(p);
+      });
+    }
+
+    // Tags (top 20)
+    const sortedTags = Array.from(tagData.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 20);
+    
+    const tagMass = new Map<string, number>();
+    let totalTagMass = 0;
+    
+    sortedTags.forEach(([tag, data]) => {
+      const mass = data.count / 8.0;
+      tagMass.set(tag, mass);
+      totalTagMass += mass;
+    });
+
+    let tagEntropy = 0;
+    if (totalTagMass > 0) {
+      tagMass.forEach((mass) => {
+        const p = mass / totalTagMass;
+        if (p > 0) tagEntropy -= p * Math.log(p);
+      });
+    }
+
+    return {
+      effectiveGenres: Math.exp(genreEntropy),
+      effectiveTags: Math.exp(tagEntropy)
+    };
   }
 
   private static calculateStructuralPreferences(mediaList: MediaListEntry[]): { episodicVsSerial: number; pacingPreference: number; plotVsCharacter: number; complexityPreference: number } {

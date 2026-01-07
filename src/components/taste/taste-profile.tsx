@@ -350,7 +350,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           { label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, value: allEntries.length, icon: BarChart3 },
           { label: activeTab === 'ANIME' ? 'Watched' : 'Read', value: analyzedEntries.length, icon: Activity },
           { label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', value: totalProgressWatched, icon: Clock },
-          { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, icon: Palette },
+          { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} tags`, icon: Palette },
           { label: 'Mean Score', value: tasteProfile.scorePatterns.meanScore.toFixed(1), icon: TrendingUp },
           { label: 'Completion', value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(0)}%`, icon: Target },
         ].map((stat, i) => (
@@ -1022,7 +1022,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             },
             { label: 'Mainstream Index', value: (tasteProfile.behavioralMetrics.mainstreamIndex * 10).toFixed(1), sub: 'popularity score' },
             { label: 'Niche Index', value: (tasteProfile.behavioralMetrics.nicheIndex * 10).toFixed(1), sub: 'rarity score' },
-            { label: 'Diversity Index', value: (tasteProfile.behavioralMetrics.diversityIndex * 10).toFixed(1), sub: 'genre spread' },
+            { label: 'Diversity Index', value: (tasteProfile.behavioralMetrics.diversityIndex * 10).toFixed(1), sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} effective tags` },
             { label: 'Average Score', value: tasteProfile.scorePatterns.meanScore.toFixed(1), sub: 'mean rating' },
           ].map((metric, i) => (
             <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">

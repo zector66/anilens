@@ -370,6 +370,10 @@ export interface TasteProfile {
     nicheIndex: number;
     experimentalIndex: number;
     diversityIndex: number;
+    effectiveCategories: {
+      effectiveGenres: number;
+      effectiveTags: number;
+    };
     medianPopularity?: number;
     percentMainstream?: number;
     meanDropProgress?: number;
