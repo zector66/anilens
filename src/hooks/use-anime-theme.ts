@@ -35,7 +35,7 @@ interface UseAnimeThemeResult {
   refetch: () => void;
 }
 
-export function useAnimeTheme(anilistId: number | undefined): UseAnimeThemeResult {
+export function useAnimeTheme(anilistId: number | undefined, themeMode?: 'openings' | 'endings' | 'mix'): UseAnimeThemeResult {
   const [theme, setTheme] = useState<ThemeMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,17 +64,25 @@ export function useAnimeTheme(anilistId: number | undefined): UseAnimeThemeResul
           // Get recently played theme IDs to avoid repetition
           const recentIds = new Set(getRecentThemeIds());
           
-          // Filter to OPs first, then all themes
-          const opThemes = result.themes.filter(t => t.type === 'OP');
-          const edThemes = result.themes.filter(t => t.type === 'ED');
-          const allThemes = [...opThemes, ...edThemes];
+          // Filter based on themeMode
+          let availableThemes: ThemeMetadata[] = [];
+          if (themeMode === 'openings') {
+            availableThemes = result.themes.filter(t => t.type === 'OP');
+          } else if (themeMode === 'endings') {
+            availableThemes = result.themes.filter(t => t.type === 'ED');
+          } else {
+            // mix mode - prefer OPs then EDs
+            const opThemes = result.themes.filter(t => t.type === 'OP');
+            const edThemes = result.themes.filter(t => t.type === 'ED');
+            availableThemes = [...opThemes, ...edThemes];
+          }
           
-          // Try to find a theme that hasn't been played recently
-          let availableThemes = allThemes.filter(t => !recentIds.has(t.id));
+          // Filter out recently played themes
+          let filteredThemes = availableThemes.filter(t => !recentIds.has(t.id));
           
-          // If all themes were recently played, use all of them
-          if (availableThemes.length === 0) {
-            availableThemes = allThemes;
+          // If all themes were recently played, use all available themes
+          if (filteredThemes.length === 0) {
+            filteredThemes = availableThemes;
           }
           
           // Truly random selection using crypto if available
@@ -82,12 +90,12 @@ export function useAnimeTheme(anilistId: number | undefined): UseAnimeThemeResul
           if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
             const array = new Uint32Array(1);
             crypto.getRandomValues(array);
-            randomIndex = array[0] % availableThemes.length;
+            randomIndex = array[0] % filteredThemes.length;
           } else {
-            randomIndex = Math.floor(Math.random() * availableThemes.length);
+            randomIndex = Math.floor(Math.random() * filteredThemes.length);
           }
           
-          const selectedTheme = availableThemes[randomIndex];
+          const selectedTheme = filteredThemes[randomIndex];
           
           // Save this theme as recently played
           saveRecentThemeId(selectedTheme.id);
@@ -113,7 +121,7 @@ export function useAnimeTheme(anilistId: number | undefined): UseAnimeThemeResul
     return () => {
       cancelled = true;
     };
-  }, [anilistId, fetchKey]);
+  }, [anilistId, fetchKey, themeMode]);
 
   const refetch = () => setFetchKey(k => k + 1);
 

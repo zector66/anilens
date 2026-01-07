@@ -92,7 +92,7 @@ export class GameEngine {
     }
   }
 
-  static generateOPGuessingQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
+  static generateOPGuessingQuestions(entries: MediaListEntry[], count: number = 10, themeMode: 'openings' | 'endings' | 'mix' = 'mix'): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
     const shuffled = prioritizeUnused(entries, recentIds);
@@ -123,9 +123,10 @@ export class GameEngine {
         ],
         timeLimit: difficulty === 'EASY' ? 30 : difficulty === 'MEDIUM' ? 20 : 15,
         points: difficulty === 'EASY' ? 10 : difficulty === 'MEDIUM' ? 20 : 30,
-        // Include AniList ID for fetching theme from AnimeThemes API
+        // Include AniList ID and theme mode for fetching theme from AnimeThemes API
         themeData: {
           anilistId: media.id,
+          themeMode,
         },
       });
     }

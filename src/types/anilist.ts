@@ -464,6 +464,7 @@ export interface GameQuestion {
   // For OP/ED guessing - theme metadata from AnimeThemes API
   themeData?: {
     anilistId: number;
+    themeMode?: 'openings' | 'endings' | 'mix';
     songTitle?: string;
     artistName?: string;
     videoUrl?: string;

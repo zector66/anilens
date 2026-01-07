@@ -154,7 +154,7 @@ export function MultiplayerLobby({ gameType, activeType = 'ANIME', allEntries, o
       let questions: GameQuestion[] = [];
       switch (gameType) {
         case 'op-guessing':
-          questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
+          questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount, (room.settings as GameSettings).themeMode);
           break;
         case 'screenshot-guessing':
           questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);

@@ -142,7 +142,7 @@ export function GameHub() {
     
     switch (selectedGameType) {
       case 'op-guessing':
-        questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount);
+        questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount, settings.themeMode);
         break;
       case 'screenshot-guessing':
         questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);

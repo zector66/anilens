@@ -14,18 +14,20 @@ import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom } 
 // Component for OP/ED guessing with real audio from AnimeThemes
 function OPGuessContent({ 
   anilistId, 
+  themeMode,
   onSkip,
   onAudioStart,
   showAnswer = false,
   mediaType = 'ANIME',
 }: { 
   anilistId?: number; 
+  themeMode?: 'openings' | 'endings' | 'mix';
   onSkip?: () => void;
   onAudioStart?: () => void;
   showAnswer?: boolean;
   mediaType?: string;
 }) {
-  const { theme, isLoading, error } = useAnimeTheme(anilistId);
+  const { theme, isLoading, error } = useAnimeTheme(anilistId, themeMode);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onSkipRef = useRef(onSkip);
   
@@ -232,6 +234,7 @@ function QuestionCard({
         return (
           <OPGuessContent 
             anilistId={question?.themeData?.anilistId}
+            themeMode={question?.themeData?.themeMode}
             onSkip={onSkip}
             onAudioStart={() => setTimerPaused(false)}
             showAnswer={gameState === 'answered' || gameState === 'times-up'}
