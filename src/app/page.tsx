@@ -7,11 +7,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { TasteProfile } from '@/components/taste/taste-profile';
 import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
-import { PersonalityTest } from '@/components/personality/personality-test';
 import { CommunityHub } from '@/components/games/community-hub';
 import { 
   BarChart3, 
-  Brain, 
   Gamepad2, 
   Users, 
   TrendingUp, 
@@ -24,11 +22,11 @@ import {
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 
-type TabType = 'taste' | 'games' | 'community' | 'recommendations' | 'personality';
+type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
 export default function Home() {
   const { isAuthenticated, user, logout, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('taste');
+  const [activeTab, setActiveTab] = useState<TabType>('studio');
 
   if (loading && !isAuthenticated) {
     return (
@@ -151,10 +149,10 @@ function LandingPage() {
                 gradient: 'from-blue-500 to-cyan-500',
               },
               {
-                icon: Brain,
-                title: 'Personality Insights',
-                description: 'Discover your unique personality type: Completionist, Seasonal Tourist, Avant-Garde, and more.',
-                gradient: 'from-green-500 to-emerald-500',
+                icon: Sparkles,
+                title: 'AniLens Studio',
+                description: 'Create beautiful, shareable taste posters with live customization. Export as PNG and share on AniList!',
+                gradient: 'from-purple-500 to-pink-500',
               },
               {
                 icon: Users,
@@ -240,15 +238,25 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   
   const tabs = [
+    { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
     { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
     { id: 'games' as const, label: 'Games', icon: Gamepad2 },
     { id: 'community' as const, label: 'Community', icon: Users },
     { id: 'recommendations' as const, label: 'Recommendations', icon: TrendingUp },
-    { id: 'personality' as const, label: 'Personality', icon: Brain },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'studio':
+        return (
+          <div style={{ width: '100%', height: '100vh' }}>
+            <iframe 
+              src="/studio" 
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="AniLens Studio"
+            />
+          </div>
+        );
       case 'taste':
         return <TasteProfile userId={user?.id} />;
       case 'games':
@@ -257,8 +265,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         return <CommunityHub onNavigateToGames={() => setActiveTab('games')} />;
       case 'recommendations':
         return <Recommendations userId={user?.id} />;
-      case 'personality':
-        return <PersonalityTest userId={user?.id} />;
       default:
         return <TasteProfile />;
     }
