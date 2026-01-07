@@ -8,6 +8,7 @@ import { StudioControls } from "@/components/studio/studio-controls";
 import { useAniListData } from "@/hooks/use-anilist-data";
 import { useTasteProfile } from "@/hooks/use-taste-profile";
 import { useGamesData } from "@/hooks/use-games-data";
+import { AuthManager } from "@/lib/auth";
 
 // Default configuration
 const DEFAULT_CONFIG: StudioConfig = {
@@ -151,12 +152,12 @@ export default function StudioPage() {
           <p className="text-gray-400 mb-6">
             Please connect your AniList account to use AniLens Studio.
           </p>
-          <a 
-            href="/api/auth/anilist" 
+          <button
+            onClick={() => AuthManager.getInstance().startOAuthLogin()}
             className="px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors"
           >
             Connect AniList
-          </a>
+          </button>
         </div>
       </div>
     );
