@@ -187,7 +187,7 @@ function calculateRatingChange(
   // 1.0 = normal, <1.0 = easier game (less MMR), >1.0 = harder game (more MMR)
   const gameTypeModifiers: Record<string, number> = {
     'op-guessing': 1.0,         // Standard difficulty
-    'quote-guessing': 1.1,      // Harder - need to know quotes
+    'quote-guessing': 0.5,      // Much easier - quotes are often obvious
     'character-guessing': 0.7,  // Easier - visual recognition
     'score-guessing': 0.9,      // Slightly easier
     'season-matching': 1.2,     // Hard - need to know air dates
