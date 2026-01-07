@@ -271,7 +271,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Zap,
       color: 'from-yellow-500 to-orange-500',
       description: 'Seeking hidden gems and classics',
-      tooltip: 'Measures how many low-popularity titles you watch.',
+      tooltip: `Measures how many low-popularity titles you ${activeTab === 'ANIME' ? 'watch' : 'read'}.`,
       receipts: [
         { label: 'Median Popularity', value: (tasteProfile.behavioralMetrics.medianPopularity || 0).toLocaleString() },
         { label: 'Niche Index', value: (tasteProfile.behavioralMetrics.nicheIndex * 10).toFixed(1) }
@@ -283,7 +283,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Palette,
       color: 'from-pink-500 to-rose-500',
       description: 'Appreciation for experimental works',
-      tooltip: 'Based on experimental/avant-garde titles in your list.',
+      tooltip: `Based on experimental/avant-garde titles in your ${activeTab === 'ANIME' ? 'list' : 'collection'}.`,
       receipts: [
         { label: 'Experimental Index', value: (tasteProfile.behavioralMetrics.experimentalIndex * 10).toFixed(1) },
         { label: 'Unique Tags', value: tasteProfile.tagAffinity.filter(t => t.affinity > 0.6).length.toString() }
@@ -295,7 +295,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       icon: Zap,
       color: 'from-blue-400 to-indigo-600',
       description: 'Following the cultural phenomena',
-      tooltip: 'Measures how many highly popular titles you watch.',
+      tooltip: `Measures how many highly popular titles you ${activeTab === 'ANIME' ? 'watch' : 'read'}.`,
       receipts: [
         { label: 'Median Popularity', value: (tasteProfile.behavioralMetrics.medianPopularity || 0).toLocaleString() },
         { label: '% over 100k pop', value: `${((tasteProfile.behavioralMetrics.percentMainstream || 0) * 100).toFixed(1)}%` }
@@ -440,7 +440,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                     <ul className="list-disc pl-3 space-y-1">
                       <li>Matches for Tragedy, Drama, Psychological tags</li>
                       <li>Heavily weighted by completion (dropping = less damage)</li>
-                      <li>Normalized against your total watch count</li>
+                      <li>Normalized against your total {activeTab === 'ANIME' ? 'watch' : 'read'} count</li>
                     </ul>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             {tasteProfile.personalityTraits.emotionalDamageIndex > 7 
               ? "You love to suffer. Tragedy is your middle name."
               : tasteProfile.personalityTraits.emotionalDamageIndex > 4
-              ? "You enjoy some emotional depth in your anime."
+              ? `You enjoy some emotional depth in your ${activeTab === 'ANIME' ? 'anime' : 'manga'}.`
               : "You prefer to keep things light and fun."
             }
           </p>
@@ -483,7 +483,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                     <ul className="list-disc pl-3 space-y-1">
                       <li>Frequency of Parody, Comedy, Surreal, and Gore tags</li>
                       <li>High scores for non-linear or abstract storytelling</li>
-                      <li>Penalized by high ratios of grounded Slice of Life</li>
+                      <li>Penalized by high ratios of grounded {activeTab === 'ANIME' ? 'Slice of Life' : 'Daily Life'}</li>
                     </ul>
                   </div>
                 </div>
@@ -703,10 +703,10 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       )}
 
       {/* Studio/Author Bias */}
-      {activeTab === 'ANIME' && tasteProfile.studioBias.length > 0 && (
+      {tasteProfile.studioBias.length > 0 && (
       <div className="p-6 rounded-xl bg-white/5 border border-white/10">
-        <h3 className="text-lg font-semibold text-white mb-2">Favorite Studios</h3>
-        <p className="text-sm text-gray-400 mb-6">Your most watched animation studios</p>
+        <h3 className="text-lg font-semibold text-white mb-2">{activeTab === 'ANIME' ? 'Favorite Studios' : 'Top Authors'}</h3>
+        <p className="text-sm text-gray-400 mb-6">Your most {activeTab === 'ANIME' ? 'watched animation studios' : 'read authors'}</p>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -726,8 +726,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                   const x = (cx as number) + radius * Math.cos(-midAngle * RADIAN);
                   const y = (cy as number) + radius * Math.sin(-midAngle * RADIAN);
 
-                  // Extract studio name from payload or data item
-                  const studioName = payload?.studio || payload?.name || 'Unknown';
+                  // Extract studio/author name from payload or data item
+                  const sourceName = payload?.studio || payload?.name || 'Unknown';
 
                   return (
                     <text
@@ -738,7 +738,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                       dominantBaseline="central"
                       className="text-[10px] md:text-xs"
                     >
-                      {`${studioName} (${(percent * 100).toFixed(0)}%)`}
+                      {`${sourceName} (${(percent * 100).toFixed(0)}%)`}
                     </text>
                   );
                 }}
@@ -796,15 +796,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             profile={tasteProfile} 
             username={user?.name || 'User'} 
             avatarUrl={user?.avatar?.large} 
+            activeType={activeTab}
           />
         </div>
 
-        {/* Studio Cards - Only show for Anime */}
-        {activeTab === 'ANIME' && tasteProfile.studioBias.length > 0 && (
+        {/* Studio/Author Cards */}
+        {tasteProfile.studioBias.length > 0 && (
         <div className="space-y-4 lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <Award className="w-5 h-5 text-blue-400" />
-            <h3 className="text-xl font-bold text-white">Top Studios</h3>
+            <h3 className="text-xl font-bold text-white">{activeTab === 'ANIME' ? 'Top Studios' : 'Top Authors'}</h3>
           </div>
           <div className="grid gap-3">
             {tasteProfile.studioBias.slice(0, 5).map((studio, i) => (
@@ -815,7 +816,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                   </div>
                   <div>
                     <div className="text-white font-medium">{studio.studio}</div>
-                    <div className="text-xs text-gray-500">{studio.count} series watched</div>
+                    <div className="text-xs text-gray-500">{studio.count} series {activeTab === 'ANIME' ? 'watched' : 'read'}</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -871,14 +872,17 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
         {/* Emotional & Structural Vectors */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <EmotionalProfileChart emotionalProfile={tasteProfile.emotionalProfile} />
-          <StructuralPreferencesChart structuralPreferences={tasteProfile.structuralPreferences} />
+          <EmotionalProfileChart emotionalProfile={tasteProfile.emotionalProfile} activeType={activeTab} />
+          <StructuralPreferencesChart structuralPreferences={tasteProfile.structuralPreferences} activeType={activeTab} />
         </div>
 
         {/* Risk Profile & Contradictions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <RiskProfileChart riskProfile={tasteProfile.riskProfile} />
-          <ContradictionsCard contradictions={tasteProfile.contradictions} />
+          <RiskProfileChart riskProfile={tasteProfile.riskProfile} activeType={activeTab} />
+          <div className="space-y-8">
+            <ContradictionsCard contradictions={tasteProfile.contradictions} />
+            <TasteFingerprintCard fingerprint={tasteProfile.fingerprint} />
+          </div>
         </div>
       </div>
 
@@ -890,7 +894,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               <Sword className="w-6 h-6 text-purple-400" />
               Taste Battle Mode
             </h3>
-            <p className="text-gray-400 text-sm">Compare your anime DNA with any other user</p>
+            <p className="text-gray-400 text-sm">Compare your {activeTab === 'ANIME' ? 'anime' : 'manga'} DNA with any other user</p>
           </div>
           
           <form onSubmit={handleSearch} className="flex gap-2">

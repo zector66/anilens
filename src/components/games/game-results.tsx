@@ -12,9 +12,10 @@ interface GameResultsProps {
   onPlayAgain: () => void;
   onBackToHub: () => void;
   difficulty?: string;
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'mixed' }: GameResultsProps) {
+export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'mixed', activeType = 'ANIME' }: GameResultsProps) {
   const { submitGameResult, isSubmitting, canSubmitScores } = useGameStats();
   const [mmrResult, setMmrResult] = useState<{
     oldRating: number;
@@ -58,16 +59,20 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
   }, [results, difficulty, submitGameResult, canSubmitScores, submitted]);
   const score = GameEngine.calculateScore(results);
   const accuracy = GameEngine.calculateAccuracy(results);
-  const performanceLevel = GameEngine.getPerformanceLevel(score, results.questions.reduce((sum, q) => sum + q.points, 0));
+  const performanceLevel = GameEngine.getPerformanceLevel(score, results.questions.reduce((sum, q) => sum + q.points, 0), activeType);
   const totalTime = Math.floor((results.endTime! - results.startTime) / 1000);
 
   const correctAnswers = results.answers.filter(a => a.correct).length;
   const totalQuestions = results.answers.length;
   const averageTimePerQuestion = totalTime / totalQuestions;
 
+  const getPerformanceLevelLabel = (level: string) => {
+    return level;
+  };
+
   const getPerformanceGradient = (level: string) => {
+    if (level.includes('Master')) return 'from-purple-500 to-pink-500';
     switch (level) {
-      case 'Anime Master': return 'from-purple-500 to-pink-500';
       case 'Expert': return 'from-blue-500 to-cyan-500';
       case 'Advanced': return 'from-green-500 to-emerald-500';
       case 'Intermediate': return 'from-yellow-500 to-orange-500';
@@ -77,8 +82,8 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
   };
 
   const getPerformanceEmoji = (level: string) => {
+    if (level.includes('Master')) return '🏆';
     switch (level) {
-      case 'Anime Master': return '🏆';
       case 'Expert': return '🥇';
       case 'Advanced': return '🥈';
       case 'Intermediate': return '🥉';
@@ -94,7 +99,7 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
         <div className="text-7xl mb-4 animate-bounce">{getPerformanceEmoji(performanceLevel)}</div>
         <h2 className="text-3xl font-black text-white mb-2">Game Complete!</h2>
         <div className={`inline-block px-6 py-2 rounded-full bg-linear-to-r ${getPerformanceGradient(performanceLevel)} text-white font-bold text-xl`}>
-          {performanceLevel}
+          {getPerformanceLevelLabel(performanceLevel)}
         </div>
         
         {/* MMR Change Display */}

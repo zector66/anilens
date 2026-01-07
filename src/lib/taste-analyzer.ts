@@ -19,11 +19,11 @@ export class TasteAnalyzer {
   private static readonly DIRICHLET_ALPHA = 0.5;
 
   static analyzeTaste(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): TasteProfile {
-    const genreData = new Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>();
-    const tagData = new Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number; avgRank: number }>();
-    const sourceData = new Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>();
-    const yearData = new Map<number, { count: number; totalScore: number; episodes: number; scoredCount: number }>();
-    const formatData = new Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>();
+    const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
+    const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>();
+    const sourceData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
+    const yearData = new Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
+    const formatData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
     
     let totalProgress = 0;
     let completedCount = 0;
@@ -65,11 +65,11 @@ export class TasteAnalyzer {
 
       if (media.genres) {
         media.genres.forEach((genre: string) => {
-          const existing = genreData.get(genre) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0 };
+          const existing = genreData.get(genre) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
           genreData.set(genre, {
             count: existing.count + 1,
             totalScore: existing.totalScore + score,
-            episodes: existing.episodes + progressWatched,
+            progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
           });
         });
@@ -78,12 +78,12 @@ export class TasteAnalyzer {
       if (media.tags) {
         media.tags.forEach((tag) => {
           if (tag.isGeneralSpoiler || tag.isMediaSpoiler) return;
-          const existing = tagData.get(tag.name) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0, avgRank: 0 };
+          const existing = tagData.get(tag.name) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, avgRank: 0 };
           const newCount = existing.count + 1;
           tagData.set(tag.name, {
             count: newCount,
             totalScore: existing.totalScore + score,
-            episodes: existing.episodes + progressWatched,
+            progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
             avgRank: ((existing.avgRank * existing.count) + (tag.rank || 50)) / newCount,
           });
@@ -94,11 +94,11 @@ export class TasteAnalyzer {
         media.studios.edges.forEach((studioEdge) => {
           if (studioEdge.isMain && studioEdge.node.isAnimationStudio) {
             const studioName = studioEdge.node.name;
-            const existing = sourceData.get(studioName) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0 };
+            const existing = sourceData.get(studioName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
             sourceData.set(studioName, {
               count: existing.count + 1,
               totalScore: existing.totalScore + score,
-              episodes: existing.episodes + progressWatched,
+              progressUnits: existing.progressUnits + progressWatched,
               scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
             });
           }
@@ -106,11 +106,11 @@ export class TasteAnalyzer {
       } else if (type === 'MANGA' && media.staff?.edges) {
         media.staff.edges.forEach((staffEdge) => {
           const staffName = staffEdge.node.name.full;
-          const existing = sourceData.get(staffName) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0 };
+          const existing = sourceData.get(staffName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
           sourceData.set(staffName, {
             count: existing.count + 1,
             totalScore: existing.totalScore + score,
-            episodes: existing.episodes + progressWatched,
+            progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
           });
         });
@@ -118,22 +118,22 @@ export class TasteAnalyzer {
 
       if (media.startDate?.year) {
         const year = media.startDate.year;
-        const existing = yearData.get(year) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0 };
+        const existing = yearData.get(year) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
         yearData.set(year, {
           count: existing.count + 1,
           totalScore: existing.totalScore + score,
-          episodes: existing.episodes + progressWatched,
+          progressUnits: existing.progressUnits + progressWatched,
           scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
         });
       }
 
       if (media.format) {
         const format = media.format;
-        const existing = formatData.get(format) || { count: 0, totalScore: 0, episodes: 0, scoredCount: 0 };
+        const existing = formatData.get(format) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
         formatData.set(format, {
           count: existing.count + 1,
           totalScore: existing.totalScore + score,
-          episodes: existing.episodes + progressWatched,
+          progressUnits: existing.progressUnits + progressWatched,
           scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
         });
       }
@@ -186,7 +186,7 @@ export class TasteAnalyzer {
 
     const studioBias = Array.from(sourceData.entries())
       .map(([source, data]) => {
-        const volumeFactor = totalProgress > 0 ? (data.episodes / totalProgress) : 0;
+        const volumeFactor = totalProgress > 0 ? (data.progressUnits / totalProgress) : 0;
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : 7;
         const scoreFactor = avgScore / 10;
         const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 10 : 5));
@@ -204,7 +204,7 @@ export class TasteAnalyzer {
         else if (year < 2010) era = '2000s';
         else if (year < 2020) era = '2010s';
         else era = '2020s';
-        const volumeFactor = totalProgress > 0 ? (data.episodes / totalProgress) : 0;
+        const volumeFactor = totalProgress > 0 ? (data.progressUnits / totalProgress) : 0;
         const scoreFactor = (data.totalScore / (data.count || 1)) / 10;
         const preference = (volumeFactor * 0.6) + (scoreFactor * 0.4);
         return { era, preference, count: data.count, avgScore: data.totalScore / (data.count || 1) };
@@ -223,7 +223,7 @@ export class TasteAnalyzer {
 
     const formatPreference = Array.from(formatData.entries())
       .map(([format, data]) => {
-        const volumeFactor = totalProgress > 0 ? (data.episodes / totalProgress) : 0;
+        const volumeFactor = totalProgress > 0 ? (data.progressUnits / totalProgress) : 0;
         const scoreFactor = (data.totalScore / (data.count || 1)) / 10;
         const preference = (volumeFactor * 0.6) + (scoreFactor * 0.4);
         return { format, preference, count: data.count, avgScore: data.totalScore / (data.count || 1) };
@@ -232,10 +232,10 @@ export class TasteAnalyzer {
 
     const formatWeights = this.calculateFormatWeights(formatData);
 
-    const bingeIndex = this.calculateBingeIndex(analyzedList);
-    const mainstreamIndex = this.calculateMainstreamIndex(analyzedList);
-    const nicheIndex = this.calculateNicheIndex(analyzedList);
-    const experimentalIndex = this.calculateExperimentalIndex(analyzedList);
+    const bingeIndex = this.calculateBingeIndex(analyzedList, type);
+    const mainstreamIndex = this.calculateMainstreamIndex(analyzedList, type);
+    const nicheIndex = this.calculateNicheIndex(analyzedList, type);
+    const experimentalIndex = this.calculateExperimentalIndex(analyzedList, type);
     const diversityIndex = this.calculateDiversityIndex(genreData, tagData);
 
     const popularities = analyzedList.map(e => e.media?.popularity || 0).filter(p => p > 0).sort((a, b) => a - b);
@@ -243,30 +243,23 @@ export class TasteAnalyzer {
     const percentMainstream = n > 0 ? analyzedList.filter(e => (e.media?.popularity || 0) > 100000).length / n : 0;
     const logNormalizedPopularity = this.calculateLogNormalizedPopularity(popularities);
     const popularityQuantile = this.calculatePopularityQuantile(medianPopularity);
-    const dropEntries = analyzedList.filter(e => e.status === 'DROPPED');
-    const meanDropProgress = dropEntries.length > 0
-      ? dropEntries.reduce((sum, e) => {
-          const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
-          return sum + (e.progress || 0) / total;
-        }, 0) / dropEntries.length
-      : 0;
 
     const personalityTraits = {
-      completionist: Math.min(10, completionRate > 0.75 ? completionRate * 10 : completionRate * 6),
+      completionist: completionRate * 10,
       seasonalTourist: this.calculateSeasonalTouristScore(analyzedList),
-      cultHunter: nicheIndex * 10,
+      cultHunter: (1 - mainstreamIndex) * 10,
       nostalgiaAddict: this.calculateNostalgiaScore(yearData),
       mainstreamMaxxer: mainstreamIndex * 10,
       avantGarde: experimentalIndex * 10,
-      emotionalDamageIndex: this.calculateEmotionalDamageIndex(analyzedList),
-      chaosLevel: this.calculateChaosLevel(analyzedList),
+      emotionalDamageIndex: this.calculateEmotionalDamageIndex(analyzedList, type),
+      chaosLevel: this.calculateChaosLevel(analyzedList, type),
       genreDiversity: diversityIndex * 10,
     };
 
     const emotionalProfile = this.calculateEmotionalProfile(analyzedList);
     const structuralPreferences = this.calculateStructuralPreferences(analyzedList);
     const riskProfile = this.calculateRiskProfile(analyzedList);
-    const contradictions = this.detectContradictions(analyzedList, genreAffinity, tagAffinity, { completionRate, nicheIndex, mainstreamIndex, experimentalIndex }, scores);
+    const contradictions = this.detectContradictions(analyzedList, genreAffinity, tagAffinity, { completionRate, nicheIndex, mainstreamIndex, experimentalIndex }, scores, type);
     const fingerprint = this.generateFingerprint(emotionalProfile, structuralPreferences, riskProfile, genreAffinity, nicheIndex, diversityIndex);
 
     return {
@@ -279,8 +272,7 @@ export class TasteAnalyzer {
       scorePatterns: { meanScore, scoreDistribution, scoreInflation, consistency },
       behavioralMetrics: {
         completionRate, dropRate, rewatchRate, bingeIndex, mainstreamIndex, nicheIndex, experimentalIndex, diversityIndex,
-        medianPopularity, percentMainstream, meanDropProgress,
-        logNormalizedPopularity, popularityQuantile,
+        medianPopularity, percentMainstream, logNormalizedPopularity, popularityQuantile,
         rawCompletionRate: n > 0 ? completedCount / n : 0,
         rawDropRate: n > 0 ? droppedCount / n : 0
       },
@@ -293,7 +285,7 @@ export class TasteAnalyzer {
     };
   }
 
-  private static calculateFormatWeights(formatData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>): Record<string, number> {
+  private static calculateFormatWeights(formatData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>): Record<string, number> {
     const formats = Array.from(formatData.entries());
     if (formats.length === 0) return {};
     const totalItems = formats.reduce((sum, [, d]) => sum + d.count, 0);
@@ -307,6 +299,23 @@ export class TasteAnalyzer {
       weights[format] = Math.max(0.2, Math.min(1.4, 0.6 + 0.8 * (engagement - avgEngagement)));
     });
     return weights;
+  }
+
+  private static calculateSeasonalTouristScore(mediaList: MediaListEntry[]): number {
+    const year = new Date().getFullYear();
+    let y0 = 0, y1 = 0, y2 = 0;
+    mediaList.forEach(e => {
+      const sy = e.media?.startDate?.year;
+      if (sy === year) y0++; else if (sy === year - 1) y1++; else if (sy === year - 2) y2++;
+    });
+    const weighted = (y0 * 1.5) + (y1 * 1.0) + (y2 * 0.5);
+    return Math.min(10, Math.min(5, (y0 + y1) / 10) + Math.min(3, (weighted / (mediaList.length || 1)) * 15) + Math.min(2, y0 / 15));
+  }
+
+  private static calculateNostalgiaScore(yearData: Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>): number {
+    let nCount = 0, total = 0;
+    yearData.forEach((d, y) => { if (y < 2010) nCount += d.count; total += d.count; });
+    return total > 0 ? (nCount / total) * 10 : 0;
   }
 
   private static calculateLogNormalizedPopularity(popularities: number[]): number {
@@ -353,7 +362,7 @@ export class TasteAnalyzer {
     return Math.exp(-robustSigma / 2.0);
   }
 
-  private static calculateBingeIndex(mediaList: MediaListEntry[]): number {
+  private static calculateBingeIndex(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     const completed = mediaList.filter(e => e.status === 'COMPLETED' && e.startedAt?.year && e.completedAt?.year);
     if (completed.length === 0) return 0;
     const bingeScores = completed.map(e => {
@@ -361,152 +370,110 @@ export class TasteAnalyzer {
         const start = new Date(e.startedAt.year!, (e.startedAt.month || 1) - 1, e.startedAt.day || 1);
         const end = new Date(e.completedAt.year!, (e.completedAt.month || 1) - 1, e.completedAt.day || 1);
         const diffDays = Math.max(1, Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-        const epsPerDay = (e.media?.episodes || e.progress || 1) / diffDays;
-        if (epsPerDay <= 1) return epsPerDay * 0.15;
-        if (epsPerDay <= 3) return 0.15 + ((epsPerDay - 1) / 2) * 0.35;
-        if (epsPerDay <= 6) return 0.5 + ((epsPerDay - 3) / 3) * 0.35;
-        return Math.min(1, 0.85 + ((epsPerDay - 6) / 4) * 0.15);
+        const units = type === 'ANIME' 
+          ? (e.media?.episodes || e.progress || 1) 
+          : (e.media?.chapters || e.progress || 1);
+        const unitsPerDay = units / diffDays;
+        if (unitsPerDay <= 1) return unitsPerDay * 0.15;
+        if (unitsPerDay <= 3) return 0.15 + ((unitsPerDay - 1) / 2) * 0.35;
+        if (unitsPerDay <= 6) return 0.5 + ((unitsPerDay - 3) / 3) * 0.35;
+        return Math.min(1, 0.85 + ((unitsPerDay - 6) / 4) * 0.15);
       } catch { return 0; }
     });
     return bingeScores.reduce((a, b) => a + b, 0) / bingeScores.length;
   }
 
-  private static calculateMainstreamIndex(mediaList: MediaListEntry[]): number {
+  private static calculateMainstreamIndex(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     if (mediaList.length === 0) return 0;
     const weighted = mediaList.map(e => {
       const pop = e.media?.popularity || 0;
       const weight = e.status === 'COMPLETED' ? 1.0 : e.status === 'CURRENT' ? 0.7 : e.status === 'DROPPED' ? 0.3 : 0.5;
-      const score = pop <= 500 ? 0 : Math.max(0, Math.min(1, (Math.log10(pop) - 2.7) / 3));
-      return { score, weight };
+      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
+      const progressWeight = e.status === 'COMPLETED' ? 1.0 : Math.min(1, (e.progress || 0) / total);
+      
+      // Formula: log10(popularity) normalized to 0-1 (roughly 0 to 6.5 for AniList)
+      const normPop = Math.min(1, Math.log10(pop + 1) / 6.0);
+      return normPop * weight * progressWeight;
     });
-    const totalW = weighted.reduce((s, w) => s + w.weight, 0);
-    return totalW === 0 ? 0 : weighted.reduce((s, w) => s + w.score * w.weight, 0) / totalW;
+    const totalW = mediaList.length; // Simplified
+    return weighted.reduce((a, b) => a + b, 0) / totalW;
   }
 
-  private static calculateNicheIndex(mediaList: MediaListEntry[]): number {
+  private static calculateNicheIndex(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     if (mediaList.length === 0) return 0;
     let nicheW = 0, totalW = 0;
     mediaList.forEach(e => {
       const pop = e.media?.popularity || 0;
       if (pop === 0) return;
-      const weight = e.status === 'COMPLETED' ? 1.0 : Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1)) * 0.7;
+      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
+      const weight = e.status === 'COMPLETED' ? 1.0 : Math.min(1, (e.progress || 0) / total) * 0.7;
       totalW += weight;
       if (pop < 5000) nicheW += weight * (1 - pop / 5000);
       else if (pop < 20000) nicheW += weight * (1 - (pop - 5000) / 15000) * 0.5;
     });
-    return totalW === 0 ? 0 : Math.min(1, nicheW / totalW);
+    return totalW > 0 ? (nicheW / totalW) * 10 : 0;
   }
 
-  private static calculateExperimentalIndex(mediaList: MediaListEntry[]): number {
+  private static calculateExperimentalIndex(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     const expTags = [
-      // Core experimental tags
-      'Surreal', 'Avant Garde', 'Psychological', 'Abstract', 'Non-linear', 'Fragmented',
-      'Philosophical', 'Meta', 'Experimental', 'Art House', 'Denpa', 'Thought Provoking',
-      // Narrative complexity
-      'Unreliable Narrator', 'Multiple Timelines', 'Time Loop', 'Time Manipulation',
-      'Anachronistic', 'Anthology', 'Vignette', 'Tragedy',
-      // Mature/unconventional themes
-      'Primarily Adult Cast', 'Seinen', 'Josei', 'Body Horror', 'Cosmic Horror',
-      'Existential', 'Deconstruction', 'Satire', 'Subversive',
-      // Visual/stylistic
-      'Rotoscoping', 'Minimalist', 'Noir', 'Neo-noir', 'Cyberpunk', 'Steampunk',
-      // Psychological depth
-      'Mind Game', 'Dissociative Identity', 'Memory Manipulation', 'Dream World',
-      'Alternate Reality', 'Virtual Reality', 'Dystopian', 'Utopian'
+      'Experimental', 'Surreal', 'Abstract', 'Avant Garde', 'Psychological', 
+      'Philosophical', 'Deconstruction', 'Meta', 'Non-linear', 'Symbolism'
     ];
     if (mediaList.length === 0) return 0;
     let expW = 0, totalW = 0;
     mediaList.forEach(e => {
-      const weight = e.status === 'COMPLETED' ? 1.0 : Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1)) * 0.6;
+      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
+      const weight = e.status === 'COMPLETED' ? 1.0 : Math.min(1, (e.progress || 0) / total) * 0.6;
       totalW += weight;
       const matches = (e.media?.tags || []).filter(t => expTags.some(et => t.name.includes(et)));
       if (matches.length > 0) expW += weight * (matches.reduce((s, t) => s + (t.rank || 50), 0) / matches.length / 100);
     });
-    return totalW === 0 ? 0 : Math.min(1, expW / totalW);
+    return totalW > 0 ? (expW / totalW) : 0;
   }
 
-  private static calculateSeasonalTouristScore(mediaList: MediaListEntry[]): number {
-    if (mediaList.length === 0) return 0;
-    const year = new Date().getFullYear();
-    let y0 = 0, y1 = 0, y2 = 0;
-    mediaList.forEach(e => {
-      const sy = e.media?.startDate?.year;
-      if (sy === year) y0++; else if (sy === year - 1) y1++; else if (sy === year - 2) y2++;
-    });
-    const weighted = (y0 * 1.5) + (y1 * 1.0) + (y2 * 0.5);
-    return Math.min(10, Math.min(5, (y0 + y1) / 10) + Math.min(3, (weighted / mediaList.length) * 15) + Math.min(2, y0 / 15));
-  }
-
-  private static calculateNostalgiaScore(yearData: Map<number, { count: number; totalScore: number; episodes: number; scoredCount: number }>): number {
-    let nCount = 0, total = 0;
-    yearData.forEach((d, y) => { if (y < 2010) nCount += d.count; total += d.count; });
-    return total > 0 ? (nCount / total) * 10 : 0;
-  }
-
-  private static calculateEmotionalDamageIndex(mediaList: MediaListEntry[]): number {
+  private static calculateEmotionalDamageIndex(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     const emotionalTags = [
       // Core emotional damage
       'Tragedy', 'Drama', 'Psychological', 'Horror', 'Thriller', 'Gore', 'Tearjerker',
       // Mental health & trauma
-      'Depression', 'Suicide', 'Angst', 'PTSD', 'Mental Illness', 'Self-Harm',
-      'Dissociative Identity', 'Amnesia', 'Trauma', 'Grief',
-      // Physical suffering
-      'Terminal Illness', 'Disability', 'Body Horror', 'Torture', 'Cannibalism',
-      // Interpersonal trauma
-      'Abuse', 'Bullying', 'Netorare', 'Infidelity', 'Toxic Relationship',
-      'Domestic Abuse', 'Child Abuse', 'Abandonment', 'Orphan', 'Slavery',
-      // World-scale suffering
-      'Post-Apocalyptic', 'War', 'Genocide', 'Dystopia', 'Famine', 'Pandemic',
-      // Dark themes
-      'Dark Fantasy', 'Cosmic Horror', 'Lovecraftian', 'Nihilism', 'Existential',
-      'Death', 'Murder', 'Revenge', 'Betrayal', 'Corruption',
-      // Mature/heavy
-      'Mature', 'Seinen', 'Utsuge', 'Nakige', 'Bittersweet'
+      'Mental Illness', 'Depression', 'Suicide', 'Loneliness', 'Isolation', 'Post-Apocalyptic', 'Dystopian',
+      // Narrative weight
+      'Bittersweet', 'Melancholy', 'Existential', 'Death', 'Loss of a Loved One', 'Nihilism', 'Suffering'
     ];
     if (mediaList.length === 0) return 0;
     let score = 0;
     mediaList.forEach(e => {
-      const pct = Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1));
+      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
+      const pct = Math.min(1, (e.progress || 0) / total);
       const matches = (e.media?.tags || []).filter(t => emotionalTags.some(et => t.name.includes(et)));
       if (matches.length > 0) score += (matches.reduce((s, t) => s + (t.rank || 0), 0) / 100) * pct;
     });
-    return Math.min(10, (score / (mediaList.length * 0.3)) * 10);
+    return Math.min(10, (score / mediaList.length) * 12);
   }
 
-  private static calculateChaosLevel(mediaList: MediaListEntry[]): number {
+  private static calculateChaosLevel(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     const chaosTags = [
-      // Core chaos
-      'Ecchi', 'Harem', 'Reverse Harem', 'Comedy', 'Parody', 'Gore', 'Action',
-      'Psychological', 'Dementia', 'Surreal', 'Supernatural', 'Slapstick',
-      // Fanservice & fetish
-      'Fan Service', 'Nudity', 'Sexual Content', 'Exhibitionism', 'Voyeur',
-      'Bondage', 'Masochism', 'Sadism', 'Tentacles', 'Futanari',
-      // Character archetypes
-      'Gender Bending', 'Crossdressing', 'Trap', 'Tomboy', 'Femboy',
-      'Monster Girl', 'Kemonomimi', 'Nekomimi', 'Yandere', 'Tsundere', 'Kuudere',
-      // Relationship chaos
-      'Love Triangle', 'Love Polygon', 'Polyamory', 'Netorare', 'Incest',
-      'Age Gap', 'Student-Teacher Relationship', 'Forbidden Love',
-      // Otaku & meta
-      'Otaku Culture', 'Chuunibyou', 'NEET', 'Shut-In', 'Idol', 'Doujinshi',
-      'Cosplay', '4th Wall', 'Meta', 'Self-Insert', 'Isekai', 'Reincarnation',
+      // Meta & Surreal
+      'Surreal Comedy', 'Parody', 'Satire', 'Absurdist', 'Slapstick', 'Crossover',
+      // Subversive
+      'Deconstruction', 'Subversive', 'Cosplay', '4th Wall', 'Meta', 'Self-Insert', 'Isekai', 'Reincarnation',
       // Trope-heavy
       'School Battle Harem', 'Battle Harem', 'Accidental Pervert', 'Hot Springs',
       'Beach Episode', 'Festival', 'Cultural Festival', 'Sports Festival',
       // Wild premises
       'Absurdist', 'Random', 'Gag Humor', 'Dark Comedy', 'Deadpan', 'Satire',
       'Delinquents', 'Yakuza', 'Gambling', 'Death Game', 'Battle Royale',
-      // Violence & intensity
-      'Splatter', 'Body Horror', 'Mutilation', 'Graphic', 'Violence'
+      'Prison', 'Underground', 'Cult', 'Demons', 'Magic', 'Supernatural'
     ];
     if (mediaList.length === 0) return 0;
     let score = 0;
     mediaList.forEach(e => {
-      const pct = Math.min(1, (e.progress || 0) / (e.media?.episodes || e.media?.chapters || 1));
+      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
+      const pct = Math.min(1, (e.progress || 0) / total);
       const matches = (e.media?.tags || []).filter(t => chaosTags.some(ct => t.name.includes(ct)));
       if (matches.length > 0) score += (matches.reduce((s, t) => s + (t.rank || 0), 0) / 100) * pct;
     });
-    return Math.min(10, (score / (mediaList.length * 0.4)) * 10);
+    return Math.min(10, (score / mediaList.length) * 8);
   }
 
   private static calculateEmotionalProfile(mediaList: MediaListEntry[]): { escapism: number; bleakness: number; idealism: number; intensity: number; sentimentality: number } {
@@ -620,8 +587,8 @@ export class TasteAnalyzer {
   }
 
   private static calculateDiversityIndex(
-    genreData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number }>,
-    tagData: Map<string, { count: number; totalScore: number; episodes: number; scoredCount: number; avgRank: number }>
+    genreData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>,
+    tagData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>
   ): number {
     // Genre Entropy
     const totalGenres = Array.from(genreData.values()).reduce((s, d) => s + d.count, 0);
@@ -647,13 +614,13 @@ export class TasteAnalyzer {
   }
 
   private static calculateStructuralPreferences(mediaList: MediaListEntry[]): { episodicVsSerial: number; pacingPreference: number; plotVsCharacter: number; complexityPreference: number } {
-    // Episodic: standalone stories, each episode works alone
+    // Episodic: standalone stories, each entry works alone
     const epi = [
       'Episodic', 'Anthology', 'Slice of Life', 'Comedy', 'Gag Humor',
       'Monster of the Week', 'Sketch Comedy', 'Vignette', 'Short Episodes',
       'Iyashikei', 'Cute Girls Doing Cute Things', 'Daily Life'
     ];
-    // Serialized: continuous plot across episodes
+    // Serialized: continuous plot across entries
     const ser = [
       'Story Arc', 'Shounen', 'Plot Continuity', 'Mystery', 'Thriller',
       'Epic', 'Saga', 'War', 'Revenge', 'Conspiracy', 'Tournament',
@@ -747,22 +714,45 @@ export class TasteAnalyzer {
     genreAffinity: Array<{ genre: string; affinity: number; count: number; avgScore: number; confidence: number }>,
     tagAffinity: Array<{ tag: string; affinity: number; count: number; avgScore: number; avgRank: number; confidence: number }>,
     metrics: { completionRate: number; nicheIndex: number; mainstreamIndex: number; experimentalIndex: number },
-    scores: number[]
+    scores: number[],
+    type: 'ANIME' | 'MANGA' = 'ANIME'
   ): Array<{ id: string; type: 'RATING_VS_BEHAVIOR' | 'STATED_VS_ACTUAL' | 'GENRE_MISMATCH' | 'COMPLETION_PARADOX'; severity: 'MILD' | 'MODERATE' | 'STRONG'; description: string; evidence: string }> {
     const contradictions: Array<{ id: string; type: 'RATING_VS_BEHAVIOR' | 'STATED_VS_ACTUAL' | 'GENRE_MISMATCH' | 'COMPLETION_PARADOX'; severity: 'MILD' | 'MODERATE' | 'STRONG'; description: string; evidence: string }> = [];
     const expTags = tagAffinity.filter(t => ['Psychological', 'Surreal', 'Philosophical', 'Experimental'].some(et => t.tag.includes(et)));
     if (expTags.length > 2 && metrics.mainstreamIndex > 0.7) {
-      contradictions.push({ id: 'exp-mainstream', type: 'STATED_VS_ACTUAL', severity: metrics.mainstreamIndex > 0.85 ? 'STRONG' : 'MODERATE', description: 'You gravitate toward experimental tags but primarily finish mainstream titles.', evidence: `Experimental tag affinity detected, but ${Math.round(metrics.mainstreamIndex * 100)}% mainstream index.` });
+      const action = type === 'ANIME' ? 'watching' : 'reading';
+      contradictions.push({ 
+        id: 'exp-mainstream', 
+        type: 'STATED_VS_ACTUAL', 
+        severity: metrics.mainstreamIndex > 0.85 ? 'STRONG' : 'MODERATE', 
+        description: `You gravitate toward experimental tags but primarily ${action} mainstream titles.`, 
+        evidence: `Experimental tag affinity detected, but ${Math.round(metrics.mainstreamIndex * 100)}% mainstream index.` 
+      });
     }
     const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 7;
+    const action = type === 'ANIME' ? 'rewatch' : 'reread';
     const rewatch = mediaList.filter(e => (e.repeat || 0) > 0).length / (mediaList.length || 1);
     if (avg < 6.5 && rewatch > 0.15) {
-      contradictions.push({ id: 'harsh-rewatch', type: 'RATING_VS_BEHAVIOR', severity: avg < 6 ? 'STRONG' : 'MODERATE', description: 'You rate harshly but rewatch frequently—secretly enjoying more than you admit?', evidence: `Average score ${avg.toFixed(1)}/10, but ${Math.round(rewatch * 100)}% rewatch rate.` });
+      contradictions.push({ 
+        id: 'harsh-rewatch', 
+        type: 'RATING_VS_BEHAVIOR', 
+        severity: avg < 6 ? 'STRONG' : 'MODERATE', 
+        description: `You rate harshly but ${action} frequently—secretly enjoying more than you admit?`, 
+        evidence: `Average score ${avg.toFixed(1)}/10, but ${Math.round(rewatch * 100)}% ${action} rate.` 
+      });
     }
     const topByCount = [...genreAffinity].sort((a, b) => b.count - a.count)[0];
     const topByScore = [...genreAffinity].filter(g => g.count >= 5).sort((a, b) => b.avgScore - a.avgScore)[0];
     if (topByCount && topByScore && topByCount.genre !== topByScore.genre && Math.abs(topByCount.avgScore - topByScore.avgScore) > 1) {
-      contradictions.push({ id: 'genre-score-mismatch', type: 'GENRE_MISMATCH', severity: 'MILD', description: `You watch the most ${topByCount.genre} but rate ${topByScore.genre} higher.`, evidence: `${topByCount.genre}: ${topByCount.count} titles vs ${topByScore.genre}: ${topByScore.count} titles.` });
+      const action = type === 'ANIME' ? 'watch' : 'read';
+      const unit = type === 'ANIME' ? 'episodes' : 'chapters';
+      contradictions.push({ 
+        id: 'genre-score-mismatch', 
+        type: 'GENRE_MISMATCH', 
+        severity: 'MILD', 
+        description: `You ${action} a lot of ${topByCount.genre}, but you clearly enjoy ${topByScore.genre} more.`,
+        evidence: `Highest ${unit} in ${topByCount.genre}, but average score is only ${topByCount.avgScore.toFixed(1)}.`
+      });
     }
     return contradictions;
   }

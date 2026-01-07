@@ -132,7 +132,7 @@ export function ThemePlayer({
 
       {/* Visualizer Background */}
       <div className="relative mb-6">
-        <div className="h-32 rounded-xl bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 overflow-hidden flex items-center justify-center">
+        <div className="h-32 rounded-xl bg-linear-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 overflow-hidden flex items-center justify-center">
           {isLoading ? (
             <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           ) : error ? (
@@ -192,7 +192,7 @@ export function ThemePlayer({
           }}
         >
           <div 
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
+            className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all"
             style={{ width: `${duration > 0 ? (progress / duration) * 100 : 0}%` }}
           />
         </div>
@@ -240,7 +240,7 @@ export function ThemePlayer({
 
       {/* Hint */}
       <p className="text-center text-xs text-gray-500 mt-4">
-        🎵 Listen and guess which anime this is from!
+        🎵 Listen and guess which series this is from!
       </p>
     </div>
   );
@@ -328,7 +328,7 @@ export function ThemePlayerCompact({
         preload="auto"
       />
 
-      <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 border border-white/10">
+      <div className="p-4 rounded-xl bg-linear-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 border border-white/10">
         <div className="flex items-center gap-4">
           {/* Play button */}
           <button

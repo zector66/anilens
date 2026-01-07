@@ -87,28 +87,30 @@ export function EmptyState({
 interface NoDataProps {
   type: 'anime' | 'manga' | 'games' | 'recommendations' | 'stats';
   onAction?: () => void;
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function NoData({ type, onAction }: NoDataProps) {
+export function NoData({ type, onAction, activeType = 'ANIME' }: NoDataProps) {
+  const isAnime = activeType === 'ANIME';
   const configs = {
     anime: {
       title: 'No Anime Data',
-      description: 'Start watching anime and add them to your AniList to see your stats and play games!',
+      description: `Start ${isAnime ? 'watching anime' : 'reading manga'} and add them to your AniList to see your stats!`,
       actionLabel: 'Visit AniList',
     },
     manga: {
       title: 'No Manga Data',
-      description: 'Start reading manga and add them to your AniList to see your stats!',
+      description: `Start ${isAnime ? 'watching anime' : 'reading manga'} and add them to your AniList to see your stats!`,
       actionLabel: 'Visit AniList',
     },
     games: {
       title: 'No Games Available',
-      description: 'You need to have anime or manga in your list to play personalized games.',
+      description: `You need to have ${isAnime ? 'anime' : 'manga'} in your list to play personalized games.`,
       actionLabel: 'Add to List',
     },
     recommendations: {
       title: 'No Recommendations Yet',
-      description: 'Watch more anime to get personalized recommendations based on your taste!',
+      description: `Explore more ${isAnime ? 'anime' : 'manga'} to get personalized recommendations based on your taste!`,
       actionLabel: 'Explore',
     },
     stats: {

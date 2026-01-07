@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useAnimeList } from '@/hooks/use-anilist';
+import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { TasteAnalyzer } from '@/lib/taste-analyzer';
 import { 
   Brain, 
@@ -36,7 +36,7 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   completionist: {
     name: "The Completionist",
     emoji: "🏆",
-    description: "You finish what you start. Dropping an anime is simply not in your vocabulary.",
+    description: "You finish what you start. Dropping a title is simply not in your vocabulary.",
     traits: ["Dedicated", "Patient", "Thorough", "Committed"],
     color: "from-green-500 to-emerald-600",
     icon: Trophy
@@ -44,7 +44,7 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   seasonalTourist: {
     name: "The Seasonal Tourist",
     emoji: "🌸",
-    description: "You ride the waves of each anime season, always watching what's hot and trending.",
+    description: "You ride the waves of each release season, always catching what's hot and trending.",
     traits: ["Trendy", "Social", "Up-to-date", "Community-driven"],
     color: "from-pink-500 to-rose-600",
     icon: Clock
@@ -68,7 +68,7 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   emotionalMasochist: {
     name: "The Emotional Masochist",
     emoji: "💔",
-    description: "You seek the shows that will destroy you emotionally. Pain is entertainment.",
+    description: "You seek the stories that will destroy you emotionally. Pain is entertainment.",
     traits: ["Empathetic", "Intense", "Deep", "Emotional"],
     color: "from-red-500 to-orange-600",
     icon: Heart
@@ -84,7 +84,7 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   mainstreamMaxxer: {
     name: "The Mainstream Maxxer",
     emoji: "🚀",
-    description: "If everyone is talking about it, you're watching it. You love the blockbusters and cultural phenomena.",
+    description: "If everyone is talking about it, you're on it. You love the blockbusters and cultural phenomena.",
     traits: ["Social", "Mainstream", "Enthusiastic", "Connected"],
     color: "from-blue-400 to-indigo-600",
     icon: TrendingUp
@@ -100,21 +100,27 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
 };
 
 export function PersonalityTest({ userId }: PersonalityTestProps) {
-  const { data: animeList, isLoading, error } = useAnimeList(userId || 0);
+  const [activeType, setActiveType] = useState<'ANIME' | 'MANGA'>('ANIME');
+  const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(userId || 0);
+  const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(userId || 0);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Only include watched entries (exclude Planning, Paused, Dropped)
+  const isLoading = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
+  const error = activeType === 'ANIME' ? animeError : mangaError;
+  const currentList = activeType === 'ANIME' ? animeList : mangaList;
+
+  // Only include watched/read entries (exclude Planning, Paused, Dropped)
   const allEntries = useMemo(() => {
-    if (!animeList?.lists) return [];
+    if (!currentList?.lists) return [];
     const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
-    return animeList.lists
+    return currentList.lists
       .flatMap(list => list.entries)
       .filter(entry => validStatuses.includes(entry.status || ''));
-  }, [animeList]);
+  }, [currentList]);
 
   const analysis = useMemo(() => {
     if (allEntries.length === 0) return null;
-    const tasteProfile = TasteAnalyzer.analyzeTaste(allEntries);
+    const tasteProfile = TasteAnalyzer.analyzeTaste(allEntries, activeType);
     
     // Determine primary personality type based on highest trait
     const traits = tasteProfile.personalityTraits;
@@ -138,22 +144,43 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
       primaryType,
       secondaryType,
       traitScores: sortedTraits,
-      totalAnime: allEntries.length
+      totalCount: allEntries.length
     };
-  }, [allEntries]);
+  }, [allEntries, activeType]);
+
+  const getPersonalityStrings = (type: string) => {
+    const config = PERSONALITY_TYPES[type];
+    const isAnime = activeType === 'ANIME';
+    const mediaTerm = isAnime ? 'anime' : 'manga';
+    const actionTermPresent = isAnime ? 'watching' : 'reading';
+
+    // Dynamic descriptions
+    let description = config.description;
+    if (type === 'completionist') {
+      description = `You finish what you start. Dropping a ${mediaTerm} is simply not in your vocabulary.`;
+    } else if (type === 'seasonalTourist') {
+      description = `You ride the waves of each ${mediaTerm} season, always ${actionTermPresent} what's hot and trending.`;
+    } else if (type === 'emotionalMasochist') {
+      description = `You seek the stories that will destroy you emotionally. Pain is entertainment.`;
+    } else if (type === 'mainstreamMaxxer') {
+      description = `If everyone is talking about it, you're ${actionTermPresent} it. You love the blockbusters and cultural phenomena.`;
+    }
+
+    return { ...config, description };
+  };
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
-          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-4">
+          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
         </div>
-        <p className="text-gray-400">Analyzing your anime personality...</p>
+        <p className="text-gray-400">Analyzing your {activeType.toLowerCase()} personality...</p>
       </div>
     );
   }
 
-  if (error || !animeList) {
+  if (error || !currentList) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mb-4">
@@ -167,18 +194,44 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
 
   if (!analysis) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
-          <Brain className="w-8 h-8 text-purple-400" />
+      <div className="space-y-8">
+        <div className="flex justify-center">
+          <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
+            <button
+              onClick={() => setActiveType('ANIME')}
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                activeType === 'ANIME' 
+                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Anime
+            </button>
+            <button
+              onClick={() => setActiveType('MANGA')}
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                activeType === 'MANGA' 
+                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Manga
+            </button>
+          </div>
         </div>
-        <p className="text-white font-medium mb-2">Not enough data</p>
-        <p className="text-gray-400 text-sm">Watch more anime to discover your personality!</p>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
+            <Brain className="w-8 h-8 text-purple-400" />
+          </div>
+          <p className="text-white font-medium mb-2">Not enough data</p>
+          <p className="text-gray-400 text-sm">{activeType === 'ANIME' ? 'Watch' : 'Read'} more {activeType.toLowerCase()} to discover your personality!</p>
+        </div>
       </div>
     );
   }
 
-  const primaryPersonality = PERSONALITY_TYPES[analysis.primaryType];
-  const secondaryPersonality = PERSONALITY_TYPES[analysis.secondaryType];
+  const primaryPersonality = getPersonalityStrings(analysis.primaryType);
+  const secondaryPersonality = getPersonalityStrings(analysis.secondaryType);
   const PrimaryIcon = primaryPersonality.icon;
 
   return (
@@ -189,9 +242,33 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative z-10">
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex p-1 bg-black/20 border border-white/10 rounded-xl">
+              <button
+                onClick={() => setActiveType('ANIME')}
+                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                  activeType === 'ANIME' 
+                    ? 'bg-white text-gray-900 shadow-lg' 
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Anime
+              </button>
+              <button
+                onClick={() => setActiveType('MANGA')}
+                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                  activeType === 'MANGA' 
+                    ? 'bg-white text-gray-900 shadow-lg' 
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Manga
+              </button>
+            </div>
+          </div>
           <div className="flex items-start justify-between mb-6">
             <div>
-              <p className="text-white/80 text-sm font-medium mb-2">Your Anime Personality</p>
+              <p className="text-white/80 text-sm font-medium mb-2">Your {activeType === 'ANIME' ? 'Anime' : 'Manga'} Personality</p>
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
                 {primaryPersonality.emoji} {primaryPersonality.name}
               </h1>
@@ -283,7 +360,7 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
                 <div>
                   <p className="text-white font-medium">Completion Rate</p>
                   <p className="text-gray-400 text-sm">
-                    {(analysis.tasteProfile.behavioralMetrics.completionRate * 100).toFixed(0)}% of anime finished
+                    {(analysis.tasteProfile.behavioralMetrics.completionRate * 100).toFixed(0)}% of {activeType.toLowerCase()} finished
                   </p>
                 </div>
               </div>
@@ -337,7 +414,7 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
       {/* Based on Stats */}
       <div className="text-center py-4">
         <p className="text-gray-500 text-sm">
-          Based on analysis of {analysis.totalAnime} anime in your list
+          Based on analysis of {analysis.totalCount} {activeType.toLowerCase()} in your list
         </p>
       </div>
     </div>

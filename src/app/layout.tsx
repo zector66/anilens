@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AniList Interactive Intelligence Platform",
-  description: "Discover your anime taste through advanced analytics, games, and personalized insights",
+  title: "AniLens - Anime & Manga Intelligence Platform",
+  description: "Discover your anime and manga taste through advanced DNA analytics, games, and personalized insights",
 };
 
 export default function RootLayout({

@@ -58,7 +58,7 @@ export function GameSettingsModal({
     ...DEFAULT_SETTINGS,
     themeMode: 'mix',
     bracketSize: 16,
-    bracketCategory: 'anime',
+    bracketCategory: gameType === 'bracket-manga' ? 'manga' : 'anime',
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -74,7 +74,7 @@ export function GameSettingsModal({
     { 
       id: 'easy', 
       label: 'Easy', 
-      description: 'Recent & popular anime you know well',
+      description: 'Recent & popular titles you know well',
       color: 'bg-green-500/20 text-green-400 border-green-500/30'
     },
     { 
@@ -381,7 +381,7 @@ export function GameSettingsModal({
             </button>
             <button
               onClick={() => onStart(settings)}
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-linear-to-r from-purple-500 to-violet-600 text-white font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               <Play className="w-5 h-5" />
               Start Game

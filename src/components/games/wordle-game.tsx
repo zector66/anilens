@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MediaListEntry } from '@/types/anilist';
+import { MediaListEntry, GameSession, GameQuestion } from '@/types/anilist';
 import { Trophy, Delete, CornerDownLeft } from 'lucide-react';
 
 interface WordleGameProps {
   entries: MediaListEntry[];
-  onComplete: (score: number, maxScore: number, correctCount: number, totalCount: number) => void;
+  onComplete: (session: GameSession) => void;
   onBack: () => void;
   roundCount?: number;
+  activeType?: 'ANIME' | 'MANGA';
 }
 
 const MAX_GUESSES = 6;
@@ -46,29 +47,28 @@ interface GameRound {
   isWon: boolean;
 }
 
-export function WordleGame({ onComplete, onBack, roundCount = 3 }: WordleGameProps) {
-  const [rounds, setRounds] = useState<GameRound[]>([]);
+export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'ANIME' }: WordleGameProps) {
+  const [startTime] = useState(() => Date.now());
+  const [rounds, setRounds] = useState<GameRound[]>(() => 
+    Array.from({ length: roundCount }, () => ({
+      word: getRandomWord(),
+      guesses: [],
+      currentGuess: '',
+      isComplete: false,
+      isWon: false,
+    }))
+  );
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   const [gameComplete, setGameComplete] = useState(false);
   const [score, setScore] = useState(0);
   const [shake, setShake] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Initialize rounds
-  useEffect(() => {
-    const newRounds: GameRound[] = Array.from({ length: roundCount }, () => ({
-      word: getRandomWord(),
-      guesses: [],
-      currentGuess: '',
-      isComplete: false,
-      isWon: false,
-    }));
-    setRounds(newRounds);
-  }, [roundCount]);
+  // No longer need useEffect for initialization
 
   const currentRound = rounds[currentRoundIndex];
 
-  const getLetterState = (letter: string, position: number, guess: string): LetterState => {
+  const getLetterState = (letter: string, position: number): LetterState => {
     if (!currentRound) return 'empty';
     const word = currentRound.word;
     
@@ -85,7 +85,7 @@ export function WordleGame({ onComplete, onBack, roundCount = 3 }: WordleGamePro
     for (const guess of currentRound.guesses) {
       for (let i = 0; i < guess.length; i++) {
         if (guess[i] === letter) {
-          const state = getLetterState(letter, i, guess);
+          const state = getLetterState(letter, i);
           if (state === 'correct') return 'correct';
           if (state === 'present') bestState = 'present';
           if (state === 'absent' && bestState === 'empty') bestState = 'absent';
@@ -177,8 +177,39 @@ export function WordleGame({ onComplete, onBack, roundCount = 3 }: WordleGamePro
       setCurrentRoundIndex(i => i + 1);
     } else {
       setGameComplete(true);
-      const wonCount = rounds.filter(r => r.isWon).length;
-      onComplete(score, roundCount * MAX_GUESSES * 20, wonCount, roundCount);
+      
+      // Create GameSession for results
+      const questions: GameQuestion[] = rounds.map((r, i) => ({
+        id: `wordle-${i}`,
+        type: 'WORDLE',
+        difficulty: 'MEDIUM',
+        question: 'Guess the word',
+        correctAnswer: r.word,
+        points: MAX_GUESSES * 20,
+        timeLimit: 0,
+      }));
+
+      const answers = rounds.map((r, i) => ({
+        questionId: `wordle-${i}`,
+        answer: r.guesses[r.guesses.length - 1] || 'Given Up',
+        correct: r.isWon,
+        timeTaken: 0,
+        points: r.isWon ? (MAX_GUESSES - r.guesses.length + 1) * 20 : 0,
+      }));
+
+      const session: GameSession = {
+        id: `wordle-${Date.now()}`,
+        type: 'wordle',
+        questions,
+        currentQuestionIndex: rounds.length - 1,
+        score,
+        answers,
+        startTime,
+        endTime: Date.now(),
+        completed: true,
+      };
+
+      onComplete(session);
     }
   };
 
@@ -228,13 +259,17 @@ export function WordleGame({ onComplete, onBack, roundCount = 3 }: WordleGamePro
         <span className="text-purple-400 font-bold">Score: {score}</span>
       </div>
 
+      <div className="text-center">
+        <h3 className="text-lg text-gray-400">Guess the {activeType === 'ANIME' ? 'Anime' : 'Manga'} Word</h3>
+      </div>
+
       {/* Grid */}
       <div className={`space-y-2 ${shake ? 'animate-shake' : ''}`}>
         {allGuesses.map((guess, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-2">
             {guess.split('').map((letter, colIndex) => {
               const isRevealed = rowIndex < currentRound.guesses.length;
-              const state = isRevealed ? getLetterState(letter, colIndex, guess) : 'empty';
+              const state = isRevealed ? getLetterState(letter, colIndex) : 'empty';
               
               return (
                 <div

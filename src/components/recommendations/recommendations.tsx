@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
+import { useMedia } from '@/contexts/media-context';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { 
@@ -38,7 +39,7 @@ interface ExtendedMedia extends Media {
 export function Recommendations({ userId }: RecommendationsProps) {
   const { user } = useAuth();
   const { getPreferredTitle } = useSettings();
-  const [activeType, setActiveType] = useState<'ANIME' | 'MANGA'>('ANIME');
+  const { activeType, setActiveType, getSeriesTerm, getWatchReadTerm, getStudioAuthorTerm } = useMedia();
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'experimental' | 'hidden-gem' | 'opposite'>('all');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
@@ -155,8 +156,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
         <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4">
           <Heart className="w-8 h-8 text-purple-400" />
         </div>
-        <p className="text-white font-medium mb-2">No {activeType.toLowerCase()} data found</p>
-        <p className="text-gray-400 text-sm">Read some {activeType.toLowerCase()} to get personalized recommendations!</p>
+        <p className="text-white font-medium mb-2">No {getSeriesTerm()} data found</p>
+        <p className="text-gray-400 text-sm">{getWatchReadTerm(true)} some {getSeriesTerm()} to get personalized recommendations!</p>
       </div>
     );
   }
@@ -230,7 +231,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Personalized Recommendations</h2>
-          <p className="text-gray-400">Based on your {activeType.toLowerCase()} DNA and {allEntries.length} {activeType === 'ANIME' ? 'titles' : 'volumes'} discovered</p>
+          <p className="text-gray-400">Based on your {getSeriesTerm()} DNA and {allEntries.length} {activeType === 'ANIME' ? 'titles' : 'entries'} discovered</p>
         </div>
         <button 
           onClick={() => refetchRecs()}
@@ -270,7 +271,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-400 mb-1">{activeType === 'ANIME' ? 'Favorite Studios' : 'Top Authors'}</p>
+            <p className="text-sm text-gray-400 mb-1">{getStudioAuthorTerm()}</p>
             <div className="flex flex-wrap gap-1">
               {topStudios.slice(0, 2).map((studio, i) => (
                 <span key={i} className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">

@@ -1,9 +1,7 @@
 import { 
   PlayerRating, 
   GameSession, 
-  LeaderboardEntry, 
   MatchHistoryEntry,
-  DailyChallenge,
   GameQuestion 
 } from '@/types/anilist';
 
@@ -86,6 +84,8 @@ export class RatingSystem {
       if (!answer) return;
       
       const media = question.media;
+      if (!media) return; // Skip if no media associated (e.g. Wordle)
+
       const correct = answer.correct;
       const delta = correct ? 2 : -1; // Gain more for correct, lose less for wrong
       
@@ -139,6 +139,8 @@ export class RatingSystem {
       'season-matching': 'seasonMatching',
       'cover-guessing': 'coverGuessing',
       'chapters-guessing': 'chapterGuessing',
+      'hangman': 'hangman',
+      'wordle': 'wordle',
     };
     return mapping[gameType] || null;
   }
@@ -156,6 +158,8 @@ export class RatingSystem {
       'seasonMatching',
       'coverGuessing',
       'chapterGuessing',
+      'hangman',
+      'wordle',
     ];
     
     let sum = 0;
@@ -187,6 +191,8 @@ export class RatingSystem {
         seasonMatching: DEFAULT_RATING,
         coverGuessing: DEFAULT_RATING,
         chapterGuessing: DEFAULT_RATING,
+        hangman: DEFAULT_RATING,
+        wordle: DEFAULT_RATING,
         overall: DEFAULT_RATING,
       },
       knowledgeAxes: {
@@ -287,24 +293,24 @@ export class RatingSystem {
     const { stats, achievements } = rating;
 
     const achievementChecks = [
-      { id: 'first_game', condition: stats.totalGamesPlayed >= 1, name: 'First Steps' },
-      { id: 'ten_games', condition: stats.totalGamesPlayed >= 10, name: 'Getting Started' },
-      { id: 'hundred_games', condition: stats.totalGamesPlayed >= 100, name: 'Dedicated Player' },
-      { id: 'first_perfect', condition: stats.perfectGames >= 1, name: 'Perfectionist' },
-      { id: 'ten_perfects', condition: stats.perfectGames >= 10, name: 'Flawless' },
-      { id: 'streak_5', condition: stats.bestWinStreak >= 5, name: 'On Fire' },
-      { id: 'streak_10', condition: stats.bestWinStreak >= 10, name: 'Unstoppable' },
-      { id: 'daily_7', condition: stats.dailyChallengesCompleted >= 7, name: 'Weekly Warrior' },
-      { id: 'daily_30', condition: stats.dailyChallengesCompleted >= 30, name: 'Monthly Master' },
-      { id: 'accuracy_90', condition: stats.correctAnswers / Math.max(1, stats.totalQuestionsAnswered) >= 0.9, name: 'Sharp Mind' },
-      { id: 'gold_rank', condition: rating.ratings.overall >= 1200, name: 'Gold Tier' },
-      { id: 'platinum_rank', condition: rating.ratings.overall >= 1400, name: 'Platinum Tier' },
-      { id: 'diamond_rank', condition: rating.ratings.overall >= 1600, name: 'Diamond Tier' },
-      { id: 'master_rank', condition: rating.ratings.overall >= 1800, name: 'Master Tier' },
-      { id: 'grandmaster', condition: rating.ratings.overall >= 2000, name: 'Grandmaster' },
+      { id: 'first_game', condition: stats.totalGamesPlayed >= 1 },
+      { id: 'ten_games', condition: stats.totalGamesPlayed >= 10 },
+      { id: 'hundred_games', condition: stats.totalGamesPlayed >= 100 },
+      { id: 'first_perfect', condition: stats.perfectGames >= 1 },
+      { id: 'ten_perfects', condition: stats.perfectGames >= 10 },
+      { id: 'streak_5', condition: stats.bestWinStreak >= 5 },
+      { id: 'streak_10', condition: stats.bestWinStreak >= 10 },
+      { id: 'daily_7', condition: stats.dailyChallengesCompleted >= 7 },
+      { id: 'daily_30', condition: stats.dailyChallengesCompleted >= 30 },
+      { id: 'accuracy_90', condition: stats.correctAnswers / Math.max(1, stats.totalQuestionsAnswered) >= 0.9 },
+      { id: 'gold_rank', condition: rating.ratings.overall >= 1200 },
+      { id: 'platinum_rank', condition: rating.ratings.overall >= 1400 },
+      { id: 'diamond_rank', condition: rating.ratings.overall >= 1600 },
+      { id: 'master_rank', condition: rating.ratings.overall >= 1800 },
+      { id: 'grandmaster', condition: rating.ratings.overall >= 2000 },
     ];
 
-    achievementChecks.forEach(({ id, condition, name }) => {
+    achievementChecks.forEach(({ id, condition }) => {
       if (condition && !achievements.includes(id)) {
         newAchievements.push(id);
       }

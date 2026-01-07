@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MediaListEntry } from '@/types/anilist';
-import { Check, X, RotateCcw, Trophy, Skull } from 'lucide-react';
+import { MediaListEntry, GameSession, GameQuestion, Media } from '@/types/anilist';
+import { Check, Trophy, Skull } from 'lucide-react';
 
 interface HangmanGameProps {
   entries: MediaListEntry[];
-  onComplete: (score: number, maxScore: number, correctCount: number, totalCount: number) => void;
+  onComplete: (session: GameSession) => void;
   onBack: () => void;
   questionCount?: number;
+  activeType?: 'ANIME' | 'MANGA';
 }
 
 interface HangmanRound {
+  media: Media;
   answer: string;
   displayTitle: string;
   coverImage: string;
@@ -29,32 +31,34 @@ function normalizeTitle(title: string): string {
   return title.toUpperCase().replace(/[^A-Z\s]/g, '');
 }
 
-export function HangmanGame({ entries, onComplete, onBack, questionCount = 5 }: HangmanGameProps) {
-  const [rounds, setRounds] = useState<HangmanRound[]>([]);
-  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
-  const [gameComplete, setGameComplete] = useState(false);
-  const [score, setScore] = useState(0);
-
-  // Initialize rounds
-  useEffect(() => {
+export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, activeType = 'ANIME' }: HangmanGameProps) {
+  const [startTime] = useState(() => Date.now());
+  const [rounds, setRounds] = useState<HangmanRound[]>(() => {
     const shuffled = [...entries].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, questionCount).filter(e => e.media?.title);
     
-    const newRounds: HangmanRound[] = selected.map(entry => {
-      const title = entry.media?.title.english || entry.media?.title.romaji || '';
+    return selected.map(entry => {
+      const media = entry.media!;
+      const title = media.title.english || media.title.romaji || '';
       return {
+        media,
         answer: normalizeTitle(title),
         displayTitle: title,
-        coverImage: entry.media?.coverImage?.large || '',
+        coverImage: media.coverImage?.large || '',
         guessedLetters: new Set<string>(),
         wrongGuesses: 0,
         isComplete: false,
         isWon: false,
       };
     });
-    
-    setRounds(newRounds);
-  }, [entries, questionCount]);
+  });
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [score, setScore] = useState(0);
+
+  // No longer need useEffect for initialization as we use lazy state initializer
+  // However, if entries change, we might want to reset the game.
+  // In our case, the parent (GameHub) should probably just re-mount the component if entries change drastically.
 
   const currentRound = rounds[currentRoundIndex];
 
@@ -96,8 +100,40 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5 }: 
       setCurrentRoundIndex(i => i + 1);
     } else {
       setGameComplete(true);
-      const wonCount = rounds.filter(r => r.isWon).length;
-      onComplete(score, questionCount * MAX_WRONG_GUESSES * 10, wonCount, questionCount);
+      
+      // Create GameSession for results
+      const questions: GameQuestion[] = rounds.map((r, i) => ({
+        id: `hangman-${i}`,
+        type: 'HANGMAN',
+        media: r.media,
+        difficulty: 'MEDIUM',
+        question: 'Guess the title',
+        correctAnswer: r.displayTitle,
+        points: MAX_WRONG_GUESSES * 10,
+        timeLimit: 0,
+      }));
+
+      const answers = rounds.map((r, i) => ({
+        questionId: `hangman-${i}`,
+        answer: r.isWon ? r.displayTitle : 'Given Up',
+        correct: r.isWon,
+        timeTaken: 0,
+        points: r.isWon ? Math.max(0, (MAX_WRONG_GUESSES - r.wrongGuesses) * 10) : 0,
+      }));
+
+      const session: GameSession = {
+        id: `hangman-${Date.now()}`,
+        type: 'hangman',
+        questions,
+        currentQuestionIndex: rounds.length - 1,
+        score,
+        answers,
+        startTime: startTime,
+        endTime: Date.now(),
+        completed: true,
+      };
+
+      onComplete(session);
     }
   };
 
@@ -145,7 +181,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5 }: 
     );
   }
 
-  const displayWord = currentRound.answer.split('').map((char, i) => {
+  const displayWord = currentRound.answer.split('').map((char) => {
     if (char === ' ') return ' ';
     return currentRound.guessedLetters.has(char) ? char : '_';
   }).join('');
@@ -160,7 +196,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5 }: 
 
       {/* Hangman Display */}
       <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
-        <h3 className="text-lg text-gray-400 mb-4">Guess the Anime Title</h3>
+        <h3 className="text-lg text-gray-400 mb-4">Guess the {activeType === 'ANIME' ? 'Anime' : 'Manga'} Title</h3>
         
         {/* Wrong guesses indicator */}
         <div className="flex justify-center gap-2 mb-6">

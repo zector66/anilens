@@ -112,14 +112,14 @@ export class GameEngine {
         type: 'OP_GUESS',
         media,
         difficulty,
-        question: `Guess the anime from its theme song`,
+        question: `Guess the ${media.type === 'ANIME' ? 'anime' : 'manga'} from its theme song`,
         options,
         optionImages,
         correctAnswer: media.title.romaji || media.title.english || '',
         hints: [
           `Released in ${media.startDate.year || 'unknown'}`,
           `Genre: ${media.genres.slice(0, 2).join(', ')}`,
-          `Episodes: ${media.episodes || 'unknown'}`,
+          `${media.type === 'ANIME' ? 'Episodes' : 'Chapters'}: ${media.episodes || media.chapters || 'unknown'}`,
         ],
         timeLimit: difficulty === 'EASY' ? 30 : difficulty === 'MEDIUM' ? 20 : 15,
         points: difficulty === 'EASY' ? 10 : difficulty === 'MEDIUM' ? 20 : 30,
@@ -155,12 +155,12 @@ export class GameEngine {
         type: 'SCREENSHOT_GUESS',
         media,
         difficulty,
-        question: `Guess the anime from this screenshot`,
+        question: `Guess the ${media.type === 'ANIME' ? 'anime' : 'manga'} from this screenshot`,
         options,
         optionImages,
         correctAnswer: media.title.romaji || media.title.english || '',
         hints: [
-          `Studio: ${media.studios.edges.find(e => e.isMain)?.node.name || 'Unknown'}`,
+          `Studio/Author: ${media.studios?.edges?.find(e => e.isMain)?.node.name || media.staff?.edges?.find(e => e.role === 'Story & Art' || e.role === 'Art')?.node.name.full || 'Unknown'}`,
           `Year: ${media.startDate.year || 'unknown'}`,
           `Rating: ${media.meanScore || 'unknown'}/10`,
         ],
@@ -199,7 +199,7 @@ export class GameEngine {
         type: 'QUOTE_GUESS',
         media,
         difficulty,
-        question: `Guess the anime from this synopsis snippet: "${snippet}"`,
+        question: `Guess the ${media.type === 'ANIME' ? 'anime' : 'manga'} from this synopsis snippet: "${snippet}"`,
         options,
         optionImages,
         correctAnswer: media.title.romaji || media.title.english || '',
@@ -286,11 +286,11 @@ export class GameEngine {
         type: 'SCORE_GUESS',
         media,
         difficulty,
-        question: `What score did you give to ${media.title.romaji || media.title.english || 'this anime'}?`,
+        question: `What score did you give to ${media.title.romaji || media.title.english || (media.type === 'ANIME' ? 'this anime' : 'this manga')}?`,
         options: ['1-2', '3-4', '5-6', '7-8', '9-10'],
         correctAnswer: this.getScoreRange(entry.score),
         hints: [
-          `You watched ${entry.progress || 0} episodes`,
+          `${media.type === 'ANIME' ? 'You watched' : 'You read'} ${entry.progress || 0} ${media.type === 'ANIME' ? 'episodes' : 'chapters'}`,
           `Status: ${entry.status}`,
           `Community rating: ${media.meanScore || 'unknown'}/10`,
         ],
@@ -378,13 +378,13 @@ export class GameEngine {
         type: 'SEASON_MATCH',
         media,
         difficulty,
-        question: `In which season did "${media.title.userPreferred || media.title.romaji}" air?`,
+        question: `In which season did "${media.title.userPreferred || media.title.romaji}" ${media.type === 'ANIME' ? 'air' : 'start'}?`,
         options: Array.from(seasonOptions).sort(() => Math.random() - 0.5),
         correctAnswer: seasonStr,
         hints: [
           `Format: ${media.format}`,
-          `Episodes: ${media.episodes || 'unknown'}`,
-          `Studio: ${media.studios.edges.find(e => e.isMain)?.node.name || 'Unknown'}`,
+          `${media.type === 'ANIME' ? 'Episodes' : 'Chapters'}: ${media.episodes || media.chapters || 'unknown'}`,
+          `Studio/Author: ${media.studios?.edges?.find(e => e.isMain)?.node.name || media.staff?.edges?.find(e => e.role === 'Story & Art' || e.role === 'Art')?.node.name.full || 'Unknown'}`,
         ],
         timeLimit: 15,
         points: 25,
@@ -656,10 +656,11 @@ export class GameEngine {
     return (correct / session.answers.length) * 100;
   }
 
-  static getPerformanceLevel(score: number, totalPossible: number): string {
+  static getPerformanceLevel(score: number, totalPossible: number, type: 'ANIME' | 'MANGA' = 'ANIME'): string {
     const percentage = (score / totalPossible) * 100;
+    const term = type === 'ANIME' ? 'Anime' : 'Manga';
     
-    if (percentage >= 90) return 'Anime Master';
+    if (percentage >= 90) return `${term} Master`;
     if (percentage >= 80) return 'Expert';
     if (percentage >= 70) return 'Advanced';
     if (percentage >= 60) return 'Intermediate';

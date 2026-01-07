@@ -289,6 +289,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         return 'Best Ending Tournament';
       case 'manga':
         return 'Best Manga Tournament';
+      case 'characters':
+        return 'Best Character Tournament';
       default:
         return 'Best Anime Tournament';
     }
@@ -367,7 +369,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
             'hover:scale-105'
           }`}
         >
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
+          <div className="relative aspect-2/3 rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
             {currentMatch[0].image && (
               <Image
                 src={currentMatch[0].image}
@@ -376,7 +378,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
                 className="object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent" />
             {/* Play button for openings/endings */}
             {(battleType === 'openings' || battleType === 'endings') && (
               <button
@@ -431,7 +433,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
             'hover:scale-105'
           }`}
         >
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
+          <div className="relative aspect-2/3 rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
             {currentMatch[1].image && (
               <Image
                 src={currentMatch[1].image}
@@ -440,7 +442,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
                 className="object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent" />
             {/* Play button for openings/endings */}
             {(battleType === 'openings' || battleType === 'endings') && (
               <button

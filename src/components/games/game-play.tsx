@@ -17,11 +17,13 @@ function OPGuessContent({
   onSkip,
   onAudioStart,
   showAnswer = false,
+  mediaType = 'ANIME',
 }: { 
-  anilistId?: number;
+  anilistId?: number; 
   onSkip?: () => void;
   onAudioStart?: () => void;
   showAnswer?: boolean;
+  mediaType?: string;
 }) {
   const { theme, isLoading, error } = useAnimeTheme(anilistId);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,7 +110,7 @@ function OPGuessContent({
         </div>
       ) : (
         <p className="text-sm text-gray-400">
-          🎵 Which anime is this {theme.type === 'OP' ? 'opening' : 'ending'} from?
+          🎵 Which {mediaType.toLowerCase()} is this {theme.type === 'OP' ? 'opening' : 'ending'} from?
         </p>
       )}
     </div>
@@ -144,12 +146,8 @@ function QuestionCard({
   // For OP_GUESS questions, pause timer until audio starts
   const [timerPaused, setTimerPaused] = useState(question?.type === 'OP_GUESS');
 
-  // Reset timer pause when question changes
-  useEffect(() => {
-    const isOpGuess = question?.type === 'OP_GUESS';
-    setTimerPaused(isOpGuess);
-    setTimeLeft(question?.timeLimit || 30);
-  }, [questionIndex, question?.id, question?.type, question?.timeLimit]); // Reset timer and pause state on question change
+  // Removed useEffect for manual reset because component is keyed by questionIndex in parent
+  // This ensures state resets automatically when question changes.
 
   useEffect(() => {
     // Don't run timer if paused (waiting for audio to start)
@@ -179,7 +177,7 @@ function QuestionCard({
   const renderQuestionContent = () => {
     switch (question?.type) {
       case 'CHARACTER_GUESS':
-        const charEdge = question.media.characters?.edges?.find(e => e.node.name.full === question.question.match(/"([^"]+)"/)?.[1]);
+        const charEdge = question.media?.characters?.edges?.find(e => e.node.name.full === question.question.match(/"([^"]+)"/)?.[1]);
         const charImage = charEdge?.node.image?.large || charEdge?.node.image?.medium;
 
         return (
@@ -237,6 +235,7 @@ function QuestionCard({
             onSkip={onSkip}
             onAudioStart={() => setTimerPaused(false)}
             showAnswer={gameState === 'answered' || gameState === 'times-up'}
+            mediaType={question?.media?.type}
           />
         );
 
@@ -256,24 +255,26 @@ function QuestionCard({
                     className="w-full h-48 md:h-64 object-cover"
                     style={{ filter: 'blur(0px)' }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                 </div>
               ) : (
                 <div className="bg-white/10 rounded-xl h-48 md:h-64 flex items-center justify-center mb-4">
                   <div className="text-gray-400 text-center">
                     <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Scene from this anime</p>
+                    <p>Scene from this {question?.media?.type === 'MANGA' ? 'manga' : 'anime'}</p>
                   </div>
                 </div>
               )}
-              <h3 className="text-lg font-bold text-white">Which anime is this from?</h3>
+              <h3 className="text-lg font-bold text-white">Which {question?.media?.type === 'MANGA' ? 'manga' : 'anime'} is this from?</h3>
               <p className="text-sm text-gray-400 mt-1">Look at the art style and setting!</p>
             </div>
           </div>
         );
 
       case 'QUOTE_GUESS':
-        const synopsisText = question?.question.replace('Guess the anime from this synopsis snippet: ', '').replace(/"/g, '');
+        const synopsisText = question?.question
+          .replace(/Guess the (anime|manga) from this synopsis snippet: /, '')
+          .replace(/"/g, '');
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10 relative overflow-hidden">
@@ -288,7 +289,7 @@ function QuestionCard({
                 <div className="w-8 h-0.5 bg-purple-500/50" />
               </div>
               <p className="text-xs text-gray-500 mt-4">
-                Which anime is this description from?
+                Which {question?.media?.type === 'MANGA' ? 'manga' : 'anime'} is this description from?
               </p>
             </div>
           </div>

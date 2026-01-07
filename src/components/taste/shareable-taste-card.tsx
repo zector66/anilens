@@ -9,32 +9,36 @@ interface ShareableTasteCardProps {
   profile: TasteProfile;
   username: string;
   avatarUrl?: string;
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTasteCardProps) {
+export function ShareableTasteCard({ profile, username, avatarUrl, activeType = 'ANIME' }: ShareableTasteCardProps) {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const isAnime = activeType === 'ANIME';
   const topGenres = profile.genreAffinity.slice(0, 3);
   const topStudios = profile.studioBias.slice(0, 3);
   const topTags = profile.tagAffinity.slice(0, 3);
 
   // Generate shareable text summary
   const getShareText = useCallback(() => {
-    const archetype = profile.fingerprint?.primaryArchetype || 'Anime Fan';
+    const archetype = profile.fingerprint?.primaryArchetype || (isAnime ? 'Anime Fan' : 'Manga Fan');
     const chaosLevel = profile.personalityTraits.chaosLevel.toFixed(1);
     const meanScore = profile.scorePatterns.meanScore.toFixed(1);
-    return `🎬 My Anime DNA via AniLens\n\n` +
+    const typeLabel = isAnime ? 'Anime' : 'Manga';
+    
+    return `${isAnime ? '🎬' : '📚'} My ${typeLabel} DNA via AniLens\n\n` +
       `🎭 Archetype: ${archetype}\n` +
       `📊 Mean Score: ${meanScore}/10\n` +
       `🌀 Chaos Level: ${chaosLevel}/10\n` +
       `🎯 Top Genres: ${topGenres.map(g => g.genre).join(', ')}\n` +
-      `🏢 Favorite Studios: ${topStudios.map(s => s.studio).join(', ')}\n` +
+      `${isAnime ? '🏢 Favorite Studios' : '✍️ Top Authors'}: ${topStudios.map(s => s.studio).join(', ')}\n` +
       `🏷️ Top Tags: ${topTags.map(t => t.tag).join(', ')}\n\n` +
-      `Discover your anime DNA at anilens.app!`;
-  }, [profile, topGenres, topStudios, topTags]);
+      `Discover your ${typeLabel.toLowerCase()} DNA at anilens.app!`;
+  }, [profile, topGenres, topStudios, topTags, isAnime]);
 
   const handleCopy = async () => {
     try {
@@ -61,7 +65,7 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
       
       // Create download link
       const link = document.createElement('a');
-      link.download = `${username}-anime-taste.png`;
+      link.download = `${username}-${activeType.toLowerCase()}-taste.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -92,23 +96,23 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
             // Convert data URL to blob
             const response = await fetch(dataUrl);
             const blob = await response.blob();
-            const file = new File([blob], `${username}-anime-taste.png`, { type: 'image/png' });
+            const file = new File([blob], `${username}-${activeType.toLowerCase()}-taste.png`, { type: 'image/png' });
             
             await navigator.share({
-              title: `${username}'s Anime Taste DNA`,
+              title: `${username}'s ${isAnime ? 'Anime' : 'Manga'} Taste DNA`,
               text: getShareText(),
               files: [file],
             });
           } catch {
             // Fallback to text-only share
             await navigator.share({
-              title: `${username}'s Anime Taste DNA`,
+              title: `${username}'s ${isAnime ? 'Anime' : 'Manga'} Taste DNA`,
               text: getShareText(),
             });
           }
         } else {
           await navigator.share({
-            title: `${username}'s Anime Taste DNA`,
+            title: `${username}'s ${isAnime ? 'Anime' : 'Manga'} Taste DNA`,
             text: getShareText(),
           });
         }
@@ -157,7 +161,7 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
             </div>
             <div>
               <h3 className="text-xl font-bold text-white">@{username}</h3>
-              <p className="text-purple-400 text-sm font-medium uppercase tracking-wider">Anime Taste DNA</p>
+              <p className="text-purple-400 text-sm font-medium uppercase tracking-wider">{isAnime ? 'Anime' : 'Manga'} Taste DNA</p>
             </div>
           </div>
 
@@ -187,7 +191,7 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
             </div>
 
             <div>
-              <p className="text-xs text-gray-500 uppercase font-bold mb-3 tracking-widest">Top Studios</p>
+              <p className="text-xs text-gray-500 uppercase font-bold mb-3 tracking-widest">{isAnime ? 'Top Studios' : 'Top Authors'}</p>
               <div className="flex flex-wrap gap-2">
                 {topStudios.map((s, i) => (
                   <span key={i} className="px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-300 text-sm font-medium border border-blue-500/20">
@@ -202,9 +206,9 @@ export function ShareableTasteCard({ profile, username, avatarUrl }: ShareableTa
           <div className="pt-6 border-t border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded bg-linear-to-br from-purple-500 to-blue-500" />
-              <span className="text-white font-bold text-sm">AnimeTaste</span>
+              <span className="text-white font-bold text-sm">AniLens</span>
             </div>
-            <p className="text-[10px] text-gray-500">Generated on animetaste.app</p>
+            <p className="text-[10px] text-gray-500">Generated on anilens.app</p>
           </div>
         </div>
       </div>

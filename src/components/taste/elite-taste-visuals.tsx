@@ -33,9 +33,11 @@ import {
 
 interface EmotionalProfileChartProps {
   emotionalProfile: TasteProfile['emotionalProfile'];
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function EmotionalProfileChart({ emotionalProfile }: EmotionalProfileChartProps) {
+export function EmotionalProfileChart({ emotionalProfile, activeType = 'ANIME' }: EmotionalProfileChartProps) {
+  const isAnime = activeType === 'ANIME';
   const data = useMemo(() => [
     { axis: 'Escapism', value: emotionalProfile.escapism * 100, fullMark: 100 },
     { axis: 'Intensity', value: emotionalProfile.intensity * 100, fullMark: 100 },
@@ -55,7 +57,7 @@ export function EmotionalProfileChart({ emotionalProfile }: EmotionalProfileChar
             <p className="font-bold text-white mb-2">What This Measures:</p>
             <ul className="space-y-1">
               <li><strong>Escapism:</strong> Fantasy vs grounded content</li>
-              <li><strong>Intensity:</strong> Action/thriller vs calm shows</li>
+              <li><strong>Intensity:</strong> Action/thriller vs calm {isAnime ? 'shows' : 'stories'}</li>
               <li><strong>Bleakness:</strong> Tragedy/dark vs wholesome</li>
               <li><strong>Sentimentality:</strong> Romance/drama focus</li>
               <li><strong>Idealism:</strong> Hopeful vs cynical themes</li>
@@ -141,9 +143,11 @@ function EmotionalAxisLabel({ value, lowLabel, highLabel }: {
 
 interface StructuralPreferencesProps {
   structuralPreferences: TasteProfile['structuralPreferences'];
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function StructuralPreferencesChart({ structuralPreferences }: StructuralPreferencesProps) {
+export function StructuralPreferencesChart({ structuralPreferences, activeType = 'ANIME' }: StructuralPreferencesProps) {
+  const isAnime = activeType === 'ANIME';
   const axes = [
     {
       key: 'episodicVsSerial',
@@ -152,7 +156,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
       rightLabel: 'Serialized',
       value: structuralPreferences.episodicVsSerial,
       icon: Brain,
-      tooltip: 'Standalone episodes vs continuous story arcs',
+      tooltip: `Standalone ${isAnime ? 'episodes' : 'chapters'} vs continuous story arcs`,
     },
     {
       key: 'pacingPreference',
@@ -192,7 +196,7 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
           <Info className="w-4 h-4 text-gray-500 cursor-help" />
           <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
             <p className="font-bold text-white mb-2">How It Works:</p>
-            <p>These sliders show where your taste falls on each spectrum based on tags in your completed anime. The dot position indicates your preference balance.</p>
+            <p>These sliders show where your taste falls on each spectrum based on tags in your completed {isAnime ? 'anime' : 'manga'}. The dot position indicates your preference balance.</p>
           </div>
         </div>
       </div>
@@ -232,9 +236,11 @@ export function StructuralPreferencesChart({ structuralPreferences }: Structural
 
 interface RiskProfileChartProps {
   riskProfile: TasteProfile['riskProfile'];
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function RiskProfileChart({ riskProfile }: RiskProfileChartProps) {
+export function RiskProfileChart({ riskProfile, activeType = 'ANIME' }: RiskProfileChartProps) {
+  const isAnime = activeType === 'ANIME';
   const data = riskProfile.curve.map(bucket => ({
     name: bucket.bucket,
     engagement: Math.round(bucket.engagement * 100),
@@ -260,7 +266,7 @@ export function RiskProfileChart({ riskProfile }: RiskProfileChartProps) {
                 <li><strong>20k-100k:</strong> Well-known, solid picks</li>
                 <li><strong>100k+:</strong> Mainstream hits</li>
               </ul>
-              <p className="mt-2 text-gray-500">Higher risk tolerance = more obscure titles</p>
+              <p className="mt-2 text-gray-500">Higher risk tolerance = more obscure {isAnime ? 'titles' : 'entries'}</p>
             </div>
           </div>
         </div>
@@ -306,9 +312,9 @@ export function RiskProfileChart({ riskProfile }: RiskProfileChartProps) {
         </div>
         <p className="text-xs text-gray-500 mt-1">
           {riskProfile.riskTolerance > 0.6 
-            ? "You actively seek obscure titles others haven't discovered."
+            ? `You actively seek obscure ${isAnime ? 'titles' : 'manga'} others haven't discovered.`
             : riskProfile.riskTolerance < 0.3
-            ? "You prefer proven, popular titles with community validation."
+            ? `You prefer proven, popular ${isAnime ? 'titles' : 'manga'} with community validation.`
             : "You balance between popular picks and hidden discoveries."}
         </p>
       </div>

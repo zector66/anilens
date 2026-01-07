@@ -29,12 +29,13 @@ import { GameSettings } from './game-settings';
 
 interface MultiplayerLobbyProps {
   gameType: string;
+  activeType?: 'ANIME' | 'MANGA';
   allEntries: MediaListEntry[];
   onStartGame: (room: MultiplayerRoom) => void;
   onBack: () => void;
 }
 
-export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: MultiplayerLobbyProps) {
+export function MultiplayerLobby({ gameType, activeType = 'ANIME', allEntries, onStartGame, onBack }: MultiplayerLobbyProps) {
   const { user } = useAuth();
   const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'lobby'>('menu');
   const [room, setRoom] = useState<MultiplayerRoom | null>(null);
@@ -97,7 +98,7 @@ export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: 
       setRoom(newRoom);
       setMode('lobby');
     } else {
-      setError('Failed to create room. Please try again.');
+      setError(`You need to have ${activeType === 'ANIME' ? 'anime' : 'manga'} in your list to play personalized games.`);
     }
 
     setIsLoading(false);
@@ -251,7 +252,7 @@ export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: 
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Games
+          Back to {activeType === 'ANIME' ? 'Anime' : 'Manga'} Games
         </button>
 
         <div className="text-center mb-8">
@@ -265,7 +266,7 @@ export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: 
         <button
           onClick={handleCreateRoom}
           disabled={isLoading}
-          className="w-full p-6 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg flex items-center justify-center gap-3 hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full p-6 rounded-2xl bg-linear-to-r from-purple-500 to-pink-500 text-white font-bold text-lg flex items-center justify-center gap-3 hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {isLoading ? (
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -429,7 +430,7 @@ export function MultiplayerLobby({ gameType, allEntries, onStartGame, onBack }: 
               <button
                 onClick={handleStartGame}
                 disabled={!canStart}
-                className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-4 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play className="w-5 h-5" />
                 Start Game

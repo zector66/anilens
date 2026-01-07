@@ -9,16 +9,32 @@ import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
 import { MultiplayerResults } from './multiplayer-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
-import { Music, Image as ImageIcon, Quote, Target, Trophy, Clock, Gamepad2, Zap, Play, Users, Calendar, BookOpen, Swords } from 'lucide-react';
+import { 
+  Music, 
+  Image as ImageIcon, 
+  Quote, 
+  Target, 
+  Trophy, 
+  Clock, 
+  Gamepad2, 
+  Zap, 
+  Play, 
+  Users, 
+  Activity,
+  Calendar,
+  BookOpen,
+  Swords
+} from 'lucide-react';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
 import { MultiplayerRoom } from '@/lib/supabase';
 import { MultiplayerLobby } from './multiplayer-lobby';
+import { useMedia } from '@/contexts/media-context';
 
 export function GameHub() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
+  const { activeType, setActiveType, getSeriesTerm, getWatchReadTerm } = useMedia();
   const { data: animeList, isLoading: isLoadingAnime } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: isLoadingManga } = useMangaList(user?.id || 0);
   
@@ -32,10 +48,10 @@ export function GameHub() {
   const [multiplayerGameType, setMultiplayerGameType] = useState<string | null>(null);
   const [multiplayerRoom, setMultiplayerRoom] = useState<MultiplayerRoom | null>(null);
 
-  const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
-  const currentList = activeTab === 'ANIME' ? animeList : mangaList;
+  const isLoading = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
+  const currentList = activeType === 'ANIME' ? animeList : mangaList;
 
-  // Only include entries the user has actually watched (exclude Planning, Paused, Dropped)
+  // Only include entries the user has actually engaged with (exclude Planning, Paused, Dropped)
   const allEntries = useMemo(() => {
     if (!currentList?.lists) return [];
     const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
@@ -149,13 +165,13 @@ export function GameHub() {
       case 'chapters-guessing':
         questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
         break;
-      case 'bracket-anime':
+      case 'bracket-manga':
         // Start bracket battle with settings from modal
         setBracketSettings({
           size: settings.bracketSize || 16,
-          category: settings.bracketCategory || 'anime',
+          category: settings.bracketCategory || 'manga',
         });
-        setSpecialGame('bracket-anime');
+        setSpecialGame('bracket-manga');
         setShowSettings(false);
         setSelectedGameType(null);
         return;
@@ -198,6 +214,7 @@ export function GameHub() {
     return (
       <MultiplayerLobby
         gameType={multiplayerGameType}
+        activeType={activeType}
         allEntries={multiplayerGameType?.includes('chapters') || multiplayerGameType?.includes('volumes') ? mangaEntries : allEntries}
         onStartGame={handleStartMultiplayer}
         onBack={() => {
@@ -213,9 +230,10 @@ export function GameHub() {
     return (
       <HangmanGame
         entries={allEntries}
-        onComplete={(score, maxScore, correct, total) => {
-          console.log('Hangman complete:', score, maxScore, correct, total);
+        activeType={activeType}
+        onComplete={(session) => {
           setSpecialGame(null);
+          handleGameComplete(session);
         }}
         onBack={() => setSpecialGame(null)}
       />
@@ -226,9 +244,10 @@ export function GameHub() {
     return (
       <WordleGame
         entries={allEntries}
-        onComplete={(score, maxScore, correct, total) => {
-          console.log('Wordle complete:', score, maxScore, correct, total);
+        activeType={activeType}
+        onComplete={(session) => {
           setSpecialGame(null);
+          handleGameComplete(session);
         }}
         onBack={() => setSpecialGame(null)}
       />
@@ -264,7 +283,7 @@ export function GameHub() {
     );
   }
 
-  if (gameResults) {
+    if (gameResults) {
     // Use multiplayer results screen for head-to-head games
     if (multiplayerRoom && multiplayerRoom.players.length > 1) {
       return (
@@ -286,6 +305,7 @@ export function GameHub() {
     return (
       <GameResults 
         results={gameResults} 
+        activeType={activeType}
         onPlayAgain={() => setGameResults(null)}
         onBackToHub={() => setGameResults(null)}
       />
@@ -296,7 +316,7 @@ export function GameHub() {
     {
       id: 'op-guessing',
       title: 'OP/ED Guessing',
-      description: 'Guess anime from their opening and ending themes',
+      description: 'Guess series from their opening and ending themes',
       icon: Music,
       gradient: 'from-purple-500 to-violet-600',
       difficulty: 'Medium',
@@ -306,7 +326,7 @@ export function GameHub() {
     {
       id: 'quote-guessing',
       title: 'Quote Master',
-      description: 'Guess anime from memorable quotes',
+      description: 'Guess titles from memorable quotes',
       icon: Quote,
       gradient: 'from-green-500 to-emerald-500',
       difficulty: 'Medium',
@@ -316,34 +336,12 @@ export function GameHub() {
     {
       id: 'season-matching',
       title: 'Season Navigator',
-      description: 'Test your memory of when anime aired',
+      description: 'Test your memory of when titles aired or started',
       icon: Calendar,
       gradient: 'from-indigo-500 to-blue-600',
       difficulty: 'Hard',
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-6 min',
-    },
-    {
-      id: 'hangman',
-      title: 'Anime Hangman',
-      description: 'Guess anime titles letter by letter',
-      icon: Gamepad2,
-      gradient: 'from-amber-500 to-orange-600',
-      difficulty: 'Medium',
-      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
-      estimatedTime: '5-10 min',
-      special: true,
-    },
-    {
-      id: 'wordle',
-      title: 'Anime Wordle',
-      description: 'Guess 5-letter anime words',
-      icon: Zap,
-      gradient: 'from-lime-500 to-green-600',
-      difficulty: 'Medium',
-      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
-      estimatedTime: '3-5 min',
-      special: true,
     },
     {
       id: 'bracket-anime',
@@ -379,13 +377,46 @@ export function GameHub() {
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-5 min',
     },
+    {
+      id: 'bracket-manga',
+      title: 'Manga Bracket Battle',
+      description: 'Tournament to crown your favorite manga',
+      icon: Swords,
+      gradient: 'from-red-500 to-pink-600',
+      difficulty: 'Fun',
+      difficultyColor: 'bg-pink-500/20 text-pink-400',
+      estimatedTime: '5-10 min',
+      special: true,
+    },
   ];
 
   const commonGameTypes = [
     {
+      id: 'hangman',
+      title: `${activeType === 'ANIME' ? 'Anime' : 'Manga'} Hangman`,
+      description: `Guess ${activeType === 'ANIME' ? 'anime' : 'manga'} titles letter by letter`,
+      icon: Gamepad2,
+      gradient: 'from-amber-500 to-orange-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '5-10 min',
+      special: true,
+    },
+    {
+      id: 'wordle',
+      title: `${activeType === 'ANIME' ? 'Anime' : 'Manga'} Wordle`,
+      description: `Guess 5-letter ${activeType === 'ANIME' ? 'anime' : 'manga'} words`,
+      icon: Zap,
+      gradient: 'from-lime-500 to-green-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '3-5 min',
+      special: true,
+    },
+    {
       id: 'character-guessing',
       title: 'Character Expert',
-      description: `Match characters to their respective ${activeTab.toLowerCase()}`,
+      description: `Match characters to their respective ${getSeriesTerm()}`,
       icon: Users,
       gradient: 'from-pink-500 to-rose-600',
       difficulty: 'Medium',
@@ -395,7 +426,7 @@ export function GameHub() {
     {
       id: 'score-guessing',
       title: 'Memory Test',
-      description: `Remember what scores you gave to ${activeTab.toLowerCase()}`,
+      description: `Remember what scores you gave to ${getSeriesTerm()}`,
       icon: Target,
       gradient: 'from-orange-500 to-amber-500',
       difficulty: 'Easy',
@@ -405,15 +436,17 @@ export function GameHub() {
   ];
 
   const gameTypes = [
-    ...(activeTab === 'ANIME' ? animeGameTypes : mangaGameTypes),
+    ...(activeType === 'ANIME' ? animeGameTypes : mangaGameTypes),
     ...commonGameTypes,
   ];
 
-  const handleStartDailyChallenge = () => {
+  /*
+  const _handleStartDailyChallenge = () => {
     const questions = GameEngine.generateOPGuessingQuestions(allEntries, 10);
     const session = GameEngine.createGameSession('daily-challenge', questions);
     setCurrentGame(session);
   };
+  */
 
   return (
     <div className="space-y-8">
@@ -421,9 +454,9 @@ export function GameHub() {
       <div className="flex justify-center">
         <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
           <button
-            onClick={() => setActiveTab('ANIME')}
+            onClick={() => setActiveType('ANIME')}
             className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
-              activeTab === 'ANIME' 
+              activeType === 'ANIME' 
                 ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
                 : 'text-gray-400 hover:text-white'
             }`}
@@ -431,9 +464,9 @@ export function GameHub() {
             Anime
           </button>
           <button
-            onClick={() => setActiveTab('MANGA')}
+            onClick={() => setActiveType('MANGA')}
             className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
-              activeTab === 'MANGA' 
+              activeType === 'MANGA' 
                 ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25' 
                 : 'text-gray-400 hover:text-white'
             }`}
@@ -447,22 +480,22 @@ export function GameHub() {
       <div className="text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-sm text-purple-400 mb-4">
           <Gamepad2 className="w-4 h-4" />
-          <span>{allEntries.length} {activeTab.toLowerCase()} in your collection</span>
+          <span>{allEntries.length} {getSeriesTerm()} in your collection</span>
         </div>
         <h2 className="text-3xl font-bold text-white mb-3">Game Arena</h2>
         <p className="text-gray-400 max-w-xl mx-auto">
-          Test your anime knowledge with personalized challenges based on your watch history
+          Test your {getSeriesTerm()} knowledge with personalized challenges based on your {getWatchReadTerm()} history
         </p>
       </div>
 
       {allEntries.length === 0 ? (
         <div className="max-w-md mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-8 h-8 text-yellow-400" />
+          <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4 mx-auto">
+            <Activity className="w-8 h-8 text-purple-400" />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No Anime Data</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">No {activeType === 'ANIME' ? 'Anime' : 'Manga'} Data</h3>
           <p className="text-gray-400">
-            You need anime in your AniList to play games. Start watching and come back!
+            You need {getSeriesTerm()} in your AniList to play games. Start {getWatchReadTerm()} and come back!
           </p>
         </div>
       ) : (
@@ -564,7 +597,7 @@ export function GameHub() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="p-3 rounded-lg bg-white/5">
             <div className="text-purple-400 font-medium mb-1">Personalized</div>
-            <div className="text-gray-400">Questions based on your actual anime list</div>
+            <div className="text-gray-400">Questions based on your actual {getSeriesTerm()} list</div>
           </div>
           <div className="p-3 rounded-lg bg-white/5">
             <div className="text-blue-400 font-medium mb-1">Adaptive</div>

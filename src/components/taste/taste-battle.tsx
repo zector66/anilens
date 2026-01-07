@@ -23,9 +23,11 @@ interface TasteBattleProps {
     name: string;
     profile: TasteProfile;
   };
+  activeType?: 'ANIME' | 'MANGA';
 }
 
-export function TasteBattle({ user1, user2 }: TasteBattleProps) {
+export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleProps) {
+  const isAnime = activeType === 'ANIME';
   const categories: BattleCategory[] = [
     {
       label: 'Mean Score',
@@ -101,7 +103,7 @@ export function TasteBattle({ user1, user2 }: TasteBattleProps) {
     } else if (overlaps.length > 0) {
       return `While you both appreciate ${overlaps[0]}, your paths diverge significantly elsewhere. A unique mix!`;
     }
-    return "Your anime DNAs are practically from different universes. Complete opposites attract?";
+    return `Your ${isAnime ? 'anime' : 'manga'} DNAs are practically from different universes. Complete opposites attract?`;
   };
 
   return (

@@ -13,7 +13,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
       id: 'taste',
       label: 'Taste Profile',
       icon: BarChart3,
-      description: 'Analyze your anime preferences and patterns',
+      description: 'Analyze your anime and manga preferences and patterns',
     },
     {
       id: 'games',
@@ -25,13 +25,13 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
       id: 'recommendations',
       label: 'Recommendations',
       icon: TrendingUp,
-      description: 'Discover new anime based on your taste',
+      description: 'Discover new titles based on your taste',
     },
     {
       id: 'personality',
       label: 'Personality',
       icon: Brain,
-      description: 'Explore your anime personality type',
+      description: 'Explore your unique personality type',
     },
   ];
 

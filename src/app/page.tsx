@@ -86,12 +86,12 @@ function LandingPage() {
           <h1 className="text-5xl md:text-7xl font-bold mb-6">
             <span className="text-white">Discover Your </span>
             <span className="bg-linear-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              Anime DNA
+              Anime & Manga DNA
             </span>
           </h1>
           
           <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Deep analytics, interactive games, and personalized insights that reveal your true anime taste. 
+            Deep analytics, interactive games, and personalized insights that reveal your true anime and manga taste. 
             Connect with friends and compare your otaku profiles.
           </p>
 
@@ -115,7 +115,7 @@ function LandingPage() {
             <div className="grid grid-cols-3 gap-8 max-w-xl">
               {[
                 { value: '8+', label: 'Game Modes' },
-                { value: '∞', label: 'Your Anime' },
+                { value: '∞', label: 'Titles' },
                 { value: '100%', label: 'Free' },
               ].map((stat, i) => (
                 <div key={i} className="text-center">
@@ -133,7 +133,7 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Everything You Need</h2>
-            <p className="text-gray-400 max-w-xl mx-auto">Unlock deep insights into your anime preferences with our comprehensive suite of tools</p>
+            <p className="text-gray-400 max-xl mx-auto">Unlock deep insights into your anime and manga preferences with our comprehensive suite of tools</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -153,7 +153,7 @@ function LandingPage() {
               {
                 icon: Brain,
                 title: 'Personality Insights',
-                description: 'Discover your anime personality type: Completionist, Seasonal Tourist, Art Snob, and more.',
+                description: 'Discover your unique personality type: Completionist, Seasonal Tourist, Avant-Garde, and more.',
                 gradient: 'from-green-500 to-emerald-500',
               },
               {
@@ -171,7 +171,7 @@ function LandingPage() {
               {
                 icon: Share2,
                 title: 'Shareable Reports',
-                description: 'Generate beautiful cards and reports to share your anime journey on social media.',
+                description: 'Generate beautiful cards and reports to share your journey on social media.',
                 gradient: 'from-indigo-500 to-purple-500',
               },
             ].map((feature, i) => (
@@ -196,9 +196,9 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="p-12 rounded-3xl bg-linear-to-br from-purple-500/20 to-blue-500/20 border border-white/10">
             <Heart className="w-12 h-12 text-pink-400 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold text-white mb-4">Ready to Discover Your Anime DNA?</h2>
+            <h2 className="text-3xl font-bold text-white mb-4">Ready to Discover Your DNA?</h2>
             <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-              Join anime fans who have uncovered their true taste. It only takes a minute to get started.
+              Join fans who have uncovered their true taste. It only takes a minute to get started.
             </p>
             <LoginButton variant="hero" />
             <p className="mt-4 text-xs text-gray-500">

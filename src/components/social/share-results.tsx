@@ -113,7 +113,7 @@ export function ShareResults({ userScore, userRank, tasteProfile }: ShareResults
               🎮 I scored {userScore} points on AniList Intelligence!
             </p>
             <p className="text-gray-600 text-sm">
-              Ranked as {userRank} • Anime Taste Analysis Complete
+              Ranked as {userRank} • Taste Analysis Complete
             </p>
           </div>
         </div>

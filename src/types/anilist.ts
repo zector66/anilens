@@ -451,8 +451,8 @@ export interface Recommendation {
 
 export interface GameQuestion {
   id: string;
-  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS';
-  media: Media;
+  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS' | 'HANGMAN' | 'WORDLE';
+  media?: Media;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   question: string;
   options?: string[];
@@ -487,6 +487,7 @@ export interface GameSession {
   startTime: number;
   endTime?: number;
   completed: boolean;
+  difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
 }
 
 // ============================================
@@ -508,6 +509,8 @@ export interface PlayerRating {
     seasonMatching: number;
     coverGuessing: number;
     chapterGuessing: number;
+    hangman: number;
+    wordle: number;
     overall: number; // Weighted average
   };
   
