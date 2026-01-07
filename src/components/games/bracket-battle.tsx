@@ -221,7 +221,13 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }, [entries, battleType, bracketSize]);
 
   const startBattle = () => {
-    if (!items.length) return;
+    console.log('startBattle called', { itemsLength: items.length, isReady, currentRound });
+    if (!items.length) {
+      console.log('No items available, cannot start battle');
+      return;
+    }
+    
+    console.log('Creating first round with', items.length, 'items');
     
     // Create first round
     const matches: [BattleItem, BattleItem][] = [];
@@ -230,10 +236,14 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         matches.push([items[i], items[i + 1]]);
       }
     }
+    
+    console.log('Created', matches.length, 'matches');
+    
     setCurrentRound({ matches, winners: [] });
     setMatchIndex(0);
     setRoundNumber(1);
     setWinner(null);
+    setIsReady(false); // Set ready to false after starting
   };
 
   const handleVote = (item: BattleItem, side: 'left' | 'right') => {
@@ -344,6 +354,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (isReady && !currentRound) {
+    console.log('Rendering ready screen', { itemsLength: items.length, isReady, currentRound, battleType });
     return (
       <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
         <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
@@ -379,7 +390,11 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         </div>
         
         <button
-          onClick={startBattle}
+          onClick={(e) => {
+            console.log('Button clicked!');
+            e.preventDefault();
+            startBattle();
+          }}
           className="px-8 py-4 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-bold text-lg transition-all hover:scale-105 flex items-center gap-2 mx-auto"
         >
           <Play className="w-5 h-5" />
