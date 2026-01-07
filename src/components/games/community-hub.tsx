@@ -12,6 +12,7 @@ import {
   loadMatchHistory,
   isDailyChallengeCompleted 
 } from '@/lib/rating-system';
+import { getRankDisplayName, getRankFromMMR } from '@/lib/rank-system';
 import {
   Trophy,
   Crown,
@@ -161,7 +162,12 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
 
   // Use database rating if available, otherwise fallback to localStorage
   const displayRating = dbProfile?.ratings.length ? (dbProfile.overallRating?.total_rating || 0) : (playerRating?.ratings.overall || 0);
-  const rankInfo = RatingSystem.getRankTitle(displayRating);
+  const detailedRank = getRankFromMMR(displayRating);
+  const rankInfo = {
+    title: getRankDisplayName(displayRating),
+    color: detailedRank.color.replace('text-', 'text-'), // Adjust color format
+    icon: detailedRank.icon
+  };
   const percentile = RatingSystem.estimatePercentile(displayRating);
 
   return (
