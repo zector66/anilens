@@ -953,7 +953,6 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           <RiskProfileChart riskProfile={tasteProfile.riskProfile} activeType={activeTab} />
           <div className="space-y-8">
             <ContradictionsCard contradictions={tasteProfile.contradictions} />
-            <TasteFingerprintCard fingerprint={tasteProfile.fingerprint} />
           </div>
         </div>
       </div>
