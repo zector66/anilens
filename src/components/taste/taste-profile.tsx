@@ -436,13 +436,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                 Emotional Damage Index
                 <div className="group/tooltip relative">
                   <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
+                  <div className="absolute left-0 bottom-full mb-2 w-72 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
                     <p className="font-bold text-white mb-1">How it&apos;s calculated:</p>
                     <ul className="list-disc pl-3 space-y-1">
-                      <li>Matches for Tragedy, Drama, Psychological tags</li>
-                      <li>Heavily weighted by completion (dropping = less damage)</li>
-                      <li>Normalized against your total {activeTab === 'ANIME' ? 'watch' : 'read'} count</li>
+                      <li>Based on your <b>enjoyment</b> of emotional content, not just completion</li>
+                      <li>Uses z-scores to compare ratings vs your personal average</li>
+                      <li>Only counts content you rated <b>above your mean</b> score</li>
+                      <li>Adjusted for completionist behavior (high completion = ratings matter more)</li>
+                      <li>Guard: Low emotional ratings reduce the index</li>
                     </ul>
+                    <p className="text-green-400 mt-2 italic">Now reflects true preference, not persistence!</p>
                   </div>
                 </div>
               </h4>

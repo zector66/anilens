@@ -18,6 +18,35 @@ export class TasteAnalyzer {
   private static readonly PROPORTION_PRIOR_BETA = 2;
   private static readonly DIRICHLET_ALPHA = 0.5;
 
+  // Completionist correction utilities
+  private static getCompletionistWeights(completionRate: number) {
+    // Downweight completion evidence for high completionists
+    const completionEvidenceWeight = Math.max(0.2, Math.min(1.0, 1 - (completionRate - 0.75) * 2));
+    
+    // Amplify score evidence for completionists
+    const scoreWeightMultiplier = completionRate > 0.75 
+      ? 1 + 0.4 * ((completionRate - 0.75) / 0.25)  // 1.0 to 1.4
+      : 1.0;
+    
+    return { completionEvidenceWeight, scoreWeightMultiplier };
+  }
+
+  private static calculateUserScoreStats(mediaList: MediaListEntry[]) {
+    const scoredEntries = mediaList.filter(e => e.score && e.score > 0);
+    if (scoredEntries.length === 0) return { mean: this.GLOBAL_MEAN_SCORE, std: 2, count: 0 };
+    
+    const scores = scoredEntries.map(e => e.score!);
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / scores.length;
+    const std = Math.sqrt(variance) || 1;
+    
+    return { mean, std, count: scores.length };
+  }
+
+  private static getScoreZScore(score: number, userStats: { mean: number; std: number }): number {
+    return (score - userStats.mean) / userStats.std;
+  }
+
   static analyzeTaste(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): TasteProfile {
     const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
     const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>();
@@ -151,16 +180,19 @@ export class TasteAnalyzer {
     const completionRate = (completedCount + this.PROPORTION_PRIOR_ALPHA) / (n + this.PROPORTION_PRIOR_ALPHA + this.PROPORTION_PRIOR_BETA);
     const dropRate = (droppedCount + this.PROPORTION_PRIOR_ALPHA) / (n + this.PROPORTION_PRIOR_ALPHA + this.PROPORTION_PRIOR_BETA);
     const rewatchRate = (rewatchCount + this.PROPORTION_PRIOR_ALPHA) / (n + this.PROPORTION_PRIOR_ALPHA + this.PROPORTION_PRIOR_BETA);
+    
+    // Get completionist correction weights
+    const { completionEvidenceWeight, scoreWeightMultiplier } = this.getCompletionistWeights(completionRate);
 
-    // Dirichlet smoothing for genres
+    // Dirichlet smoothing for genres with completionist correction
     const genreAffinity = Array.from(genreData.entries())
       .map(([genre, data]) => {
         const totalGenreCount = Array.from(genreData.values()).reduce((sum, d) => sum + d.count, 0);
         const volumeFactor = (data.count + this.DIRICHLET_ALPHA) / (totalGenreCount + genreData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
         const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
-        const scoreFactor = (shrunkScore - 5) / 5;
-        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 20 : 15));
+        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
+        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 20 : 15)) * completionEvidenceWeight; // Downweighted for completionists
         const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.35) + (countFactor * 0.15) + 0.10));
         const confidence = Math.min(1, (data.count / 8) * (data.scoredCount / Math.max(1, data.count)));
         return { genre, affinity, count: data.count, avgScore: shrunkScore, confidence };
@@ -174,11 +206,10 @@ export class TasteAnalyzer {
         const volumeFactor = (data.count + this.DIRICHLET_ALPHA) / (totalTagCount + tagData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
         const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
-        const scoreFactor = (shrunkScore - 5) / 5;
-        const countFactor = Math.min(1, data.count / 10);
-        const rankFactor = data.avgRank / 100;
-        const affinity = Math.max(0, Math.min(1, (volumeFactor * 3.0) + (scoreFactor * 0.30) + (countFactor * 0.20) + (rankFactor * 0.20)));
-        const confidence = Math.min(1, (data.count / 5) * (data.scoredCount / Math.max(1, data.count)));
+        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
+        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 25 : 20)) * completionEvidenceWeight; // Downweighted for completionists
+        const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.3) + (countFactor * 0.2) + 0.10));
+        const confidence = Math.min(1, (data.count / 6) * (data.scoredCount / Math.max(1, data.count)));
         return { tag, affinity, count: data.count, avgScore: shrunkScore, avgRank: data.avgRank, confidence };
       })
       .sort((a, b) => b.affinity - a.affinity)
@@ -440,15 +471,67 @@ export class TasteAnalyzer {
       // Narrative weight
       'Bittersweet', 'Melancholy', 'Existential', 'Death', 'Loss of a Loved One', 'Nihilism', 'Suffering'
     ];
+    
     if (mediaList.length === 0) return 0;
-    let score = 0;
-    mediaList.forEach(e => {
-      const total = type === 'ANIME' ? (e.media?.episodes || 1) : (e.media?.chapters || 1);
-      const pct = Math.min(1, (e.progress || 0) / total);
-      const matches = (e.media?.tags || []).filter(t => emotionalTags.some(et => t.name.includes(et)));
-      if (matches.length > 0) score += (matches.reduce((s, t) => s + (t.rank || 0), 0) / 100) * pct;
+    
+    const userScoreStats = this.calculateUserScoreStats(mediaList);
+    let totalScore = 0;
+    let totalWeight = 0;
+    
+    mediaList.forEach(entry => {
+      const score = entry.score || 0;
+      if (score === 0) return; // Skip unrated entries
+      
+      const matches = (entry.media?.tags || []).filter(t => 
+        emotionalTags.some(et => t.name.includes(et))
+      );
+      
+      if (matches.length > 0) {
+        // Calculate preference based on z-score, not completion
+        const zScore = this.getScoreZScore(score, userScoreStats);
+        
+        // Only count positive preferences (above their mean)
+        if (zScore > 0) {
+          // Weight by tag relevance (higher rank = more relevant)
+          const tagRelevance = matches.reduce((sum, tag) => sum + (100 - (tag.rank || 50)), 0) / (matches.length * 100);
+          
+          // Light completion weight, but preference is primary
+          const total = type === 'ANIME' ? (entry.media?.episodes || 1) : (entry.media?.chapters || 1);
+          const completionWeight = entry.status === 'COMPLETED' ? 1.0 : Math.min(1, (entry.progress || 0) / total) * 0.3;
+          
+          const finalWeight = (zScore * 0.7) + (tagRelevance * 0.2) + (completionWeight * 0.1);
+          totalScore += finalWeight;
+          totalWeight += 1;
+        }
+      }
     });
-    return Math.min(10, (score / mediaList.length) * 12);
+    
+    if (totalWeight === 0) return 0;
+    
+    // Normalize to 0-10 scale
+    const baseIndex = (totalScore / totalWeight) * 10;
+    
+    // Apply guard: if average score on emotional content is below user's mean, reduce index
+    const emotionalEntries = mediaList.filter(entry => {
+      const score = entry.score || 0;
+      if (score === 0) return false;
+      const matches = (entry.media?.tags || []).filter(t => 
+        emotionalTags.some(et => t.name.includes(et))
+      );
+      return matches.length > 0;
+    });
+    
+    if (emotionalEntries.length > 0) {
+      const avgEmotionalScore = emotionalEntries.reduce((sum, e) => sum + (e.score || 0), 0) / emotionalEntries.length;
+      const scoreDiff = avgEmotionalScore - userScoreStats.mean;
+      
+      // If they rate emotional content below their average, reduce the index
+      if (scoreDiff < 0) {
+        return Math.max(0, baseIndex + (scoreDiff / userScoreStats.std) * 2);
+      }
+    }
+    
+    return Math.min(10, baseIndex);
   }
 
   private static calculateChaosLevel(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
