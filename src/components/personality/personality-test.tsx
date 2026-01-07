@@ -124,7 +124,7 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
       { type: 'cultHunter', score: traits.cultHunter },
       { type: 'nostalgiaAddict', score: traits.nostalgiaAddict },
       { type: 'mainstreamMaxxer', score: traits.mainstreamMaxxer },
-      { type: 'artSnob', score: traits.artSnob },
+      { type: 'avantGarde', score: traits.avantGarde },
       { type: 'emotionalMasochist', score: traits.emotionalDamageIndex },
       { type: 'chaosAgent', score: traits.chaosLevel },
     ];
