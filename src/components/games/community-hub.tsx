@@ -444,7 +444,12 @@ function PlayerStatsTab({ dbRatings, dbStats, overallRating }: { dbRatings: DbRa
             const rating = ratingsMap.get(key);
             const hasPlayed = rating && rating.games_played > 0;
             const mmr = rating?.rating || 0;
-            const rankInfo = RatingSystem.getRankTitle(mmr);
+            const detailedRank = getRankFromMMR(mmr);
+            const rankInfo = {
+              title: getRankDisplayName(mmr),
+              color: detailedRank.color.replace('text-', 'text-'),
+              icon: detailedRank.icon
+            };
             
             return (
               <div 
