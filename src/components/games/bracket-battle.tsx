@@ -56,6 +56,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [audioLoading, setAudioLoading] = useState<number | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cleanup audio on unmount
@@ -203,29 +205,36 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       
       if (finalItems.length < 2) {
         console.error('Not enough items for a bracket battle');
+        setInitError(`Not enough ${battleType} for a bracket battle. Need at least 2 items, found ${finalItems.length}.`);
         setIsInitializing(false);
         return;
       }
 
       setItems(finalItems);
-      
-      // Create first round
-      const matches: [BattleItem, BattleItem][] = [];
-      for (let i = 0; i < finalItems.length; i += 2) {
-        if (finalItems[i] && finalItems[i + 1]) {
-          matches.push([finalItems[i], finalItems[i + 1]]);
-        }
-      }
-      setCurrentRound({ matches, winners: [] });
-      setMatchIndex(0);
-      setRoundNumber(1);
-      setWinner(null);
+      setIsReady(true);
       setIsInitializing(false);
+      setInitError(null);
     };
 
     initBracket();
     return () => { active = false; };
   }, [entries, battleType, bracketSize]);
+
+  const startBattle = () => {
+    if (!items.length) return;
+    
+    // Create first round
+    const matches: [BattleItem, BattleItem][] = [];
+    for (let i = 0; i < items.length; i += 2) {
+      if (items[i] && items[i + 1]) {
+        matches.push([items[i], items[i + 1]]);
+      }
+    }
+    setCurrentRound({ matches, winners: [] });
+    setMatchIndex(0);
+    setRoundNumber(1);
+    setWinner(null);
+  };
 
   const handleVote = (item: BattleItem, side: 'left' | 'right') => {
     if (!currentRound || isAnimating) return;
@@ -296,7 +305,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     }
   };
 
-  if (isInitializing || items.length === 0 || !currentRound) {
+  if (isInitializing) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -305,6 +314,77 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
             ? 'Finding themes for your tournament...' 
             : 'Initializing bracket...'}
         </p>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+          <Swords className="w-8 h-8 text-red-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Cannot Start Tournament</h2>
+        <p className="text-gray-400 mb-6">{initError}</p>
+        
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Try watching more {battleType === 'anime' ? 'anime' : battleType === 'manga' ? 'manga' : 'anime with themes'} 
+            or select a smaller bracket size.
+          </p>
+          <button
+            onClick={onBack}
+            className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
+          >
+            Back to Games
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isReady && !currentRound) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
+          {getBattleIcon()}
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-2">{getBattleTitle()}</h2>
+        <p className="text-gray-400 mb-6">
+          {items.length} contestants ready for battle!
+        </p>
+        
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-6 max-w-md mx-auto">
+          {items.slice(0, 16).map((item) => (
+            <div key={item.id} className="relative aspect-3/4 rounded-lg overflow-hidden border border-white/20">
+              {item.image && (
+                <Image
+                  src={item.image}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              )}
+              <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-1">
+                <p className="text-[8px] text-white truncate">{item.title}</p>
+              </div>
+            </div>
+          ))}
+          {items.length > 16 && (
+            <div className="aspect-3/4 rounded-lg bg-gray-800 flex items-center justify-center border border-white/20">
+              <span className="text-xs text-gray-400">+{items.length - 16}</span>
+            </div>
+          )}
+        </div>
+        
+        <button
+          onClick={startBattle}
+          className="px-8 py-4 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-bold text-lg transition-all hover:scale-105 flex items-center gap-2 mx-auto"
+        >
+          <Play className="w-5 h-5" />
+          Start Tournament
+        </button>
       </div>
     );
   }
@@ -338,6 +418,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         </button>
       </div>
     );
+  }
+
+  if (!currentRound) {
+    return null; // This should not happen since we check earlier, but TypeScript safety
   }
 
   const currentMatch = currentRound.matches[matchIndex];
