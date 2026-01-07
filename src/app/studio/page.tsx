@@ -133,6 +133,7 @@ export default function StudioPage() {
     }
   };
 
+  // Show loading state while fetching data
   if (entriesLoading || tasteLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -144,11 +145,12 @@ export default function StudioPage() {
     );
   }
 
-  if (!entries.length) {
+  // Show authentication prompt if user is not authenticated
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-white mb-4">No Data Found</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">Authentication Required</h1>
           <p className="text-gray-400 mb-6">
             Please connect your AniList account to use AniLens Studio.
           </p>
@@ -158,6 +160,28 @@ export default function StudioPage() {
           >
             Connect AniList
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show no data message if user is authenticated but has no entries
+  if (!entries.length) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-white mb-4">No Anime/Manga Data</h1>
+          <p className="text-gray-400 mb-6">
+            You don&apos;t have any anime or manga entries on your AniList list. Add some titles to create your taste poster!
+          </p>
+          <a 
+            href="https://anilist.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors inline-block"
+          >
+            Go to AniList
+          </a>
         </div>
       </div>
     );
