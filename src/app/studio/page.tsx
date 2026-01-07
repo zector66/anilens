@@ -1,225 +1,100 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { StudioConfig, PosterData, STUDIO_MODULES, StudioModuleId } from "@/types/studio";
-import { filterEntries, buildPosterData } from "@/lib/studio-compute";
-import { PosterRenderer } from "@/components/studio/poster-renderer";
-import { StudioControls } from "@/components/studio/studio-controls";
-import { useAniListData } from "@/hooks/use-anilist-data";
-import { useTasteProfile } from "@/hooks/use-taste-profile";
-import { useGamesData } from "@/hooks/use-games-data";
-import { AuthManager } from "@/lib/auth";
-
-// Default configuration
-const DEFAULT_CONFIG: StudioConfig = {
-  media: "both",
-  timeWindow: "all",
-  statuses: ["COMPLETED", "CURRENT", "REPEATING"],
-  template: "poster",
-  tone: "neutral",
-  theme: { mode: "dark", accent: "#8b5cf6" },
-  privacy: { hideUsername: false, hideCounts: false, hideScores: false },
-  modules: Object.values(STUDIO_MODULES).map(module => ({
-    id: module.id,
-    enabled: true,
-    settings: module.id === "topAnime" || module.id === "topManga" || module.id === "topTags"
-      ? { count: module.defaultCount || 20 }
-      : undefined
-  }))
-};
+import React from "react";
+import { Sparkles, Palette, Download, Share2, Settings, BarChart3 } from "lucide-react";
 
 export default function StudioPage() {
-  const { entries, loading: entriesLoading, user } = useAniListData();
-  const { tasteProfile, loading: tasteLoading } = useTasteProfile();
-  const { gamesData, loading: gamesLoading } = useGamesData();
-  
-  const [config, setConfig] = useState<StudioConfig>(DEFAULT_CONFIG);
-  const [posterData, setPosterData] = useState<PosterData | null>(null);
-
-  // Load config from URL on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const configParam = urlParams.get("config");
-        if (configParam) {
-          const loadedConfig = JSON.parse(atob(configParam));
-          setConfig({ ...DEFAULT_CONFIG, ...loadedConfig });
-        }
-      } catch (error) {
-        console.error("Failed to load config from URL:", error);
-      }
-    }
-  }, []);
-
-  // Update URL when config changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const configString = btoa(JSON.stringify(config));
-      const newUrl = `${window.location.pathname}?config=${configString}`;
-      window.history.replaceState({}, "", newUrl);
-    }
-  }, [config]);
-
-  // Compute poster data whenever dependencies change
-  const posterDataMemo = useMemo(() => {
-    if (!entries.length || tasteLoading || entriesLoading || !tasteProfile) return null;
-
-    try {
-      const filtered = filterEntries(entries, config);
-      const data = buildPosterData(
-        filtered,
-        config,
-        tasteProfile,
-        gamesData || undefined,
-        user?.avatarImage?.large,
-        undefined,
-        user?.name
-      );
-      return data;
-    } catch (error) {
-      console.error("Failed to build poster data:", error);
-      return null;
-    }
-  }, [entries, config, tasteProfile, gamesData, user, tasteLoading, entriesLoading]);
-
-  useEffect(() => {
-    setPosterData(posterDataMemo);
-  }, [posterDataMemo]);
-
-  const handleConfigChange = (newConfig: Partial<StudioConfig>) => {
-    setConfig(prev => ({ ...prev, ...newConfig }));
-  };
-
-  const handleModuleToggle = (moduleId: StudioModuleId, enabled: boolean) => {
-    setConfig(prev => ({
-      ...prev,
-      modules: prev.modules.map(m => 
-        m.id === moduleId ? { ...m, enabled } : m
-      )
-    }));
-  };
-
-  const handleModuleSettings = (moduleId: StudioModuleId, settings: Record<string, string | number | boolean>) => {
-    setConfig(prev => ({
-      ...prev,
-      modules: prev.modules.map(m => 
-        m.id === moduleId ? { ...m, settings } : m
-      )
-    }));
-  };
-
-  const handleExport = async () => {
-    if (!posterData) return;
-
-    try {
-      // This will be implemented in the PosterRenderer component
-      const exportElement = document.getElementById("poster-export");
-      if (exportElement) {
-        // Use html2canvas or similar library
-        console.log("Exporting poster...");
-      }
-    } catch (error) {
-      console.error("Export failed:", error);
-    }
-  };
-
-  const handleShare = () => {
-    const shareText = `Made this on AniLens Studio — here's my taste poster (${config.timeWindow === "all" ? "All-time" : config.timeWindow}). Check it out: anilens.vercel.app/studio${config.timeWindow !== "all" ? `?config=${btoa(JSON.stringify(config))}` : ""}`;
-    
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareText);
-      // Show success message
-    }
-  };
-
-  // Show loading state while fetching data
-  if (entriesLoading || tasteLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading your AniList data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show authentication prompt if user is not authenticated
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-white mb-4">Authentication Required</h1>
-          <p className="text-gray-400 mb-6">
-            Please connect your AniList account to use AniLens Studio.
-          </p>
-          <button
-            onClick={() => AuthManager.getInstance().startOAuthLogin()}
-            className="px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors"
-          >
-            Connect AniList
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show no data message if user is authenticated but has no entries
-  if (!entries.length) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-white mb-4">No Anime/Manga Data</h1>
-          <p className="text-gray-400 mb-6">
-            You don&apos;t have any anime or manga entries on your AniList list. Add some titles to create your taste poster!
-          </p>
-          <a 
-            href="https://anilist.co"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors inline-block"
-          >
-            Go to AniList
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-950 flex">
-      {/* Left Panel - Studio Controls */}
-      <div className="w-96 bg-gray-900 border-r border-gray-800 overflow-y-auto">
-        <StudioControls
-          config={config}
-          onConfigChange={handleConfigChange}
-          onModuleToggle={handleModuleToggle}
-          onModuleSettings={handleModuleSettings}
-          onExport={handleExport}
-          onShare={handleShare}
-        />
-      </div>
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8">
+      <div className="text-center max-w-2xl">
+        {/* Icon */}
+        <div className="w-20 h-20 bg-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Sparkles className="w-10 h-10 text-purple-400" />
+        </div>
 
-      {/* Right Panel - Live Preview */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-950">
-        <div className="w-full max-w-4xl">
-          <div className="mb-6 text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">AniLens Studio</h1>
-            <p className="text-gray-400">Live poster preview • Updates instantly</p>
+        {/* Title */}
+        <h1 className="text-4xl font-bold text-white mb-4">
+          AniLens Studio
+        </h1>
+        
+        {/* Subtitle */}
+        <p className="text-xl text-gray-400 mb-8">
+          Coming Soon
+        </p>
+
+        {/* Description */}
+        <p className="text-gray-500 mb-12 max-w-lg mx-auto">
+          Create beautiful, shareable taste posters with live customization. 
+          Export as PNG and share your anime journey with the world.
+        </p>
+
+        {/* Feature Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <Palette className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">Live Customization</h3>
+            <p className="text-gray-400 text-sm">
+              Real-time poster preview with instant updates
+            </p>
           </div>
+          
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <Download className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">PNG Export</h3>
+            <p className="text-gray-400 text-sm">
+              High-resolution poster downloads
+            </p>
+          </div>
+          
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <Share2 className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">Easy Sharing</h3>
+            <p className="text-gray-400 text-sm">
+              One-click AniList sharing
+            </p>
+          </div>
+          
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <Settings className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">Full Control</h3>
+            <p className="text-gray-400 text-sm">
+              Customize every aspect of your poster
+            </p>
+          </div>
+          
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <BarChart3 className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">Rich Analytics</h3>
+            <p className="text-gray-400 text-sm">
+              Your complete taste profile visualized
+            </p>
+          </div>
+          
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+            <Sparkles className="w-8 h-8 text-purple-400 mb-3 mx-auto" />
+            <h3 className="text-white font-semibold mb-2">Multiple Templates</h3>
+            <p className="text-gray-400 text-sm">
+              Compact, Poster, and Ultra layouts
+            </p>
+          </div>
+        </div>
 
-          {posterData ? (
-            <PosterRenderer
-              data={posterData}
-              config={config}
-              onExport={handleExport}
-            />
-          ) : (
-            <div className="aspect-video bg-gray-800 rounded-xl border border-gray-700 flex items-center justify-center">
-              <p className="text-gray-500">Building your poster...</p>
-            </div>
-          )}
+        {/* Status */}
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+            <span className="text-yellow-400 font-medium">In Development</span>
+          </div>
+          <p className="text-gray-400 text-sm">
+            We&apos;re working hard to bring you the ultimate anime taste poster builder. 
+            This feature will allow you to create stunning visualizations of your anime journey.
+          </p>
+        </div>
+
+        {/* Call to Action */}
+        <div className="text-sm text-gray-500">
+          In the meantime, check out your <span className="text-purple-400 font-medium">Taste Profile</span> 
+          {' '}for detailed analytics about your anime preferences!
         </div>
       </div>
     </div>
