@@ -60,6 +60,17 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [initError, setInitError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Debug state changes
+  console.log('BracketBattle state:', { 
+    isInitializing, 
+    isReady, 
+    hasItems: items.length > 0, 
+    hasCurrentRound: !!currentRound, 
+    hasWinner: !!winner, 
+    hasError: !!initError,
+    itemsLength: items.length 
+  });
+
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
@@ -316,6 +327,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   };
 
   if (isInitializing) {
+    console.log('Rendering initializing screen');
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -329,6 +341,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (initError) {
+    console.log('Rendering error screen:', initError);
     return (
       <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
         <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-6">
@@ -405,6 +418,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (winner) {
+    console.log('Rendering winner screen:', winner.title);
     return (
       <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
         <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-6">
@@ -441,6 +455,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
 
   const currentMatch = currentRound.matches[matchIndex];
   const remaining = currentRound.matches.length * 2 - currentRound.winners.length;
+
+  console.log('Rendering battle screen', { currentMatch: currentMatch[0]?.title, remaining, matchIndex });
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
