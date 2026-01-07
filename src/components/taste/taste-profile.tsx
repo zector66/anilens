@@ -36,7 +36,8 @@ import {
   User as UserIcon,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  Tag
 } from 'lucide-react';
 import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
@@ -604,6 +605,77 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* Top Tags */}
+      <div className="p-6 rounded-xl bg-linear-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Tag className="w-5 h-5 text-green-400" />
+              Top Tags
+            </h3>
+            <p className="text-sm text-gray-400 mt-1">
+              Your strongest affinities for specific themes and content
+            </p>
+          </div>
+          <div className="px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-medium">
+            {tasteProfile.tagAffinity.length} total tags
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {tasteProfile.tagAffinity
+            .filter(tag => tag.affinity > 0.3 && tag.count >= 2) // Show meaningful tags with enough data
+            .slice(0, 12)
+            .map((tag) => (
+              <div 
+                key={tag.tag}
+                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate" title={tag.tag}>
+                      {tag.tag}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {tag.count} titles • {tag.avgScore.toFixed(1)}★ avg
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className={`text-xs font-bold ${
+                      tag.affinity > 0.7 ? 'text-green-400' : 
+                      tag.affinity > 0.5 ? 'text-yellow-400' : 
+                      'text-gray-400'
+                    }`}>
+                      {(tag.affinity * 100).toFixed(0)}%
+                    </div>
+                    <div className="w-8 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          tag.affinity > 0.7 ? 'bg-green-400' : 
+                          tag.affinity > 0.5 ? 'bg-yellow-400' : 
+                          'bg-gray-400'
+                        }`}
+                        style={{ width: `${tag.affinity * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+
+        {tasteProfile.tagAffinity.filter(tag => tag.affinity > 0.3 && tag.count >= 2).length === 0 && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+              <Tag className="w-8 h-8 text-green-400" />
+            </div>
+            <p className="text-gray-400">
+              Not enough data yet. Watch more {activeTab === 'ANIME' ? 'anime' : 'manga'} to see your tag preferences!
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Favorites DNA vs List DNA */}
