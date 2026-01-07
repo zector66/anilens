@@ -57,11 +57,11 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     color: "from-purple-500 to-violet-600",
     icon: Eye
   },
-  artSnob: {
-    name: "The Art Snob",
+  avantGarde: {
+    name: "The Avant-Garde",
     emoji: "🎨",
-    description: "Visual excellence is your priority. Bad animation is an instant deal-breaker.",
-    traits: ["Aesthetic", "Critical", "Refined", "Visual-oriented"],
+    description: "Visual excellence and artistic merit are your priorities. You seek out the experimental and the refined.",
+    traits: ["Aesthetic", "Refined", "Experimental", "Visual-oriented"],
     color: "from-blue-500 to-cyan-600",
     icon: Sparkles
   },
