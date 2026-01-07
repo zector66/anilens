@@ -103,9 +103,6 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
   const totalGamesPlayed = dbProfile?.overallRating?.total_games || dbProfile?.ratings.reduce((sum, r) => sum + r.games_played, 0) || 0;
   const totalWins = dbProfile?.overallRating?.total_wins || dbProfile?.ratings.reduce((sum, r) => sum + r.wins, 0) || 0;
   const bestStreak = dbProfile?.overallRating?.best_streak || dbProfile?.ratings.reduce((max, r) => Math.max(max, r.best_streak), 0) || 0;
-  const overallRating = dbProfile?.overallRating?.total_rating || (dbProfile?.ratings.length 
-    ? dbProfile.ratings.reduce((sum, r) => sum + r.rating, 0)
-    : 0);
 
   if (!user || !isOAuthAuthenticated) {
     return (
@@ -163,7 +160,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
   }
 
   // Use database rating if available, otherwise fallback to localStorage
-  const displayRating = dbProfile?.ratings.length ? overallRating : (playerRating?.ratings.overall || 0);
+  const displayRating = dbProfile?.ratings.length ? (dbProfile.overallRating?.total_rating || 0) : (playerRating?.ratings.overall || 0);
   const rankInfo = RatingSystem.getRankTitle(displayRating);
   const percentile = RatingSystem.estimatePercentile(displayRating);
 
