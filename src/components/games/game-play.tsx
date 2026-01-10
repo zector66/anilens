@@ -415,7 +415,8 @@ function QuestionCard({
 
   return (
     <Card className="bg-white/5 border-white/10">
-      <CardHeader className="pb-2">
+      {/* P1-8 FIX: Reduced padding for mobile */}
+      <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
@@ -447,8 +448,9 @@ function QuestionCard({
         {renderQuestionContent()}
 
         {/* Options with keyboard hints and thumbnails */}
+        {/* P1-8 FIX: Reduced margins for mobile, sticky answer panel */}
         {question?.options && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 mt-3 md:mt-6">
             {question.options.map((option: string, index: number) => {
               const optionImage = question.optionImages?.[option];
               // Get players who selected this option (for multiplayer)
@@ -527,7 +529,7 @@ function QuestionCard({
 
         {/* Hint */}
         {gameState === 'playing' && question?.hints && question.hints.length > 0 && (
-          <div className="mt-6 text-center">
+          <div className="mt-3 md:mt-6 text-center">
             <button
               onClick={() => setShowHint(!showHint)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 transition-colors text-sm"
