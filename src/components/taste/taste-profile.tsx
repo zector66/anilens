@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
+import { EmotionalProfile } from './emotional-profile';
 import { 
   EmotionalProfileChart, 
   StructuralPreferencesChart, 
@@ -64,6 +65,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
   const [expandedTrait, setExpandedTrait] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'stats' | 'emotional'>('stats');
 
   const effectiveUserId = userId || user?.id || 0;
   
@@ -302,8 +304,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
   return (
     <div className="space-y-8">
-      {/* Type Toggle */}
-      <div className="flex justify-center">
+      {/* Type Toggle + View Mode */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        {/* Anime/Manga Toggle */}
         <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
           <button
             onClick={() => setActiveTab('ANIME')}
@@ -326,8 +329,42 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             Manga
           </button>
         </div>
+
+        {/* Stats/Emotional Toggle */}
+        <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
+          <button
+            onClick={() => setViewMode('stats')}
+            className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${
+              viewMode === 'stats' 
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Stats
+          </button>
+          <button
+            onClick={() => setViewMode('emotional')}
+            className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${
+              viewMode === 'emotional' 
+                ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Flame className="w-4 h-4" />
+            Emotional
+          </button>
+        </div>
       </div>
 
+      {/* Emotional Profile View */}
+      {viewMode === 'emotional' && (
+        <EmotionalProfile userId={effectiveUserId} />
+      )}
+
+      {/* Stats View */}
+      {viewMode === 'stats' && (
+      <>
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
@@ -1017,6 +1054,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           ))}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
