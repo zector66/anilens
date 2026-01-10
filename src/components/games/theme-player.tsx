@@ -246,6 +246,24 @@ export function ThemePlayer({
   );
 }
 
+// Detect if we're on mobile (for autoplay restrictions)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth < 768);
+      setIsMobile(mobile);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  return isMobile;
+}
+
 // Compact version for game questions
 export function ThemePlayerCompact({ 
   theme, 
@@ -253,24 +271,43 @@ export function ThemePlayerCompact({
   showSongInfo = false,
   onError,
   onPlay,
+  onLoadFail,
 }: { 
   theme: ThemeMetadata | null;
   autoPlay?: boolean;
   showSongInfo?: boolean;
   onError?: () => void;
   onPlay?: () => void;
+  onLoadFail?: () => void; // Called when audio fails to load (for skip without penalty)
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
+  const [loadTimeout, setLoadTimeout] = useState(false);
   const hasCalledOnPlay = useRef(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     setIsLoading(true);
     setError(false);
     setIsPlaying(false);
+    setNeedsUserGesture(false);
+    setLoadTimeout(false);
     hasCalledOnPlay.current = false;
+
+    // Set a load timeout for mobile - if audio doesn't load in 8s, skip
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    loadTimeoutRef.current = setTimeout(() => {
+      if (isLoading && !isPlaying) {
+        setLoadTimeout(true);
+        onLoadFail?.();
+      }
+    }, 8000);
 
     // Cleanup: pause video on unmount
     return () => {
@@ -279,8 +316,19 @@ export function ThemePlayerCompact({
         videoRef.current.src = "";
         videoRef.current.load();
       }
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
     };
   }, [theme?.id]);
+
+  // Clear timeout when audio starts playing
+  useEffect(() => {
+    if (isPlaying && loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
+  }, [isPlaying]);
 
   // Pause when autoPlay becomes false (e.g. when answer is shown)
   useEffect(() => {
@@ -290,10 +338,38 @@ export function ThemePlayerCompact({
     }
   }, [autoPlay, isPlaying]);
 
+  // Handle user tap to start audio (mobile)
+  const handleTapToStart = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.play().then(() => {
+      setNeedsUserGesture(false);
+    }).catch((err) => {
+      console.error('Playback failed after tap:', err);
+      setError(true);
+    });
+  }, []);
+
   if (!theme) {
     return (
       <div className="h-24 rounded-xl bg-white/5 flex items-center justify-center">
         <p className="text-gray-500 text-sm">Loading theme...</p>
+      </div>
+    );
+  }
+
+  // Show load timeout message
+  if (loadTimeout) {
+    return (
+      <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-6 h-6 text-orange-400" />
+          </div>
+          <div className="text-left">
+            <p className="text-orange-300 font-medium">Audio Unavailable</p>
+            <p className="text-orange-400/70 text-sm">Skipping without penalty...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -305,10 +381,17 @@ export function ThemePlayerCompact({
       <video
         ref={videoRef}
         src={mediaUrl}
+        playsInline
         onLoadedData={() => {
           setIsLoading(false);
           if (autoPlay && videoRef.current) {
-            videoRef.current.play().catch(() => setIsPlaying(false));
+            videoRef.current.play().catch(() => {
+              // Autoplay blocked - show tap to start on mobile
+              if (isMobile) {
+                setNeedsUserGesture(true);
+              }
+              setIsPlaying(false);
+            });
           }
         }}
         onError={() => {
@@ -318,6 +401,7 @@ export function ThemePlayerCompact({
         }}
         onPlay={() => {
           setIsPlaying(true);
+          setNeedsUserGesture(false);
           if (!hasCalledOnPlay.current) {
             hasCalledOnPlay.current = true;
             onPlay?.();
@@ -327,6 +411,18 @@ export function ThemePlayerCompact({
         className="hidden"
         preload="auto"
       />
+
+      {/* Mobile: Tap to Start Overlay */}
+      {needsUserGesture && (
+        <button
+          onClick={handleTapToStart}
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-purple-900/90 rounded-xl border-2 border-purple-500 animate-pulse"
+        >
+          <Play className="w-10 h-10 text-white mb-2" />
+          <span className="text-white font-semibold">Tap to Start Audio</span>
+          <span className="text-purple-300 text-xs mt-1">Timer starts when audio plays</span>
+        </button>
+      )}
 
       <div className="p-4 rounded-xl bg-linear-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 border border-white/10">
         <div className="flex items-center gap-4">

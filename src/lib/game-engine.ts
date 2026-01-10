@@ -4,6 +4,24 @@ import { GameQuestion, GameSession, MediaListEntry, Media } from '@/types/anilis
 const RECENT_ANIME_KEY = 'recent-game-anime';
 const MAX_RECENT_TRACKED = 50;
 
+// P0-3 FIX: Track used media IDs within a single session to prevent duplicates
+let sessionUsedMediaIds: Set<number> = new Set();
+
+// Call this at the start of a new game session
+export function resetSessionTracking(): void {
+  sessionUsedMediaIds = new Set();
+}
+
+// Check if a media ID has been used in this session
+function isMediaUsedInSession(mediaId: number): boolean {
+  return sessionUsedMediaIds.has(mediaId);
+}
+
+// Mark a media ID as used in this session
+function markMediaUsedInSession(mediaId: number): void {
+  sessionUsedMediaIds.add(mediaId);
+}
+
 function getRecentlyUsedIds(): number[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -98,17 +116,22 @@ export class GameEngine {
     const shuffled = prioritizeUnused(entries, recentIds);
     const usedIds: number[] = [];
     
-    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
-      const entry = shuffled[i];
+    let idx = 0;
+    while (questions.length < count && idx < shuffled.length) {
+      const entry = shuffled[idx++];
       if (!entry.media) continue;
       
       const media = entry.media;
+      // P0-3 FIX: Skip if already used in this session
+      if (isMediaUsedInSession(media.id)) continue;
+      
+      markMediaUsedInSession(media.id);
       usedIds.push(media.id);
       const difficulty = this.calculateDifficulty(entry);
       
       const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
       questions.push({
-        id: `op-guess-${i}`,
+        id: `op-guess-${questions.length}`,
         type: 'OP_GUESS',
         media,
         difficulty,
@@ -268,10 +291,14 @@ export class GameEngine {
     return picked.trim().substring(0, snippetLength) + (picked.length > snippetLength ? '...' : '');
   }
 
-  static generateScoreGuessQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
+  static generateScoreGuessQuestions(entries: MediaListEntry[], count: number = 10, includeUnrated: boolean = false): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
-    const shuffled = prioritizeUnused(entries, recentIds);
+    // P0-5 FIX: Exclude unrated entries (score === null/0) unless explicitly included
+    const scoredEntries = includeUnrated 
+      ? entries 
+      : entries.filter(e => e.score && e.score > 0);
+    const shuffled = prioritizeUnused(scoredEntries, recentIds);
     const usedIds: number[] = [];
     
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
@@ -410,7 +437,8 @@ export class GameEngine {
       usedIds.push(media.id);
       const difficulty = this.calculateDifficulty(entry);
       
-      const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
+      // P0-4 FIX: Don't include cover images in options (would reveal the answer)
+      const { options } = this.generateOptionsWithImages(media, shuffled, true);
       questions.push({
         id: `cover-guess-${i}`,
         type: 'COVER_GUESS',
@@ -418,7 +446,7 @@ export class GameEngine {
         difficulty,
         question: `Guess the ${media.type === 'ANIME' ? 'anime' : 'manga'} from its cover`,
         options,
-        optionImages,
+        // No optionImages for COVER_GUESS - would give away the answer
         correctAnswer: media.title.romaji || media.title.english || '',
         hints: [
           `Format: ${media.format || 'Unknown'}`,
@@ -518,11 +546,19 @@ export class GameEngine {
   }
 
   // Generate options with their cover images
-  private static generateOptionsWithImages(correctMedia: Media, allEntries: MediaListEntry[]): { options: string[], optionImages: Record<string, string> } {
+  // P0-4 FIX: Added excludeCorrectCover option to hide the correct answer's cover in COVER_GUESS games
+  private static generateOptionsWithImages(
+    correctMedia: Media, 
+    allEntries: MediaListEntry[],
+    excludeCorrectCover: boolean = false
+  ): { options: string[], optionImages: Record<string, string> } {
     const optionImages: Record<string, string> = {};
     const correctTitle = correctMedia.title.romaji || correctMedia.title.english || '';
     const options = [correctTitle];
-    optionImages[correctTitle] = correctMedia.coverImage?.medium || correctMedia.coverImage?.large || '';
+    // Don't include cover for correct answer in COVER_GUESS (would give it away)
+    if (!excludeCorrectCover) {
+      optionImages[correctTitle] = correctMedia.coverImage?.medium || correctMedia.coverImage?.large || '';
+    }
     
     // Add 3 random incorrect options
     const incorrectEntries = allEntries
@@ -534,7 +570,10 @@ export class GameEngine {
       if (entry.media) {
         const title = entry.media.title.romaji || entry.media.title.english || '';
         options.push(title);
-        optionImages[title] = entry.media.coverImage?.medium || entry.media.coverImage?.large || '';
+        // Don't include covers in answer options for COVER_GUESS
+        if (!excludeCorrectCover) {
+          optionImages[title] = entry.media.coverImage?.medium || entry.media.coverImage?.large || '';
+        }
       }
     });
     

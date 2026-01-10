@@ -16,6 +16,7 @@ function OPGuessContent({
   anilistId, 
   themeMode,
   onSkip,
+  onSkipNoPenalty,
   onAudioStart,
   showAnswer = false,
   mediaType = 'ANIME',
@@ -23,6 +24,7 @@ function OPGuessContent({
   anilistId?: number; 
   themeMode?: 'openings' | 'endings' | 'mix';
   onSkip?: () => void;
+  onSkipNoPenalty?: () => void; // Skip without MMR penalty (audio load failure)
   onAudioStart?: () => void;
   showAnswer?: boolean;
   mediaType?: string;
@@ -96,6 +98,7 @@ function OPGuessContent({
           autoPlay={!showAnswer} 
           showSongInfo={showAnswer}
           onPlay={onAudioStart}
+          onLoadFail={onSkipNoPenalty}
         />
       </div>
       {showAnswer ? (
@@ -236,6 +239,7 @@ function QuestionCard({
             anilistId={question?.themeData?.anilistId}
             themeMode={question?.themeData?.themeMode}
             onSkip={onSkip}
+            onSkipNoPenalty={onSkip} // Audio load fail - skip without penalty
             onAudioStart={() => setTimerPaused(false)}
             showAnswer={gameState === 'answered' || gameState === 'times-up'}
             mediaType={question?.media?.type}
