@@ -118,3 +118,157 @@ export const STUDIO_MODULES = {
 } as const;
 
 export type StudioModuleId = typeof STUDIO_MODULES[keyof typeof STUDIO_MODULES]["id"];
+
+// ============================================
+// STUDIO EDITOR TYPES (v2 - Drag & Drop Canvas)
+// ============================================
+
+export type ExportPreset = "story" | "post" | "banner" | "square" | "custom";
+
+export interface ExportConfig {
+  preset: ExportPreset;
+  width: number;
+  height: number;
+  scale: number; // 1x, 2x, 3x for high-res
+  format: "png" | "jpeg" | "webp";
+  quality: number; // 0-100 for jpeg/webp
+}
+
+export const EXPORT_PRESETS: Record<ExportPreset, { width: number; height: number; label: string; aspect: string }> = {
+  story: { width: 1080, height: 1920, label: "Story (9:16)", aspect: "9/16" },
+  post: { width: 1080, height: 1350, label: "Post (4:5)", aspect: "4/5" },
+  banner: { width: 1920, height: 1080, label: "Banner (16:9)", aspect: "16/9" },
+  square: { width: 1080, height: 1080, label: "Square (1:1)", aspect: "1/1" },
+  custom: { width: 1200, height: 800, label: "Custom", aspect: "auto" },
+};
+
+// Widget positioning on canvas
+export interface WidgetPosition {
+  x: number; // Grid units or pixels
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+export type WidgetType = 
+  | "header"
+  | "topMedia" 
+  | "stats"
+  | "percentiles"
+  | "tags"
+  | "genreRadar"
+  | "activity"
+  | "hottestTake"
+  | "gamesRank"
+  | "fingerprint"
+  | "emotional"
+  | "contradiction"
+  | "custom";
+
+export interface StudioWidget {
+  id: string;
+  type: WidgetType;
+  position: WidgetPosition;
+  settings: Record<string, unknown>;
+  visible: boolean;
+  locked: boolean;
+}
+
+// Template definition (full project template, not to be confused with StudioTemplate layout type)
+export interface StudioProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  thumbnail?: string;
+  exportPreset: ExportPreset;
+  theme: StudioTheme;
+  widgets: StudioWidget[];
+  createdAt?: string;
+  isBuiltIn: boolean;
+}
+
+// Full project that can be saved/loaded
+export interface StudioProject {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  exportConfig: ExportConfig;
+  theme: StudioTheme;
+  widgets: StudioWidget[];
+  config: StudioConfig; // Data filtering config
+  templateId?: string; // If based on a template
+}
+
+// Canvas editor state
+export interface CanvasState {
+  zoom: number;
+  panX: number;
+  panY: number;
+  gridSize: number;
+  snapToGrid: boolean;
+  showGrid: boolean;
+  selectedWidgetId: string | null;
+}
+
+// Default widget configs by type
+export const DEFAULT_WIDGET_SIZES: Record<WidgetType, { width: number; height: number }> = {
+  header: { width: 12, height: 2 },
+  topMedia: { width: 4, height: 6 },
+  stats: { width: 4, height: 4 },
+  percentiles: { width: 3, height: 4 },
+  tags: { width: 4, height: 3 },
+  genreRadar: { width: 4, height: 4 },
+  activity: { width: 6, height: 3 },
+  hottestTake: { width: 4, height: 2 },
+  gamesRank: { width: 3, height: 3 },
+  fingerprint: { width: 3, height: 2 },
+  emotional: { width: 4, height: 4 },
+  contradiction: { width: 4, height: 2 },
+  custom: { width: 4, height: 4 },
+};
+
+// Built-in templates
+export const BUILT_IN_TEMPLATES: Omit<StudioProjectTemplate, "widgets">[] = [
+  {
+    id: "profile-overview",
+    name: "Profile Overview",
+    description: "Classic profile summary with stats, top media, and taste insights",
+    exportPreset: "banner",
+    theme: { mode: "dark", accent: "#8b5cf6" },
+    isBuiltIn: true,
+  },
+  {
+    id: "minimal-stats",
+    name: "Minimal Stats",
+    description: "Clean, minimal view focusing on key statistics",
+    exportPreset: "square",
+    theme: { mode: "dark", accent: "#3b82f6" },
+    isBuiltIn: true,
+  },
+  {
+    id: "top-picks",
+    name: "Top Picks Showcase",
+    description: "Highlight your favorite anime and manga",
+    exportPreset: "post",
+    theme: { mode: "dark", accent: "#10b981" },
+    isBuiltIn: true,
+  },
+  {
+    id: "year-in-review",
+    name: "Year in Review",
+    description: "Annual summary with activity and highlights",
+    exportPreset: "story",
+    theme: { mode: "dark", accent: "#f59e0b" },
+    isBuiltIn: true,
+  },
+  {
+    id: "taste-analysis",
+    name: "Taste Analysis",
+    description: "Deep dive into your taste patterns and emotional profile",
+    exportPreset: "banner",
+    theme: { mode: "dark", accent: "#ef4444" },
+    isBuiltIn: true,
+  },
+];
