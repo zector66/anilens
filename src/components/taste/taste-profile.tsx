@@ -593,11 +593,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="p-6 rounded-xl bg-white/5 border border-white/10">
           <h3 className="text-lg font-semibold text-white mb-2">Genre Affinity</h3>
-          <p className="text-sm text-gray-400 mb-6">Your favorite genres based on {activeTab === 'ANIME' ? 'watch time' : 'reading'} and scores</p>
+          <p className="text-sm text-gray-400 mb-4">Your favorite genres based on {activeTab === 'ANIME' ? 'watch time' : 'reading'} and scores</p>
+          <p className="text-xs text-gray-500 mb-4">Affinity = weighted score combining your ratings and engagement time</p>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tasteProfile.genreAffinity.slice(0, 8)} layout="vertical">
-                <XAxis type="number" stroke="#6b7280" />
+                <XAxis 
+                  type="number" 
+                  stroke="#6b7280"
+                  label={{ value: 'Affinity Score', position: 'bottom', fill: '#9ca3af', fontSize: 12 }}
+                />
                 <YAxis type="category" dataKey="genre" stroke="#6b7280" width={100} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
@@ -647,7 +652,12 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tasteProfile.formatPreference.slice(0, 8)} layout="vertical">
-                <XAxis type="number" stroke="#6b7280" />
+                <XAxis 
+                  type="number" 
+                  stroke="#6b7280"
+                  label={{ value: 'Engagement %', position: 'bottom', fill: '#9ca3af', fontSize: 12 }}
+                  tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                />
                 <YAxis type="category" dataKey="format" stroke="#6b7280" width={100} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
@@ -985,8 +995,15 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={tasteProfile.scorePatterns.scoreDistribution}>
-              <XAxis dataKey="score" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
+              <XAxis 
+                dataKey="score" 
+                stroke="#6b7280"
+                label={{ value: 'Your Score (1-10)', position: 'bottom', fill: '#9ca3af', fontSize: 12, offset: -5 }}
+              />
+              <YAxis 
+                stroke="#6b7280"
+                label={{ value: 'Number of Titles', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 12 }}
+              />
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                 labelStyle={{ color: '#fff' }}
