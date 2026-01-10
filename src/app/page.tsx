@@ -8,7 +8,7 @@ import { TasteProfile } from '@/components/taste/taste-profile';
 import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHub } from '@/components/games/community-hub';
-import { StudioWrapper } from '@/components/studio/studio-wrapper';
+import { StudioComingSoon } from '@/components/studio/studio-coming-soon';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -249,13 +249,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const renderContent = () => {
     switch (activeTab) {
       case 'studio':
-        return user ? (
-          <StudioWrapper 
-            userId={user.id} 
-            username={user.name}
-            userAvatar={user.avatar?.medium}
-          />
-        ) : null;
+        return <StudioComingSoon />;
       case 'taste':
         return <TasteProfile userId={user?.id} />;
       case 'games':
