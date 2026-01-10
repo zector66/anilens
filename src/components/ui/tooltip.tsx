@@ -23,44 +23,78 @@ export function Tooltip({
   const triggerRef = React.useRef<HTMLDivElement>(null);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showTooltip = () => {
-    timeoutRef.current = setTimeout(() => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        const scrollX = window.scrollX;
-        const scrollY = window.scrollY;
+  const calculatePosition = React.useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
 
-        let x = rect.left + rect.width / 2 + scrollX;
-        let y = rect.top + scrollY;
+      let x = rect.left + rect.width / 2 + scrollX;
+      let y = rect.top + scrollY;
 
-        switch (side) {
-          case 'bottom':
-            y = rect.bottom + scrollY + 8;
-            break;
-          case 'left':
-            x = rect.left + scrollX - 8;
-            y = rect.top + rect.height / 2 + scrollY;
-            break;
-          case 'right':
-            x = rect.right + scrollX + 8;
-            y = rect.top + rect.height / 2 + scrollY;
-            break;
-          default: // top
-            y = rect.top + scrollY - 8;
-        }
-
-        setPosition({ x, y });
+      switch (side) {
+        case 'bottom':
+          y = rect.bottom + scrollY + 8;
+          break;
+        case 'left':
+          x = rect.left + scrollX - 8;
+          y = rect.top + rect.height / 2 + scrollY;
+          break;
+        case 'right':
+          x = rect.right + scrollX + 8;
+          y = rect.top + rect.height / 2 + scrollY;
+          break;
+        default: // top
+          y = rect.top + scrollY - 8;
       }
+
+      setPosition({ x, y });
+    }
+  }, [side]);
+
+  const showTooltip = React.useCallback(() => {
+    timeoutRef.current = setTimeout(() => {
+      calculatePosition();
       setIsVisible(true);
     }, delay);
-  };
+  }, [calculatePosition, delay]);
 
-  const hideTooltip = () => {
+  const hideTooltip = React.useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     setIsVisible(false);
-  };
+  }, []);
+
+  // P1-6 FIX: Handle tap/click for mobile - toggle tooltip on tap
+  const handleTap = React.useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isVisible) {
+      hideTooltip();
+    } else {
+      calculatePosition();
+      setIsVisible(true);
+    }
+  }, [isVisible, hideTooltip, calculatePosition]);
+
+  // Close tooltip when clicking outside on mobile
+  React.useEffect(() => {
+    if (!isVisible) return;
+    
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        hideTooltip();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isVisible, hideTooltip]);
 
   React.useEffect(() => {
     return () => {
@@ -85,7 +119,12 @@ export function Tooltip({
         onMouseLeave={hideTooltip}
         onFocus={showTooltip}
         onBlur={hideTooltip}
-        className="inline-block"
+        onClick={handleTap}
+        onTouchEnd={handleTap}
+        className="inline-block cursor-pointer"
+        role="button"
+        tabIndex={0}
+        aria-describedby={isVisible ? 'tooltip' : undefined}
       >
         {children}
       </div>

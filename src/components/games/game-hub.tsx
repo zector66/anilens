@@ -48,6 +48,8 @@ export function GameHub() {
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [multiplayerGameType, setMultiplayerGameType] = useState<string | null>(null);
   const [multiplayerRoom, setMultiplayerRoom] = useState<MultiplayerRoom | null>(null);
+  // P1-9 FIX: Track last played game type for "Play Again" to return to settings
+  const [lastPlayedGameType, setLastPlayedGameType] = useState<string | null>(null);
 
   const isLoading = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeType === 'ANIME' ? animeList : mangaList;
@@ -168,6 +170,8 @@ export function GameHub() {
     }));
 
     const session = GameEngine.createGameSession(selectedGameType, questions);
+    // P1-9 FIX: Save last played game type for Play Again
+    setLastPlayedGameType(selectedGameType);
     setCurrentGame(session);
     setGameResults(null);
     setShowSettings(false);
@@ -189,6 +193,15 @@ export function GameHub() {
     setGameResults(results);
     if (finalRoom) {
       setMultiplayerRoom(finalRoom);
+    }
+  };
+
+  // P1-9 FIX: Play Again returns to settings with same game type
+  const handlePlayAgain = () => {
+    setGameResults(null);
+    if (lastPlayedGameType) {
+      setSelectedGameType(lastPlayedGameType);
+      setShowSettings(true);
     }
   };
 
@@ -288,8 +301,11 @@ export function GameHub() {
       <GameResults 
         results={gameResults} 
         activeType={activeType}
-        onPlayAgain={() => setGameResults(null)}
-        onBackToHub={() => setGameResults(null)}
+        onPlayAgain={handlePlayAgain}
+        onBackToHub={() => {
+          setGameResults(null);
+          setLastPlayedGameType(null);
+        }}
       />
     );
   }
