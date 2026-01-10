@@ -1,0 +1,171 @@
+'use client';
+
+import { useState, useRef, useEffect, memo } from 'react';
+import Image from 'next/image';
+
+interface OptimizedImageProps {
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  fill?: boolean;
+  className?: string;
+  priority?: boolean;
+  sizes?: string;
+  quality?: number;
+  placeholder?: 'blur' | 'empty';
+  blurDataURL?: string;
+  onLoad?: () => void;
+  onClick?: () => void;
+}
+
+// Generate a tiny placeholder color based on image URL hash
+function generatePlaceholderColor(src: string): string {
+  let hash = 0;
+  for (let i = 0; i < src.length; i++) {
+    hash = src.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 20%, 15%)`;
+}
+
+// Generate blur placeholder SVG
+function generateBlurSVG(color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 12"><rect fill="${color}" width="8" height="12"/></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/**
+ * Optimized image component with:
+ * - Lazy loading via IntersectionObserver
+ * - Generated blur placeholders
+ * - Smooth fade-in transitions
+ * - Memory-efficient loading
+ */
+function OptimizedImageInner({
+  src,
+  alt,
+  width,
+  height,
+  fill = false,
+  className = '',
+  priority = false,
+  sizes,
+  quality = 75,
+  placeholder = 'blur',
+  blurDataURL,
+  onLoad,
+  onClick,
+}: OptimizedImageProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isInView, setIsInView] = useState(priority);
+  const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    if (priority || isInView) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: '200px', // Start loading 200px before visible
+        threshold: 0,
+      }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [priority, isInView]);
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+    onLoad?.();
+  };
+
+  const handleError = () => {
+    setHasError(true);
+  };
+
+  const placeholderColor = generatePlaceholderColor(src);
+  const generatedBlurURL = blurDataURL || generateBlurSVG(placeholderColor);
+
+  // Fallback for errored images
+  if (hasError) {
+    return (
+      <div
+        ref={imgRef}
+        className={`bg-gray-800 flex items-center justify-center ${className}`}
+        style={!fill ? { width, height } : undefined}
+        onClick={onClick}
+      >
+        <span className="text-gray-500 text-xs">No Image</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={imgRef}
+      className={`relative overflow-hidden ${className}`}
+      style={!fill ? { width, height } : undefined}
+      onClick={onClick}
+    >
+      {/* Placeholder background */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          isLoaded ? 'opacity-0' : 'opacity-100'
+        }`}
+        style={{ backgroundColor: placeholderColor }}
+      />
+
+      {/* Actual image - only render when in view */}
+      {isInView && (
+        <Image
+          src={src}
+          alt={alt}
+          width={fill ? undefined : width}
+          height={fill ? undefined : height}
+          fill={fill}
+          className={`transition-opacity duration-300 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          sizes={sizes}
+          quality={quality}
+          priority={priority}
+          placeholder={placeholder}
+          blurDataURL={generatedBlurURL}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading={priority ? 'eager' : 'lazy'}
+        />
+      )}
+    </div>
+  );
+}
+
+export const OptimizedImage = memo(OptimizedImageInner);
+
+/**
+ * Preload critical images
+ */
+export function preloadImage(src: string): void {
+  if (typeof window === 'undefined') return;
+  const img = new window.Image();
+  img.src = src;
+}
+
+/**
+ * Preload multiple images
+ */
+export function preloadImages(srcs: string[]): void {
+  srcs.forEach(preloadImage);
+}
