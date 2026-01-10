@@ -44,7 +44,6 @@ import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
 import { EmotionalProfile } from './emotional-profile';
 import { 
-  EmotionalProfileChart, 
   StructuralPreferencesChart, 
   RiskProfileChart, 
   ContradictionsCard,
@@ -966,9 +965,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           <TasteFingerprintCard fingerprint={tasteProfile.fingerprint} />
         </div>
 
-        {/* Emotional & Structural Vectors */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <EmotionalProfileChart emotionalProfile={tasteProfile.emotionalProfile} activeType={activeTab} />
+        {/* Structural Preferences */}
+        <div className="mb-8">
           <StructuralPreferencesChart structuralPreferences={tasteProfile.structuralPreferences} activeType={activeTab} />
         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites } from '@/hooks/use-anilist';
 import { useMedia } from '@/contexts/media-context';
@@ -23,6 +23,7 @@ import {
   Sparkles,
   Frown,
   ThumbsDown,
+  ThumbsUp,
   Flame,
   Zap,
   Info,
@@ -31,6 +32,8 @@ import {
   Eye,
   Star,
   Blend,
+  MessageSquare,
+  Check,
 } from 'lucide-react';
 
 // Emotion icons and colors
@@ -55,12 +58,47 @@ interface EmotionalProfileProps {
   userId?: number;
 }
 
+// Feedback types
+type EmotionFeedback = 'accurate' | 'too_high' | 'too_low' | null;
+type OverallFeedback = 'accurate' | 'somewhat' | 'inaccurate' | null;
+
+interface FeedbackState {
+  emotions: Partial<Record<PrimaryEmotion, EmotionFeedback>>;
+  overall: OverallFeedback;
+  submittedAt?: string;
+}
+
+const FEEDBACK_STORAGE_KEY = 'anilens_emotional_feedback';
+
+function loadFeedback(userId: number, mediaType: string): FeedbackState {
+  if (typeof window === 'undefined') return { emotions: {}, overall: null };
+  try {
+    const stored = localStorage.getItem(`${FEEDBACK_STORAGE_KEY}_${userId}_${mediaType}`);
+    return stored ? JSON.parse(stored) : { emotions: {}, overall: null };
+  } catch {
+    return { emotions: {}, overall: null };
+  }
+}
+
+function saveFeedback(userId: number, mediaType: string, feedback: FeedbackState) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      `${FEEDBACK_STORAGE_KEY}_${userId}_${mediaType}`,
+      JSON.stringify({ ...feedback, submittedAt: new Date().toISOString() })
+    );
+  } catch {
+    // localStorage full or unavailable
+  }
+}
+
 export function EmotionalProfile({ userId }: EmotionalProfileProps) {
   const { user } = useAuth();
   const { activeType } = useMedia();
   const [mode, setMode] = useState<'consumption' | 'love' | 'blend'>('blend');
   const [blendRatio, setBlendRatio] = useState(0.6);
   const [expandedEmotion, setExpandedEmotion] = useState<PrimaryEmotion | null>(null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const effectiveUserId = userId || user?.id || 0;
   const { data: animeList, isLoading: isLoadingAnime } = useAnimeList(effectiveUserId);
@@ -85,6 +123,40 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
     if (entries.length === 0) return null;
     return EmotionalAnalyzer.analyze(entries, { mode, blendRatio, favoriteIds });
   }, [entries, mode, blendRatio, favoriteIds]);
+
+  // Feedback state - initialize from localStorage
+  const [feedback, setFeedback] = useState<FeedbackState>(() => 
+    loadFeedback(effectiveUserId, activeType)
+  );
+
+  // Reset feedback when user or media type changes
+  useEffect(() => {
+    const stored = loadFeedback(effectiveUserId, activeType);
+    setFeedback(stored);
+    setFeedbackSubmitted(!!stored.submittedAt);
+  }, [effectiveUserId, activeType]);
+
+  // Handle emotion feedback
+  const handleEmotionFeedback = useCallback((emotion: PrimaryEmotion, value: EmotionFeedback) => {
+    setFeedback(prev => {
+      const updated = {
+        ...prev,
+        emotions: { ...prev.emotions, [emotion]: value }
+      };
+      saveFeedback(effectiveUserId, activeType, updated);
+      return updated;
+    });
+  }, [effectiveUserId, activeType]);
+
+  // Handle overall feedback
+  const handleOverallFeedback = useCallback((value: OverallFeedback) => {
+    setFeedback(prev => {
+      const updated = { ...prev, overall: value };
+      saveFeedback(effectiveUserId, activeType, updated);
+      setFeedbackSubmitted(true);
+      return updated;
+    });
+  }, [effectiveUserId, activeType]);
 
   // Radar chart data
   const radarData = useMemo(() => {
@@ -370,7 +442,7 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
                       </div>
                     )}
                     {emotion.topTitles.length > 0 && (
-                      <div>
+                      <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                           <Star className="w-3 h-3" /> Top contributing titles
                         </p>
@@ -383,12 +455,130 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
                         </div>
                       </div>
                     )}
+
+                    {/* Per-emotion feedback */}
+                    <div className="pt-3 border-t border-white/10">
+                      <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" /> Does this feel accurate?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEmotionFeedback(emotion.emotion, 'too_low'); }}
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                            feedback.emotions[emotion.emotion] === 'too_low'
+                              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <ChevronDown className="w-3 h-3" /> Too Low
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEmotionFeedback(emotion.emotion, 'accurate'); }}
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                            feedback.emotions[emotion.emotion] === 'accurate'
+                              ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <ThumbsUp className="w-3 h-3" /> Accurate
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEmotionFeedback(emotion.emotion, 'too_high'); }}
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                            feedback.emotions[emotion.emotion] === 'too_high'
+                              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <ChevronUp className="w-3 h-3" /> Too High
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+      </div>
+
+      {/* Overall Feedback Panel */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-purple-400" />
+              Does this profile feel accurate?
+            </h3>
+            <p className="text-sm text-gray-400">
+              Your feedback helps us improve the emotional analysis
+            </p>
+          </div>
+          
+          {feedbackSubmitted && feedback.overall ? (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30">
+              <Check className="w-4 h-4 text-green-400" />
+              <span className="text-green-300 text-sm">Thanks for your feedback!</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleOverallFeedback('accurate')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  feedback.overall === 'accurate'
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                <ThumbsUp className="w-4 h-4" />
+                Accurate
+              </button>
+              <button
+                onClick={() => handleOverallFeedback('somewhat')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  feedback.overall === 'somewhat'
+                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                Somewhat
+              </button>
+              <button
+                onClick={() => handleOverallFeedback('inaccurate')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  feedback.overall === 'inaccurate'
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                <ThumbsDown className="w-4 h-4" />
+                Not Really
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Show feedback summary if user has provided per-emotion feedback */}
+        {Object.keys(feedback.emotions).length > 0 && (
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="text-xs text-gray-500 mb-2">Your emotion feedback:</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(feedback.emotions).map(([emotion, value]) => (
+                <span 
+                  key={emotion}
+                  className={`px-2 py-1 text-xs rounded-md ${
+                    value === 'accurate' ? 'bg-green-500/20 text-green-300' :
+                    value === 'too_high' ? 'bg-orange-500/20 text-orange-300' :
+                    value === 'too_low' ? 'bg-orange-500/20 text-orange-300' :
+                    'bg-white/10 text-gray-400'
+                  }`}
+                >
+                  {emotion}: {value === 'accurate' ? '✓' : value === 'too_high' ? '↑' : '↓'}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Disclaimer */}
