@@ -373,6 +373,70 @@ export class GameEngine {
     return questions;
   }
 
+  // P3-14: Seiyuu (Voice Actor) guessing game
+  static generateSeiyuuQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    // Filter to anime only (voice actors) with character data that has voice actors
+    const filtered = entries.filter(e => 
+      e.media?.type === 'ANIME' && 
+      e.media?.characters?.edges?.some(c => c.voiceActors && c.voiceActors.length > 0)
+    );
+    const shuffled = prioritizeUnused(filtered, recentIds);
+    const usedIds: number[] = [];
+    
+    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+      const entry = shuffled[i];
+      if (!entry.media) continue;
+      
+      const media = entry.media;
+      const characters = media.characters.edges;
+      
+      // Find a character with a Japanese voice actor
+      const charWithVA = characters.find(c => 
+        c.voiceActors && c.voiceActors.some(va => va.language === 'JAPANESE')
+      );
+      
+      if (!charWithVA) continue;
+      
+      const japaneseVA = charWithVA.voiceActors?.find(va => va.language === 'JAPANESE');
+      if (!japaneseVA) continue;
+      
+      usedIds.push(media.id);
+      const difficulty = this.calculateDifficulty(entry);
+      const charName = charWithVA.node.name.full;
+      const vaName = japaneseVA.name.full;
+      
+      const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
+      questions.push({
+        id: `seiyuu-guess-${i}`,
+        type: 'SEIYUU_GUESS',
+        media,
+        difficulty,
+        question: `${vaName} voiced "${charName}" in which anime?`,
+        options,
+        optionImages,
+        correctAnswer: media.title.romaji || media.title.english || '',
+        hints: [
+          `Character Role: ${charWithVA.role}`,
+          `Genre: ${media.genres.slice(0, 2).join(', ')}`,
+          `Year: ${media.startDate.year || 'unknown'}`,
+        ],
+        timeLimit: difficulty === 'EASY' ? 25 : 20,
+        points: difficulty === 'EASY' ? 25 : 40,
+        // Store VA info for display
+        themeData: {
+          voiceActor: vaName,
+          character: charName,
+          vaImage: japaneseVA.image?.medium || japaneseVA.image?.large,
+        },
+      });
+    }
+    
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
   static generateSeasonMatchQuestions(entries: MediaListEntry[], count: number = 10): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();

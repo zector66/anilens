@@ -21,6 +21,12 @@ export interface GameSettings {
   shuffleOptions: boolean;
   // OP/ED specific
   themeMode?: 'openings' | 'endings' | 'mix';
+  // P3-12: Format filters for OP/ED games
+  includeTV?: boolean;
+  includeMovies?: boolean;
+  includeOVA?: boolean;
+  includeONA?: boolean;
+  includeSpecials?: boolean;
   // Bracket specific
   bracketSize?: 8 | 16 | 32 | 64;
   bracketCategory?: 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
@@ -59,6 +65,12 @@ export function GameSettingsModal({
     themeMode: 'mix',
     bracketSize: 16,
     bracketCategory: gameType === 'bracket-manga' ? 'manga' : 'anime',
+    // P3-12: Default format filters (TV only by default)
+    includeTV: true,
+    includeMovies: false,
+    includeOVA: false,
+    includeONA: false,
+    includeSpecials: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -165,6 +177,43 @@ export function GameSettingsModal({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* P3-12: Format Filters (for op-guessing game) */}
+          {isOpGame && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-white font-medium">
+                📺 Include Formats
+              </label>
+              <p className="text-xs text-gray-500 -mt-1">Select which anime formats to include in questions</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'includeTV', label: 'TV Series', default: true },
+                  { id: 'includeMovies', label: 'Movies', default: false },
+                  { id: 'includeOVA', label: 'OVA', default: false },
+                  { id: 'includeONA', label: 'ONA', default: false },
+                  { id: 'includeSpecials', label: 'Specials', default: false },
+                ].map((format) => (
+                  <button
+                    key={format.id}
+                    onClick={() => setSettings({ 
+                      ...settings, 
+                      [format.id]: !settings[format.id as keyof GameSettings] 
+                    })}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      settings[format.id as keyof GameSettings]
+                        ? 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                        : 'bg-white/5 border border-white/10 text-gray-500 hover:border-white/20'
+                    }`}
+                  >
+                    {settings[format.id as keyof GameSettings] ? '✓ ' : ''}{format.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600">
+                💡 Movies and shorts often have unique OPs/EDs that are harder to recognize
+              </p>
             </div>
           )}
 

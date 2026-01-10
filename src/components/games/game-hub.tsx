@@ -24,7 +24,8 @@ import {
   Activity,
   Calendar,
   BookOpen,
-  Swords
+  Swords,
+  User as UserIcon
 } from 'lucide-react';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
@@ -126,7 +127,22 @@ export function GameHub() {
     
     switch (selectedGameType) {
       case 'op-guessing':
-        questions = GameEngine.generateOPGuessingQuestions(filteredEntries, questionCount, settings.themeMode);
+        // P3-12: Apply format filters for OP/ED guessing
+        const formatFilteredEntries = filteredEntries.filter(entry => {
+          const format = entry.media?.format;
+          if (!format) return false;
+          if (format === 'TV' && settings.includeTV) return true;
+          if (format === 'MOVIE' && settings.includeMovies) return true;
+          if (format === 'OVA' && settings.includeOVA) return true;
+          if (format === 'ONA' && settings.includeONA) return true;
+          if (format === 'SPECIAL' && settings.includeSpecials) return true;
+          // If no filters selected, include TV by default
+          if (!settings.includeTV && !settings.includeMovies && !settings.includeOVA && !settings.includeONA && !settings.includeSpecials) {
+            return format === 'TV';
+          }
+          return false;
+        });
+        questions = GameEngine.generateOPGuessingQuestions(formatFilteredEntries, questionCount, settings.themeMode);
         break;
       case 'screenshot-guessing':
         questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
@@ -139,6 +155,10 @@ export function GameHub() {
         break;
       case 'character-guessing':
         questions = GameEngine.generateCharacterQuestions(filteredEntries, questionCount);
+        break;
+      case 'seiyuu-guessing':
+        // P3-14: Seiyuu (Voice Actor) guessing game
+        questions = GameEngine.generateSeiyuuQuestions(filteredEntries, questionCount);
         break;
       case 'season-matching':
         questions = GameEngine.generateSeasonMatchQuestions(filteredEntries, questionCount);
@@ -365,6 +385,17 @@ export function GameHub() {
       difficultyColor: 'bg-pink-500/20 text-pink-400',
       estimatedTime: '5-10 min',
       special: true,
+    },
+    // P3-14: Seiyuu (Voice Actor) guessing game
+    {
+      id: 'seiyuu-guessing',
+      title: 'Seiyuu Savant',
+      description: 'Match voice actors to the anime they starred in',
+      icon: UserIcon,
+      gradient: 'from-pink-500 to-rose-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '5-8 min',
     },
   ];
 

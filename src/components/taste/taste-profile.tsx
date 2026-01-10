@@ -50,6 +50,7 @@ import {
   ContradictionsCard,
   TasteFingerprintCard 
 } from './elite-taste-visuals';
+import { ArchetypeGlossary, GlossaryButton } from './archetype-glossary';
 import { anilistClient } from '@/lib/anilist-client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -66,6 +67,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const [activeTab, setActiveTab] = useState<'ANIME' | 'MANGA'>('ANIME');
   const [expandedTrait, setExpandedTrait] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'stats' | 'emotional'>('stats');
+  // P3-13: Glossary modal state
+  const [showGlossary, setShowGlossary] = useState(false);
 
   const effectiveUserId = userId || user?.id || 0;
   
@@ -1022,12 +1025,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
       {/* Elite Taste Intelligence Section */}
       <div className="pt-8 border-t border-white/10">
-        <div className="mb-6">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-            <Zap className="w-6 h-6 text-yellow-400" />
-            Deep Taste Intelligence
-          </h2>
-          <p className="text-gray-400 text-sm">Advanced behavioral analysis and taste vectors</p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+              <Zap className="w-6 h-6 text-yellow-400" />
+              Deep Taste Intelligence
+            </h2>
+            <p className="text-gray-400 text-sm">Advanced behavioral analysis and taste vectors</p>
+          </div>
+          {/* P3-13: Glossary button */}
+          <GlossaryButton onClick={() => setShowGlossary(true)} />
         </div>
 
         {/* Taste Fingerprint - Featured */}
@@ -1124,6 +1131,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       </div>
       </>
       )}
+
+      {/* P3-13: Archetype Glossary Modal */}
+      <ArchetypeGlossary isOpen={showGlossary} onClose={() => setShowGlossary(false)} />
     </div>
   );
 }

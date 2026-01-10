@@ -117,6 +117,11 @@ export interface Media {
           native: string;
         };
         language: string;
+        // P3-14: Add image for voice actor display
+        image?: {
+          large?: string;
+          medium?: string;
+        };
       }>;
       role: string;
     }>;
@@ -455,7 +460,7 @@ export interface Recommendation {
 
 export interface GameQuestion {
   id: string;
-  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS' | 'HANGMAN' | 'WORDLE';
+  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS' | 'HANGMAN' | 'WORDLE' | 'SEIYUU_GUESS';
   media?: Media;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   question: string;
@@ -466,13 +471,18 @@ export interface GameQuestion {
   timeLimit?: number;
   points: number;
   // For OP/ED guessing - theme metadata from AnimeThemes API
+  // P3-14: Extended for Seiyuu game with voice actor info
   themeData?: {
-    anilistId: number;
+    anilistId?: number;
     themeMode?: 'openings' | 'endings' | 'mix';
     songTitle?: string;
     artistName?: string;
     videoUrl?: string;
     audioUrl?: string;
+    // Seiyuu game fields
+    voiceActor?: string;
+    character?: string;
+    vaImage?: string;
   };
 }
 
