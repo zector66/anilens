@@ -1,3 +1,6 @@
+'use client';
+
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3, Gamepad2, Brain, TrendingUp } from 'lucide-react';
@@ -7,7 +10,15 @@ interface NavigationProps {
   onTabChange: (tab: 'taste' | 'games' | 'recommendations' | 'personality') => void;
 }
 
-export function Navigation({ activeTab, onTabChange }: NavigationProps) {
+// Preload functions for each tab's heavy components (triggers module load)
+const preloadFunctions: Record<string, () => void> = {
+  taste: () => import('@/components/taste/taste-profile'),
+  games: () => import('@/components/games/game-hub'),
+  recommendations: () => import('@/components/recommendations/recommendations'),
+  personality: () => import('@/components/personality/personality-test'),
+};
+
+function NavigationInner({ activeTab, onTabChange }: NavigationProps) {
   const tabs = [
     {
       id: 'taste',
@@ -45,6 +56,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
               key={tab.id}
               variant={activeTab === tab.id ? 'default' : 'outline'}
               onClick={() => onTabChange(tab.id as 'taste' | 'games' | 'recommendations' | 'personality')}
+              onMouseEnter={() => preloadFunctions[tab.id]?.()}
               className="flex items-center gap-2"
             >
               <Icon className="w-4 h-4" />
@@ -75,3 +87,5 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
     </div>
   );
 }
+
+export const Navigation = memo(NavigationInner);

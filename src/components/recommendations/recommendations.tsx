@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
@@ -8,6 +8,9 @@ import { useMedia } from '@/contexts/media-context';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
+import { OptimizedImage } from '@/components/ui/optimized-image';
+import { usePrefetchMedia } from '@/hooks/use-prefetch';
+import { GridSkeleton } from '@/components/ui/lazy-component';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -36,6 +39,120 @@ interface ExtendedMedia extends Media {
   _reasons?: Array<{ type: string; text: string; weight: number }>;
   _category?: 'safe' | 'experimental' | 'hidden-gem';
 }
+
+interface ProcessedRec {
+  id: number;
+  title: string;
+  coverImage: string;
+  genres: string[];
+  format: string;
+  score: number;
+  popularity: number;
+  reason: string;
+  reasons: Array<{ type: string; text: string; weight: number }>;
+  matchScore: number;
+  category: 'safe' | 'experimental' | 'hidden-gem' | 'opposite';
+}
+
+interface RecommendationCardProps {
+  rec: ProcessedRec;
+  activeType: 'ANIME' | 'MANGA';
+  priority?: boolean;
+}
+
+const RecommendationCard = memo(function RecommendationCard({ rec, activeType, priority = false }: RecommendationCardProps) {
+  const { prefetchMedia } = usePrefetchMedia();
+  
+  const handleMouseEnter = useCallback(() => {
+    prefetchMedia(rec.id);
+  }, [rec.id, prefetchMedia]);
+
+  return (
+    <div 
+      className="group relative rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 transition-all"
+      onMouseEnter={handleMouseEnter}
+    >
+      <div className="aspect-3/4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent z-10" />
+        <OptimizedImage
+          src={rec.coverImage}
+          alt={rec.title}
+          fill
+          priority={priority}
+          sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        <div className="absolute top-3 right-3 z-20">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            rec.category === 'safe' ? 'bg-green-500/80 text-white' :
+            rec.category === 'hidden-gem' ? 'bg-yellow-500/80 text-black' :
+            rec.category === 'opposite' ? 'bg-red-500/80 text-white' :
+            'bg-purple-500/80 text-white'
+          }`}>
+            {rec.category === 'safe' ? 'Safe Pick' : 
+             rec.category === 'hidden-gem' ? 'Hidden Gem' : 
+             rec.category === 'opposite' ? 'Opposite Day' :
+             'Experimental'}
+          </span>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-lg font-semibold text-white line-clamp-1">{rec.title}</h3>
+            {rec.format && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/20 text-gray-200">
+                {rec.format}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-300 mb-2 line-clamp-2">{rec.reason}</p>
+          {rec.reasons.length > 1 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {rec.reasons.slice(1, 3).map((r, i) => (
+                <span 
+                  key={i} 
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    r.type === 'format' ? (r.weight > 0 ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300') :
+                    r.type === 'genre' ? 'bg-purple-500/30 text-purple-300' :
+                    r.type === 'tag' ? 'bg-blue-500/30 text-blue-300' :
+                    r.type === 'staff' ? 'bg-yellow-500/30 text-yellow-300' :
+                    'bg-gray-500/30 text-gray-300'
+                  }`}
+                >
+                  {r.text.length > 30 ? r.text.substring(0, 30) + '...' : r.text}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-yellow-400">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="text-sm font-medium">{rec.score}%</span>
+            </div>
+            <span className="text-gray-500">•</span>
+            <div className="flex items-center gap-1 text-purple-400">
+              <TrendingUp className="w-4 h-4" />
+              <span className="text-sm font-medium">{rec.matchScore}% match</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="p-4 flex gap-2">
+        <a 
+          href={`https://anilist.co/${activeType.toLowerCase()}/${rec.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          <Play className="w-4 h-4" />
+          View Details
+        </a>
+        <button className="flex items-center justify-center px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
+          <ExternalLink className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export function Recommendations({ userId }: RecommendationsProps) {
   const { user } = useAuth();
@@ -544,89 +661,16 @@ export function Recommendations({ userId }: RecommendationsProps) {
 
       {/* Recommendation Cards */}
       {isLoadingRecs ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="aspect-3/4 rounded-xl bg-white/5 border border-white/10" />
-          ))}
-        </div>
+        <GridSkeleton count={6} />
       ) : filteredRecs.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRecs.map((rec) => (
-            <div 
-              key={rec.id}
-              className="group relative rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 transition-all"
-            >
-              <div className="aspect-3/4 relative overflow-hidden">
-                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent z-10" />
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transform group-hover:scale-105 transition-transform duration-300"
-                  style={{ backgroundImage: `url(${rec.coverImage})` }}
-                />
-                <div className="absolute top-3 right-3 z-20">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    rec.category === 'safe' ? 'bg-green-500/80 text-white' :
-                    rec.category === 'hidden-gem' ? 'bg-yellow-500/80 text-black' :
-                    'bg-purple-500/80 text-white'
-                  }`}>
-                    {rec.category === 'safe' ? 'Safe Pick' : rec.category === 'hidden-gem' ? 'Hidden Gem' : 'Experimental'}
-                  </span>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold text-white line-clamp-1">{rec.title}</h3>
-                    {rec.format && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/20 text-gray-200">
-                        {rec.format}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-300 mb-2 line-clamp-2">{rec.reason}</p>
-                  {rec.reasons.length > 1 && (
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {rec.reasons.slice(1, 3).map((r, i) => (
-                        <span 
-                          key={i} 
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            r.type === 'format' ? (r.weight > 0 ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300') :
-                            r.type === 'genre' ? 'bg-purple-500/30 text-purple-300' :
-                            r.type === 'tag' ? 'bg-blue-500/30 text-blue-300' :
-                            r.type === 'staff' ? 'bg-yellow-500/30 text-yellow-300' :
-                            'bg-gray-500/30 text-gray-300'
-                          }`}
-                        >
-                          {r.text.length > 30 ? r.text.substring(0, 30) + '...' : r.text}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-yellow-400">
-                      <Star className="w-4 h-4 fill-current" />
-                      <span className="text-sm font-medium">{rec.score}%</span>
-                    </div>
-                    <span className="text-gray-500">•</span>
-                    <div className="flex items-center gap-1 text-purple-400">
-                      <TrendingUp className="w-4 h-4" />
-                      <span className="text-sm font-medium">{rec.matchScore}% match</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 flex gap-2">
-                <a 
-                  href={`https://anilist.co/${activeType.toLowerCase()}/${rec.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white text-sm font-medium transition-colors"
-                >
-                  <Play className="w-4 h-4" />
-                  View Details
-                </a>
-                <button className="flex items-center justify-center px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
-                  <ExternalLink className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          {filteredRecs.map((rec, index) => (
+            <RecommendationCard 
+              key={rec.id} 
+              rec={rec} 
+              activeType={activeType}
+              priority={index < 3}
+            />
           ))}
         </div>
       ) : (
