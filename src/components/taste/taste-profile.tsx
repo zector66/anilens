@@ -43,6 +43,7 @@ import {
 import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
 import { EmotionalProfile } from './emotional-profile';
+import { EmotionalAnalyzer } from '@/lib/emotional-analyzer';
 import { 
   StructuralPreferencesChart, 
   RiskProfileChart, 
@@ -155,6 +156,23 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     const totalCompleted = analyzedEntries.filter((e: MediaListEntry) => e.status === 'COMPLETED').length;
     if (totalCompleted === 0) return 0;
     return (hasDates / totalCompleted) * 100;
+  }, [analyzedEntries]);
+
+  // Quick emotional profile for Stats view summary
+  const emotionalSummary = useMemo(() => {
+    if (analyzedEntries.length === 0) return null;
+    const profile = EmotionalAnalyzer.analyze(analyzedEntries, { mode: 'blend', blendRatio: 0.6 });
+    if (!profile) return null;
+    // Get top 3 emotions
+    return {
+      dominant: profile.dominant,
+      dominantLabel: profile.emotions[0]?.label || '',
+      top3: profile.emotions.slice(0, 3).map(e => ({
+        emotion: e.emotion,
+        label: e.label,
+        score: e.score,
+      })),
+    };
   }, [analyzedEntries]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -383,6 +401,41 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </div>
         ))}
       </div>
+
+      {/* Emotional Summary Banner */}
+      {emotionalSummary && (
+        <div 
+          className="p-5 rounded-2xl bg-linear-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 cursor-pointer hover:border-purple-500/40 transition-colors"
+          onClick={() => setViewMode('emotional')}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-sm text-gray-400 mb-1">You primarily seek</p>
+              <h3 className="text-xl font-bold text-white">{emotionalSummary.dominantLabel}</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              {emotionalSummary.top3.map((e, i) => (
+                <div 
+                  key={e.emotion}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5"
+                >
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ 
+                      backgroundColor: i === 0 ? '#a855f7' : i === 1 ? '#ec4899' : '#6366f1',
+                      opacity: 0.5 + e.score * 0.5
+                    }}
+                  />
+                  <span className="text-sm text-gray-300">{e.label}</span>
+                </div>
+              ))}
+            </div>
+            <button className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1">
+              View Full Profile →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Personality Traits */}
       <div>

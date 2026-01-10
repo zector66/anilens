@@ -7,6 +7,15 @@ import { useMedia } from '@/contexts/media-context';
 import { EmotionalAnalyzer, EmotionalProfile as EmotionalProfileType, PrimaryEmotion } from '@/lib/emotional-analyzer';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 import {
+  loadCalibration,
+  saveCalibration,
+  applyCalibration,
+  updateCalibration,
+  storeFeedbackEvent,
+  UserCalibration,
+  FeedbackEvent,
+} from '@/lib/emotional-calibration';
+import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
@@ -118,26 +127,59 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
     return new Set(favList.map(m => m.id));
   }, [favorites, activeType]);
 
-  // Analyze emotional profile
-  const profile = useMemo<EmotionalProfileType | null>(() => {
+  // Analyze emotional profile (raw, before calibration)
+  const rawProfile = useMemo<EmotionalProfileType | null>(() => {
     if (entries.length === 0) return null;
     return EmotionalAnalyzer.analyze(entries, { mode, blendRatio, favoriteIds });
   }, [entries, mode, blendRatio, favoriteIds]);
+
+  // Calibration state - initialize from localStorage
+  const [calibration, setCalibration] = useState<UserCalibration>(() => 
+    loadCalibration(effectiveUserId, activeType)
+  );
+
+  // Apply calibration to get final profile
+  const profile = useMemo<EmotionalProfileType | null>(() => {
+    if (!rawProfile) return null;
+    return applyCalibration(rawProfile, calibration);
+  }, [rawProfile, calibration]);
 
   // Feedback state - initialize from localStorage
   const [feedback, setFeedback] = useState<FeedbackState>(() => 
     loadFeedback(effectiveUserId, activeType)
   );
 
-  // Reset feedback when user or media type changes
+  // Reset feedback and calibration when user or media type changes
   useEffect(() => {
-    const stored = loadFeedback(effectiveUserId, activeType);
-    setFeedback(stored);
-    setFeedbackSubmitted(!!stored.submittedAt);
+    const storedFeedback = loadFeedback(effectiveUserId, activeType);
+    const storedCalibration = loadCalibration(effectiveUserId, activeType);
+    setFeedback(storedFeedback);
+    setCalibration(storedCalibration);
+    setFeedbackSubmitted(!!storedFeedback.submittedAt);
   }, [effectiveUserId, activeType]);
 
-  // Handle emotion feedback
+  // Handle emotion feedback - now also updates calibration
   const handleEmotionFeedback = useCallback((emotion: PrimaryEmotion, value: EmotionFeedback) => {
+    // Get current score for this emotion
+    const currentScore = rawProfile?.emotions.find(e => e.emotion === emotion)?.score ?? 0.5;
+    
+    // Store feedback event for aggregation
+    const event: FeedbackEvent = {
+      emotion,
+      feedback: value,
+      currentScore,
+      timestamp: new Date().toISOString(),
+    };
+    storeFeedbackEvent(effectiveUserId, activeType, event);
+    
+    // Update calibration based on feedback
+    setCalibration(prev => {
+      const updated = updateCalibration(prev, event);
+      saveCalibration(effectiveUserId, activeType, updated);
+      return updated;
+    });
+    
+    // Update feedback UI state
     setFeedback(prev => {
       const updated = {
         ...prev,
@@ -146,7 +188,7 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
       saveFeedback(effectiveUserId, activeType, updated);
       return updated;
     });
-  }, [effectiveUserId, activeType]);
+  }, [effectiveUserId, activeType, rawProfile]);
 
   // Handle overall feedback
   const handleOverallFeedback = useCallback((value: OverallFeedback) => {
@@ -245,6 +287,42 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
           <p className="text-center text-xs text-gray-500 mt-2">
             {Math.round((1 - blendRatio) * 100)}% what you watch • {Math.round(blendRatio * 100)}% what you love
           </p>
+        </div>
+      )}
+
+      {/* Calibration Indicator */}
+      {calibration.confidence > 0 && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-300">Calibrated Profile</p>
+                <p className="text-xs text-gray-400">
+                  Adjusted based on your feedback ({Math.round(calibration.confidence * 100)}% confidence)
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const empty = {
+                  emotionMultipliers: {},
+                  emotionOffsets: {},
+                  feedbackCounts: {},
+                  confidence: 0,
+                  updatedAt: new Date().toISOString(),
+                  modelVersion: '1.0.0',
+                };
+                setCalibration(empty);
+                saveCalibration(effectiveUserId, activeType, empty);
+              }}
+              className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       )}
 
@@ -576,6 +654,58 @@ export function EmotionalProfile({ userId }: EmotionalProfileProps) {
                   {emotion}: {value === 'accurate' ? '✓' : value === 'too_high' ? '↑' : '↓'}
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Opt-in to help improve the model */}
+        {Object.keys(feedback.emotions).length >= 3 && (
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-300">Help improve the model</p>
+                <p className="text-xs text-gray-500">Share anonymous feedback to make emotional profiles more accurate for everyone</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const sessionId = `anon_${Math.random().toString(36).substring(2, 15)}`;
+                    const response = await fetch('/api/feedback', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        sessionId,
+                        mediaType: activeType,
+                        modelVersion: '1.0.0',
+                        emotions: Object.fromEntries(
+                          Object.entries(feedback.emotions).map(([emotion, value]) => [
+                            emotion,
+                            {
+                              tooHighCount: value === 'too_high' ? 1 : 0,
+                              accurateCount: value === 'accurate' ? 1 : 0,
+                              tooLowCount: value === 'too_low' ? 1 : 0,
+                              avgScoreWhenTooHigh: 0,
+                              avgScoreWhenTooLow: 0,
+                            }
+                          ])
+                        ),
+                        overallAccurate: feedback.overall === 'accurate' ? 1 : 0,
+                        overallSomewhat: feedback.overall === 'somewhat' ? 1 : 0,
+                        overallInaccurate: feedback.overall === 'inaccurate' ? 1 : 0,
+                        timestamp: new Date().toISOString(),
+                      }),
+                    });
+                    if (response.ok) {
+                      alert('Thanks for helping improve the model!');
+                    }
+                  } catch {
+                    // Silently fail - this is opt-in
+                  }
+                }}
+                className="px-4 py-2 text-sm rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition-colors"
+              >
+                Share Feedback
+              </button>
             </div>
           </div>
         )}
