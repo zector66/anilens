@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites } from '@/hooks/use-anilist';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
+import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { 
   BarChart, 
   Bar, 
@@ -106,27 +107,10 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     enabled: false,
   });
 
-  const allEntries = useMemo(() => {
-    if (!currentList?.lists) return [];
-    // Deduplicate entries by mediaId - AniList returns same entry in both status lists and custom lists
-    const entriesMap = new Map<number, MediaListEntry>();
-    currentList.lists.forEach((list: { entries: MediaListEntry[], isCustomList?: boolean }) => {
-      // Prefer non-custom list entries as they have the official status
-      list.entries.forEach((entry: MediaListEntry) => {
-        const mediaId = entry.media?.id || entry.mediaId;
-        if (!entriesMap.has(mediaId) || !list.isCustomList) {
-          entriesMap.set(mediaId, entry);
-        }
-      });
-    });
-    return Array.from(entriesMap.values());
-  }, [currentList]);
-
-  // Only include watched entries for stats (exclude Planning, Paused, Dropped)
+  // Normalize list: flatten, dedupe, and filter to watched entries only
   const analyzedEntries = useMemo(() => {
-    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
-    return allEntries.filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [allEntries]);
+    return normalizeMediaList(currentList);
+  }, [currentList]);
 
   const tasteProfile = useMemo<TasteProfileType | null>(() => {
     if (analyzedEntries.length === 0) return null;
@@ -347,7 +331,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, value: allEntries.length, icon: BarChart3 },
+          { label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, value: analyzedEntries.length, icon: BarChart3 },
           { label: activeTab === 'ANIME' ? 'Watched' : 'Read', value: analyzedEntries.length, icon: Activity },
           { label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', value: totalProgressWatched, icon: Clock },
           { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} tags`, icon: Palette },

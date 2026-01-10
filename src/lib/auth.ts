@@ -1,5 +1,6 @@
 import { anilistClient } from './anilist-client';
 import { AniListUser } from '@/types/anilist';
+import { logger } from './logger';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -75,14 +76,14 @@ export class AuthManager {
   startOAuthLogin(): void {
     const clientId = process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID;
     if (!clientId) {
-      console.error('[AuthManager] Missing NEXT_PUBLIC_ANILIST_CLIENT_ID');
+      logger.error('[AuthManager] Missing NEXT_PUBLIC_ANILIST_CLIENT_ID');
       return;
     }
 
     // AniList implicit grant flow - no redirect_uri needed if using the one registered in app settings
     const authUrl = `${ANILIST_AUTH_URL}?client_id=${clientId}&response_type=token`;
     
-    console.log('[AuthManager] Starting OAuth flow:', authUrl);
+    logger.info('[AuthManager] Starting OAuth flow:', authUrl);
     
     if (typeof window !== 'undefined') {
       window.location.href = authUrl;
@@ -165,12 +166,12 @@ export class AuthManager {
         this.username = this.user!.name;
         this.isOAuth = true;
         localStorage.setItem('anilist_username', this.username!);
-        console.log(`[AuthManager] OAuth user loaded: ${this.user!.name} (${this.user!.id})`);
+        logger.info(`[AuthManager] OAuth user loaded: ${this.user!.name} (${this.user!.id})`);
       } else {
         throw new Error('Failed to get authenticated user');
       }
     } catch (error) {
-      console.error('[AuthManager] OAuth auth failed:', error);
+      logger.error('[AuthManager] OAuth auth failed:', error);
       this.logoutOAuth();
     } finally {
       this.loading = false;
@@ -186,16 +187,16 @@ export class AuthManager {
     this.notifyListeners();
 
     try {
-      console.log(`[AuthManager] Loading user (view-only): ${username}`);
+      logger.info(`[AuthManager] Loading user (view-only): ${username}`);
       this.user = await anilistClient.getUserByUsername(username);
       this.username = username;
       this.isOAuth = false; // Not authenticated via OAuth
       if (typeof window !== 'undefined') {
         localStorage.setItem('anilist_username', username);
       }
-      console.log(`[AuthManager] User loaded (view-only): ${this.user.name} (${this.user.id})`);
+      logger.info(`[AuthManager] User loaded (view-only): ${this.user.name} (${this.user.id})`);
     } catch (error) {
-      console.error('[AuthManager] Failed to load user:', error);
+      logger.error('[AuthManager] Failed to load user:', error);
       this.logout();
       throw error;
     } finally {

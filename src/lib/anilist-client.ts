@@ -1,5 +1,6 @@
 import { gql, GraphQLClient } from 'graphql-request';
 import { AniListUser, Media, MediaList, UserStats } from '@/types/anilist';
+import { logger } from './logger';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
@@ -87,15 +88,15 @@ export class AniListClient {
     `;
 
     try {
-      console.log('[AniListClient] Fetching user by username:', username);
+      logger.debug('[AniListClient] Fetching user by username:', username);
       const response = await this.client.request<{ User: AniListUser }>(query, { name: username });
-      console.log('[AniListClient] User response:', response.User);
+      logger.debug('[AniListClient] User response:', response.User);
       if (!response.User) {
         throw new Error(`User "${username}" not found`);
       }
       return response.User;
     } catch (error) {
-      console.error('[AniListClient] Error in getUserByUsername:', error);
+      logger.error('[AniListClient] Error in getUserByUsername:', error);
       throw error;
     }
   }
@@ -204,7 +205,7 @@ export class AniListClient {
         manga: response.User?.favourites?.manga?.nodes || []
       };
     } catch (error) {
-      console.error('[AniListClient] Error fetching favorites:', error);
+      logger.error('[AniListClient] Error fetching favorites:', error);
       return { anime: [], manga: [] };
     }
   }
@@ -312,12 +313,12 @@ export class AniListClient {
     `;
 
     try {
-      console.log('[AniListClient] Fetching anime list for user:', userId);
+      logger.debug('[AniListClient] Fetching anime list for user:', userId);
       const response = await this.client.request<{ MediaListCollection: MediaList }>(query, { userId });
-      console.log('[AniListClient] Anime list response received');
+      logger.debug('[AniListClient] Anime list response received');
       return response.MediaListCollection;
     } catch (error) {
-      console.error('[AniListClient] Error in getAnimeList:', error);
+      logger.error('[AniListClient] Error in getAnimeList:', error);
       throw error;
     }
   }
@@ -410,12 +411,12 @@ export class AniListClient {
     `;
 
     try {
-      console.log('[AniListClient] Fetching manga list for user:', userId);
+      logger.debug('[AniListClient] Fetching manga list for user:', userId);
       const response = await this.client.request<{ MediaListCollection: MediaList }>(query, { userId });
-      console.log('[AniListClient] Manga list response received');
+      logger.debug('[AniListClient] Manga list response received');
       return response.MediaListCollection;
     } catch (error) {
-      console.error('[AniListClient] Error in getMangaList:', error);
+      logger.error('[AniListClient] Error in getMangaList:', error);
       throw error;
     }
   }
@@ -934,7 +935,7 @@ export class AniListClient {
     `;
 
     try {
-      console.log(`[AniListClient] getRecommendations started. Type: ${type}, Mode: ${mode}, Formats: ${formats.join(',') || 'any'}`);
+      logger.debug(`[AniListClient] getRecommendations started. Type: ${type}, Mode: ${mode}, Formats: ${formats.join(',') || 'any'}`);
       
       // 1. Initial Attempt
       const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
@@ -948,11 +949,11 @@ export class AniListClient {
       });
 
       let results = response.Page.media.filter(media => !watchedIds.has(media.id));
-      console.log(`[AniListClient] Attempt 1 results: ${results.length}`);
+      logger.debug(`[AniListClient] Attempt 1 results: ${results.length}`);
 
       // 2. Fallback Attempt (Broaden search if no results)
       if (results.length < limit && (searchGenres.length > 0 || searchTags.length > 0 || formats.length > 0)) {
-        console.log('[AniListClient] Fallback 1: Broadening search criteria...');
+        logger.debug('[AniListClient] Fallback 1: Broadening search criteria...');
         // Try again with either just genres or just tags, and lower minScore
         const fallbackMinScore = Math.max(40, minScore - 15);
         
@@ -967,7 +968,7 @@ export class AniListClient {
         });
 
         const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
-        console.log(`[AniListClient] Fallback 1 results: ${fallbackResults.length}`);
+        logger.debug(`[AniListClient] Fallback 1 results: ${fallbackResults.length}`);
         
         // Merge results, prioritizing original results
         const existingIds = new Set(results.map(m => m.id));
@@ -980,7 +981,7 @@ export class AniListClient {
 
       // 3. Fallback Attempt 2: Relax format constraints if still low
       if (results.length < limit && formats.length > 0) {
-        console.log('[AniListClient] Fallback 2: Relaxing format constraints...');
+        logger.debug('[AniListClient] Fallback 2: Relaxing format constraints...');
         const fallbackResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: searchGenres.length > 0 ? searchGenres : undefined,
           tags: undefined,
@@ -992,7 +993,7 @@ export class AniListClient {
         });
 
         const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
-        console.log(`[AniListClient] Fallback 2 results: ${fallbackResults.length}`);
+        logger.debug(`[AniListClient] Fallback 2 results: ${fallbackResults.length}`);
         
         const existingIds = new Set(results.map(m => m.id));
         fallbackResults.forEach(m => {
@@ -1004,7 +1005,7 @@ export class AniListClient {
 
       // 4. Last Resort (Global Trending/Popular if still low)
       if (results.length < 5) {
-        console.log('[AniListClient] Last Resort: Global trending...');
+        logger.debug('[AniListClient] Last Resort: Global trending...');
         const lastResortResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: undefined,
           tags: undefined,
@@ -1259,7 +1260,7 @@ export class AniListClient {
       }));
 
     } catch (error) {
-      console.error('[AniListClient] Error in getRecommendations:', error);
+      logger.error('[AniListClient] Error in getRecommendations:', error);
       throw error;
     }
   }

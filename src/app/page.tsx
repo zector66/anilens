@@ -8,6 +8,7 @@ import { TasteProfile } from '@/components/taste/taste-profile';
 import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHub } from '@/components/games/community-hub';
+import { StudioComingSoon } from '@/components/studio/studio-coming-soon';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -248,15 +249,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const renderContent = () => {
     switch (activeTab) {
       case 'studio':
-        return (
-          <div style={{ width: '100%', height: '100vh' }}>
-            <iframe 
-              src="/studio" 
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              title="AniLens Studio"
-            />
-          </div>
-        );
+        return <StudioComingSoon />;
       case 'taste':
         return <TasteProfile userId={user?.id} />;
       case 'games':

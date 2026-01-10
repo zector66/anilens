@@ -7,6 +7,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useMedia } from '@/contexts/media-context';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, Media } from '@/types/anilist';
+import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -59,16 +60,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const listError = activeType === 'ANIME' ? animeError : mangaError;
   const currentList = activeType === 'ANIME' ? animeList : mangaList;
 
-  // Only include watched entries for recommendations (exclude Planning, Paused, Dropped)
-  const allEntries = useMemo(() => {
-    if (!currentList?.lists) return [];
-    const validStatuses = activeType === 'ANIME' 
-      ? ['COMPLETED', 'CURRENT', 'REPEATING']
-      : ['COMPLETED', 'CURRENT', 'REPEATING']; // For manga, these are also the discovery-relevant statuses
-    return currentList.lists
-      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
-      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [currentList, activeType]);
+  // Normalize list: flatten, dedupe, and filter to watched entries only
+  const allEntries = useMemo(() => normalizeMediaList(currentList), [currentList]);
 
   const tasteProfile = useMemo(() => {
     if (allEntries.length === 0) return null;
@@ -83,9 +76,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
     return TasteAnalyzer.analyzeFavorites(favList, activeType);
   }, [favorites, activeType]);
 
-  const watchedIds = useMemo(() => {
-    return new Set(allEntries.map((e: MediaListEntry) => e.media?.id).filter(Boolean) as number[]);
-  }, [allEntries]);
+  // Extract media IDs for filtering recommendations
+  const watchedIds = useMemo(() => extractMediaIds(allEntries), [allEntries]);
 
   // Build recommendation options with exploration level
   // explorationLevel: 0 = safe/comfort picks, 100 = experimental/exploration

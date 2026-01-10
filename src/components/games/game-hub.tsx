@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { GameEngine } from '@/lib/game-engine';
 import { GameSession, MediaListEntry, GameQuestion } from '@/types/anilist';
+import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
 import { MultiplayerResults } from './multiplayer-results';
@@ -51,31 +52,12 @@ export function GameHub() {
   const isLoading = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeType === 'ANIME' ? animeList : mangaList;
 
-  // Only include entries the user has actually engaged with (exclude Planning, Paused, Dropped)
-  const allEntries = useMemo(() => {
-    if (!currentList?.lists) return [];
-    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
-    return currentList.lists
-      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
-      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [currentList]);
+  // Normalize list: flatten, dedupe, and filter to engaged entries only
+  const allEntries = useMemo(() => normalizeMediaList(currentList), [currentList]);
 
   // Separate anime and manga entries for bracket battles
-  const animeEntries = useMemo(() => {
-    if (!animeList?.lists) return [];
-    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
-    return animeList.lists
-      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
-      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [animeList]);
-
-  const mangaEntries = useMemo(() => {
-    if (!mangaList?.lists) return [];
-    const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
-    return mangaList.lists
-      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
-      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
-  }, [mangaList]);
+  const animeEntries = useMemo(() => normalizeMediaList(animeList), [animeList]);
+  const mangaEntries = useMemo(() => normalizeMediaList(mangaList), [mangaList]);
 
   if (isLoading) {
     return (
