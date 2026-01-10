@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites } from '@/hooks/use-anilist';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
+import { useTasteProfile as useTasteProfileWorker } from '@/hooks/use-taste-worker';
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { 
@@ -117,10 +118,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     return normalizeMediaList(currentList);
   }, [currentList]);
 
+  // Use Web Worker for heavy taste computation (falls back to main thread if needed)
+  const { profile: workerProfile, isLoading: isAnalyzing } = useTasteProfileWorker(analyzedEntries, activeTab);
+  
+  // Use worker result or fallback to sync computation for SSR compatibility
   const tasteProfile = useMemo<TasteProfileType | null>(() => {
+    if (workerProfile) return workerProfile;
     if (analyzedEntries.length === 0) return null;
+    // Fallback for initial render before worker is ready
     return TasteAnalyzer.analyzeTaste(analyzedEntries, activeTab);
-  }, [analyzedEntries, activeTab]);
+  }, [analyzedEntries, activeTab, workerProfile]);
 
   // Analyze favorites to create favorites-only profile
   const favoritesProfile = useMemo<FavoritesProfile | null>(() => {
