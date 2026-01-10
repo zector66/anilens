@@ -149,6 +149,16 @@ export function GameHub() {
       case 'chapters-guessing':
         questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
         break;
+      case 'bracket-anime':
+        // P2-10 FIX: Handle anime bracket battle
+        setBracketSettings({
+          size: settings.bracketSize || 16,
+          category: settings.bracketCategory || 'anime',
+        });
+        setSpecialGame('bracket-anime');
+        setShowSettings(false);
+        setSelectedGameType(null);
+        return;
       case 'bracket-manga':
         // Start bracket battle with settings from modal
         setBracketSettings({
@@ -250,10 +260,14 @@ export function GameHub() {
   }
 
   if (specialGame === 'bracket-anime' || specialGame === 'bracket-manga') {
-    // Use category from settings, or fallback to specialGame type
+    // P2-11 FIX: Properly determine media type and category to prevent cross-media leakage
+    // The specialGame determines which media pool to use, bracketSettings.category determines the battle type
+    const isAnimeBracket = specialGame === 'bracket-anime';
     const battleCategory = bracketSettings.category as 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
-    // Use manga entries for manga category, anime entries for everything else
-    const bracketEntries = battleCategory === 'manga' ? mangaEntries : animeEntries;
+    
+    // Use the correct entry pool based on specialGame (not bracketSettings.category)
+    // This ensures anime brackets only use anime entries and manga brackets only use manga entries
+    const bracketEntries = isAnimeBracket ? animeEntries : mangaEntries;
     return (
       <BracketBattle
         entries={bracketEntries}
