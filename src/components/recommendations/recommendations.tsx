@@ -60,8 +60,13 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const listError = activeType === 'ANIME' ? animeError : mangaError;
   const currentList = activeType === 'ANIME' ? animeList : mangaList;
 
-  // Normalize list: flatten, dedupe, and filter to watched entries only
+  // Normalize list: flatten, dedupe, and filter to watched entries only (for taste analysis)
   const allEntries = useMemo(() => normalizeMediaList(currentList), [currentList]);
+
+  // Also get PTW entries to exclude from recommendations
+  const ptwEntries = useMemo(() => normalizeMediaList(currentList, { 
+    statuses: ['PLANNING'] 
+  }), [currentList]);
 
   const tasteProfile = useMemo(() => {
     if (allEntries.length === 0) return null;
@@ -76,8 +81,14 @@ export function Recommendations({ userId }: RecommendationsProps) {
     return TasteAnalyzer.analyzeFavorites(favList, activeType);
   }, [favorites, activeType]);
 
-  // Extract media IDs for filtering recommendations
-  const watchedIds = useMemo(() => extractMediaIds(allEntries), [allEntries]);
+  // Extract media IDs for filtering recommendations - include PTW to avoid recommending what's already queued
+  const watchedIds = useMemo(() => {
+    const watched = extractMediaIds(allEntries);
+    const ptw = extractMediaIds(ptwEntries);
+    // Merge both sets
+    ptw.forEach(id => watched.add(id));
+    return watched;
+  }, [allEntries, ptwEntries]);
 
   // Build recommendation options with exploration level
   // explorationLevel: 0 = safe/comfort picks, 100 = experimental/exploration
@@ -333,7 +344,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       </div>
 
       {/* Format Picker */}
-      {tasteProfile.formatPreference.length > 0 && (
+      {(tasteProfile.formatPreference.length > 0 || activeType === 'MANGA') && (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-white flex items-center gap-2">
@@ -349,6 +360,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Show user's format preferences */}
             {(showFormatPicker ? tasteProfile.formatPreference : tasteProfile.formatPreference.slice(0, 5)).map((f: { format: string; preference: number }) => (
               <button
                 key={f.format}
@@ -369,6 +381,47 @@ export function Recommendations({ userId }: RecommendationsProps) {
                 <span className="text-xs opacity-60">({(f.preference * 100).toFixed(0)}%)</span>
               </button>
             ))}
+            {/* Additional manga-specific formats when in manga mode */}
+            {activeType === 'MANGA' && showFormatPicker && (
+              <>
+                {!tasteProfile.formatPreference.some((f: { format: string }) => f.format === 'NOVEL') && (
+                  <button
+                    onClick={() => {
+                      if (selectedFormats.includes('NOVEL')) {
+                        setSelectedFormats(selectedFormats.filter(fmt => fmt !== 'NOVEL'));
+                      } else {
+                        setSelectedFormats([...selectedFormats, 'NOVEL']);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                      selectedFormats.includes('NOVEL')
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-dashed border-white/20'
+                    }`}
+                  >
+                    📖 Light Novel
+                  </button>
+                )}
+                {!tasteProfile.formatPreference.some((f: { format: string }) => f.format === 'ONE_SHOT') && (
+                  <button
+                    onClick={() => {
+                      if (selectedFormats.includes('ONE_SHOT')) {
+                        setSelectedFormats(selectedFormats.filter(fmt => fmt !== 'ONE_SHOT'));
+                      } else {
+                        setSelectedFormats([...selectedFormats, 'ONE_SHOT']);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                      selectedFormats.includes('ONE_SHOT')
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-dashed border-white/20'
+                    }`}
+                  >
+                    📄 One-Shot
+                  </button>
+                )}
+              </>
+            )}
           </div>
           {selectedFormats.length > 0 && (
             <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">

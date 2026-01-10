@@ -778,8 +778,10 @@ export class AniListClient {
       explorationLevel = 50
     } = options;
 
-    // OPPOSITE MODE: Intentionally invert taste preferences
+    // Special modes that override categorization
     const isOppositeMode = mode === 'opposite';
+    const isExperimentalMode = mode === 'experimental';
+    const isHiddenGemMode = mode === 'hidden-gem';
     
     // Determine genres to search based on selection or affinity
     let searchGenres: string[];
@@ -1197,14 +1199,31 @@ export class AniListClient {
 
         // Sort reasons by weight and take top 3
         const topReasons = reasons.sort((a, b) => b.weight - a.weight).slice(0, 3);
-        const category = this.categorizeRecommendation(media, matchingGenres.length, tagAffinity.length);
+        
+        // Override category based on mode - special modes force their category
+        let category: 'safe' | 'experimental' | 'hidden-gem' | 'opposite';
+        let primaryReason: string;
+        
+        if (isOppositeMode) {
+          category = 'opposite';
+          primaryReason = 'Something different from your usual picks';
+        } else if (isExperimentalMode) {
+          category = 'experimental';
+          primaryReason = topReasons[0]?.text || 'An experimental pick outside your comfort zone';
+        } else if (isHiddenGemMode) {
+          category = 'hidden-gem';
+          primaryReason = topReasons[0]?.text || 'A hidden gem waiting to be discovered';
+        } else {
+          category = this.categorizeRecommendation(media, matchingGenres.length, tagAffinity.length);
+          primaryReason = topReasons[0]?.text || 'Matches your taste profile';
+        }
 
         return {
           media,
           matchScore: Math.round(weightedMatchScore),
           formatWeight,
           reasons: topReasons,
-          primaryReason: topReasons[0]?.text || 'Matches your taste profile',
+          primaryReason,
           category
         };
       });
@@ -1269,7 +1288,7 @@ export class AniListClient {
     media: Media, 
     genreMatches: number,
     userTagCount: number
-  ): 'safe' | 'experimental' | 'hidden-gem' {
+  ): 'safe' | 'experimental' | 'hidden-gem' | 'opposite' {
     // Hidden gem: Low popularity but decent score
     if (media.popularity < 20000 && media.meanScore >= 70) {
       return 'hidden-gem';
