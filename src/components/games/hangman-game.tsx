@@ -181,10 +181,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
     );
   }
 
-  const displayWord = currentRound.answer.split('').map((char) => {
-    if (char === ' ') return ' ';
-    return currentRound.guessedLetters.has(char) ? char : '_';
-  }).join('');
+  // displayWord no longer needed - using word-aware display with individual spans
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -210,9 +207,20 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
           ))}
         </div>
 
-        {/* Word display */}
-        <div className="text-4xl font-mono font-bold text-white tracking-widest mb-8 break-all">
-          {displayWord}
+        {/* Word display - improved for mobile with word-aware breaks */}
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mb-8">
+          {currentRound.answer.split(' ').map((word, wordIndex) => (
+            <div key={wordIndex} className="flex gap-1">
+              {word.split('').map((char, charIndex) => (
+                <span 
+                  key={charIndex}
+                  className="text-2xl md:text-4xl font-mono font-bold text-white w-6 md:w-8 text-center border-b-2 border-white/30"
+                >
+                  {currentRound.guessedLetters.has(char) ? char : '\u00A0'}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
 
         {/* Result overlay */}

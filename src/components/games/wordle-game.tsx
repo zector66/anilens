@@ -20,7 +20,7 @@ const KEYBOARD_ROWS = [
   ['ENTER', ...'ZXCVBNM'.split(''), 'BACK'],
 ];
 
-// Common 5-letter anime-related words (EXACTLY 5 letters each)
+// Common 5-letter anime-related words (EXACTLY 5 letters each) - used as answers
 const ANIME_WORDS = [
   'ANIME', 'MANGA', 'OTAKU', 'KAWAI', 'CHIBI', 'BENTO', 'RAMEN',
   'NINJA', 'KOHAI', 'DANGO', 'MOCHI', 'ONSEN', 'SHOJO', 'JOSEI',
@@ -32,6 +32,79 @@ const ANIME_WORDS = [
   'SHADE', 'SHINE', 'SKILL', 'SPEED', 'SPELL', 'SPEAR', 'STAFF',
   'STEEL', 'STONE', 'ULTRA', 'UNITY', 'WITCH', 'WRATH', 'YOUTH',
 ];
+
+// Valid 5-letter words for guessing (expanded dictionary)
+const VALID_WORDS = new Set([
+  ...ANIME_WORDS,
+  // Common English 5-letter words
+  'ABOUT', 'ABOVE', 'ABUSE', 'ACTOR', 'ACUTE', 'ADMIT', 'ADOPT', 'ADULT', 'AFTER', 'AGAIN',
+  'AGENT', 'AGREE', 'AHEAD', 'ALARM', 'ALBUM', 'ALERT', 'ALIKE', 'ALIVE', 'ALLOW', 'ALONE',
+  'ALONG', 'ALTER', 'AMONG', 'ANGER', 'ANGLE', 'ANGRY', 'APART', 'APPLE', 'APPLY', 'ARENA',
+  'ARGUE', 'ARISE', 'ARMOR', 'ARROW', 'ASIDE', 'ASSET', 'AVOID', 'AWARD', 'AWARE', 'AWFUL',
+  'BASIC', 'BEACH', 'BEAST', 'BEGIN', 'BEING', 'BELOW', 'BENCH', 'BLACK', 'BLAME', 'BLANK',
+  'BLAST', 'BLAZE', 'BLEND', 'BLESS', 'BLIND', 'BLOCK', 'BLOOM', 'BOARD', 'BOOST', 'BRAIN',
+  'BRAND', 'BREAD', 'BREAK', 'BREED', 'BRICK', 'BRIDE', 'BRIEF', 'BRING', 'BROAD', 'BROKE',
+  'BROWN', 'BUILD', 'BUNCH', 'BURST', 'BUYER', 'CABIN', 'CABLE', 'CANDY', 'CARGO', 'CARRY',
+  'CATCH', 'CAUSE', 'CHAIN', 'CHAIR', 'CHARM', 'CHART', 'CHASE', 'CHEAP', 'CHECK', 'CHEST',
+  'CHIEF', 'CHILD', 'CHINA', 'CHOIR', 'CHOSE', 'CHUNK', 'CIVIL', 'CLAIM', 'CLASS', 'CLEAN',
+  'CLEAR', 'CLIMB', 'CLOCK', 'CLOSE', 'CLOTH', 'CLOUD', 'COACH', 'COAST', 'COLOR', 'COUCH',
+  'COULD', 'COUNT', 'COURT', 'COVER', 'CRAFT', 'CRASH', 'CRAZY', 'CREAM', 'CRIME', 'CROSS',
+  'CROWD', 'CROWN', 'CRUEL', 'CRUSH', 'CYCLE', 'DAILY', 'DANCE', 'DEPTH', 'DIRTY', 'DOUBT',
+  'DOZEN', 'DRAFT', 'DRAIN', 'DRAMA', 'DRANK', 'DRAWN', 'DRESS', 'DRIFT', 'DRILL', 'DRINK',
+  'DRIVE', 'DROWN', 'DYING', 'EAGER', 'EARLY', 'EARTH', 'EIGHT', 'ELITE', 'EMPTY', 'ENEMY',
+  'ENJOY', 'ENTER', 'ENTRY', 'EQUAL', 'ERROR', 'EVENT', 'EVERY', 'EXACT', 'EXIST', 'EXTRA',
+  'FAITH', 'FALSE', 'FANCY', 'FAULT', 'FAVOR', 'FEAST', 'FIELD', 'FIFTH', 'FIFTY', 'FIGHT',
+  'FINAL', 'FIRST', 'FIXED', 'FLASH', 'FLEET', 'FLESH', 'FLOAT', 'FLOOD', 'FLOOR', 'FLOUR',
+  'FLUID', 'FLUSH', 'FOCUS', 'FORCE', 'FORGE', 'FORTH', 'FORTY', 'FORUM', 'FOUND', 'FRAME',
+  'FRANK', 'FRAUD', 'FRESH', 'FRONT', 'FROST', 'FRUIT', 'FULLY', 'FUNNY', 'GENRE', 'GHOST',
+  'GIVEN', 'GLASS', 'GLEAM', 'GLOBE', 'GLORY', 'GLOSS', 'GOING', 'GRACE', 'GRADE', 'GRAIN',
+  'GRAND', 'GRANT', 'GRAPE', 'GRASP', 'GRASS', 'GRAVE', 'GREAT', 'GREEN', 'GRIEF', 'GRILL',
+  'GRIND', 'GROSS', 'GROUP', 'GROVE', 'GROWN', 'GUARD', 'GUESS', 'GUEST', 'GUIDE', 'GUILT',
+  'HAPPY', 'HARSH', 'HASN\'T', 'HASTE', 'HAVEN', 'HEARD', 'HEAVY', 'HELLO', 'HENCE', 'HORSE',
+  'HOTEL', 'HOURS', 'HOUSE', 'HUMAN', 'HUMOR', 'HURRY', 'IDEAL', 'IMAGE', 'IMPLY', 'INDEX',
+  'INNER', 'INPUT', 'INTRO', 'ISSUE', 'JAPAN', 'JOINT', 'JONES', 'JUDGE', 'JUICE', 'JUMBO',
+  'KEEPS', 'KNOCK', 'KNOWN', 'LABEL', 'LABOR', 'LACKS', 'LARGE', 'LASER', 'LATER', 'LAUGH',
+  'LAYER', 'LEARN', 'LEASE', 'LEAST', 'LEAVE', 'LEGAL', 'LEMON', 'LEVEL', 'LEVER', 'LIMIT',
+  'LIVES', 'LOCAL', 'LOGIC', 'LOOSE', 'LOTUS', 'LOVER', 'LOWER', 'LOYAL', 'LUCKY', 'LUNCH',
+  'LYING', 'MAGIC', 'MAJOR', 'MAKER', 'MANOR', 'MAPLE', 'MARCH', 'MATCH', 'MAYBE', 'MAYOR',
+  'MEANT', 'MEDAL', 'MEDIA', 'MERCY', 'MERGE', 'MERIT', 'MERRY', 'MIGHT', 'MINOR', 'MINUS',
+  'MIXED', 'MODEL', 'MONEY', 'MONTH', 'MORAL', 'MOTOR', 'MOUNT', 'MOUSE', 'MOUTH', 'MOVED',
+  'MOVIE', 'MUSIC', 'NAKED', 'NAVAL', 'NERVE', 'NEVER', 'NEWLY', 'NIGHT', 'NINTH', 'NOISE',
+  'NORTH', 'NOTED', 'NOVEL', 'NURSE', 'OCCUR', 'OCEAN', 'OFFER', 'OFTEN', 'OLIVE', 'ONSET',
+  'OPERA', 'ORDER', 'OTHER', 'OUGHT', 'OUTER', 'OWNER', 'OXIDE', 'OZONE', 'PAINT', 'PANEL',
+  'PANIC', 'PAPER', 'PARTY', 'PASTA', 'PASTE', 'PATCH', 'PAUSE', 'PEACE', 'PEARL', 'PENNY',
+  'PHASE', 'PHONE', 'PHOTO', 'PIANO', 'PIECE', 'PILOT', 'PINCH', 'PITCH', 'PLACE', 'PLAIN',
+  'PLANE', 'PLANT', 'PLATE', 'PLAZA', 'PLEAD', 'PLIGHT', 'PLUMB', 'PLUMP', 'POINT', 'POLAR',
+  'POLISHED', 'POUND', 'PRESS', 'PRICE', 'PRIME', 'PRINT', 'PRIOR', 'PRIZE', 'PROBE', 'PROOF',
+  'PROUD', 'PROVE', 'PROXY', 'PUPIL', 'PURSE', 'QUEEN', 'QUICK', 'QUIET', 'QUITE', 'QUOTE',
+  'RADAR', 'RADIO', 'RAISE', 'RALLY', 'RANCH', 'RANGE', 'RAPID', 'RATIO', 'REACH', 'REACT',
+  'READY', 'REALM', 'REFER', 'REIGN', 'RELAX', 'REPLY', 'RIDER', 'RIDGE', 'RIFLE', 'RIGHT',
+  'RISKY', 'RIVAL', 'RIVER', 'ROBOT', 'ROCKY', 'ROMAN', 'ROUGE', 'ROUGH', 'ROUND', 'ROUTE',
+  'ROYAL', 'RUGBY', 'RULER', 'RURAL', 'SADLY', 'SAFER', 'SALAD', 'SALON', 'SANDY', 'SCALE',
+  'SCARE', 'SCENE', 'SCENT', 'SCOPE', 'SCORE', 'SCOUT', 'SCREW', 'SEIZE', 'SENSE', 'SERVE',
+  'SEVEN', 'SHADE', 'SHAKE', 'SHALL', 'SHAME', 'SHAPE', 'SHARE', 'SHARK', 'SHARP', 'SHELF',
+  'SHELL', 'SHIFT', 'SHIRT', 'SHOCK', 'SHOOT', 'SHORE', 'SHORT', 'SHOUT', 'SHOWN', 'SIGHT',
+  'SIGMA', 'SILLY', 'SINCE', 'SIXTH', 'SIXTY', 'SIZED', 'SKIRT', 'SKULL', 'SLAVE', 'SLEEP',
+  'SLICE', 'SLIDE', 'SLOPE', 'SMALL', 'SMART', 'SMELL', 'SMILE', 'SMOKE', 'SNAKE', 'SNEAK',
+  'SOLAR', 'SOLID', 'SOLVE', 'SORRY', 'SOUND', 'SOUTH', 'SPACE', 'SPARE', 'SPARK', 'SPEAK',
+  'SPEND', 'SPENT', 'SPIKE', 'SPINE', 'SPITE', 'SPLIT', 'SPOKE', 'SPORT', 'SPRAY', 'SQUAD',
+  'STACK', 'STAGE', 'STAIN', 'STAKE', 'STAMP', 'STAND', 'STARK', 'START', 'STATE', 'STEAM',
+  'STEEP', 'STEER', 'STICK', 'STILL', 'STOCK', 'STORE', 'STORM', 'STORY', 'STOVE', 'STRAP',
+  'STRAW', 'STRIP', 'STUCK', 'STUDY', 'STUFF', 'STYLE', 'SUGAR', 'SUITE', 'SUNNY', 'SUPER',
+  'SURGE', 'SWAMP', 'SWEAR', 'SWEAT', 'SWEEP', 'SWEET', 'SWELL', 'SWIFT', 'SWING', 'TABLE',
+  'TASTE', 'TEACH', 'TEETH', 'TEMPO', 'TENSE', 'TERMS', 'TEXAS', 'THANK', 'THEFT', 'THEIR',
+  'THEME', 'THERE', 'THESE', 'THICK', 'THIEF', 'THING', 'THINK', 'THIRD', 'THOSE', 'THREE',
+  'THREW', 'THROW', 'THUMB', 'TIGER', 'TIGHT', 'TIMER', 'TIRED', 'TITLE', 'TODAY', 'TOKEN',
+  'TOKYO', 'TONAL', 'TOPIC', 'TOTAL', 'TOUCH', 'TOUGH', 'TOWER', 'TRACK', 'TRADE', 'TRAIL',
+  'TRAIN', 'TRAIT', 'TRASH', 'TREAT', 'TREND', 'TRIAL', 'TRIBE', 'TRICK', 'TRIED', 'TRUCK',
+  'TRULY', 'TRUMP', 'TRUNK', 'TRUST', 'TRUTH', 'TWICE', 'TWIST', 'TYPED', 'UNCLE', 'UNDER',
+  'UNION', 'UNITE', 'UNTIL', 'UPPER', 'UPSET', 'URBAN', 'USAGE', 'USUAL', 'VALID', 'VALUE',
+  'VAULT', 'VIDEO', 'VIRUS', 'VISIT', 'VITAL', 'VIVID', 'VOCAL', 'VOICE', 'VOTER', 'WAGON',
+  'WAIST', 'WASTE', 'WATCH', 'WATER', 'WEIGH', 'WEIRD', 'WHALE', 'WHEAT', 'WHEEL', 'WHERE',
+  'WHICH', 'WHILE', 'WHITE', 'WHOLE', 'WHOSE', 'WIDTH', 'WOMAN', 'WOMEN', 'WOODS', 'WORLD',
+  'WORRY', 'WORSE', 'WORST', 'WORTH', 'WOULD', 'WOUND', 'WRIST', 'WRITE', 'WRONG', 'WROTE',
+  'YIELD', 'YOUNG', 'YOURS', 'ZEBRA', 'ZEROS', 'ZONES',
+]);
 
 function getRandomWord(): string {
   return ANIME_WORDS[Math.floor(Math.random() * ANIME_WORDS.length)];
@@ -100,6 +173,17 @@ export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'A
     if (!currentRound || currentRound.currentGuess.length !== WORD_LENGTH) {
       setShake(true);
       setTimeout(() => setShake(false), 500);
+      return;
+    }
+
+    // Validate guess against dictionary
+    if (!VALID_WORDS.has(currentRound.currentGuess)) {
+      setShake(true);
+      setMessage('Not a valid word');
+      setTimeout(() => {
+        setShake(false);
+        setMessage('');
+      }, 1500);
       return;
     }
 

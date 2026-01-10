@@ -609,8 +609,40 @@ export class GameEngine {
     return options.sort(() => Math.random() - 0.5);
   }
 
+  // Helper to check if two titles are likely related (same franchise/different seasons)
+  private static areTitlesRelated(title1: string, title2: string): boolean {
+    if (!title1 || !title2) return false;
+    
+    // Normalize titles for comparison
+    const normalize = (t: string) => t.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+(season|part|cour|2nd|3rd|4th|5th|ii|iii|iv|v|s\d+|ep\d+|ova|movie|film|special)\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    const norm1 = normalize(title1);
+    const norm2 = normalize(title2);
+    
+    // Check if one is a prefix of the other (e.g., "Attack on Titan" and "Attack on Titan Season 2")
+    if (norm1.startsWith(norm2) || norm2.startsWith(norm1)) return true;
+    
+    // Check if they share a significant common prefix (at least 10 chars)
+    const minLen = Math.min(norm1.length, norm2.length);
+    if (minLen >= 10) {
+      let commonLen = 0;
+      for (let i = 0; i < minLen; i++) {
+        if (norm1[i] === norm2[i]) commonLen++;
+        else break;
+      }
+      if (commonLen >= 10) return true;
+    }
+    
+    return false;
+  }
+
   // Generate options with their cover images
   // P0-4 FIX: Added excludeCorrectCover option to hide the correct answer's cover in COVER_GUESS games
+  // FIX: Filter out related series (different seasons of same show) to avoid confusing options
   private static generateOptionsWithImages(
     correctMedia: Media, 
     allEntries: MediaListEntry[],
@@ -624,9 +656,14 @@ export class GameEngine {
       optionImages[correctTitle] = correctMedia.coverImage?.medium || correctMedia.coverImage?.large || '';
     }
     
-    // Add 3 random incorrect options
+    // Add 3 random incorrect options, excluding related series
     const incorrectEntries = allEntries
-      .filter(e => e.media && e.media.id !== correctMedia.id)
+      .filter(e => {
+        if (!e.media || e.media.id === correctMedia.id) return false;
+        // Filter out related series (sequels, prequels, different seasons)
+        const entryTitle = e.media.title.romaji || e.media.title.english || '';
+        return !this.areTitlesRelated(correctTitle, entryTitle);
+      })
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
     

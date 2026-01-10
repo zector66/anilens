@@ -12,6 +12,7 @@ interface BattleCategory {
   val2: number;
   format: (v: number) => string;
   higherIsBetter: boolean;
+  maxValue: number; // Maximum possible value for proper bar scaling
 }
 
 interface TasteBattleProps {
@@ -37,6 +38,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.scorePatterns.meanScore,
       format: (v: number) => v.toFixed(2),
       higherIsBetter: true,
+      maxValue: 10, // Scores are 1-10
     },
     {
       label: 'Chaos Level',
@@ -46,6 +48,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.personalityTraits.chaosLevel,
       format: (v: number) => v.toFixed(1),
       higherIsBetter: true,
+      maxValue: 10, // Chaos level 0-10
     },
     {
       label: 'Completion Rate',
@@ -55,6 +58,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.behavioralMetrics.completionRate * 100,
       format: (v: number) => `${v.toFixed(0)}%`,
       higherIsBetter: true,
+      maxValue: 100, // Percentage 0-100
     },
     {
       label: 'Emotional Damage',
@@ -64,6 +68,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.personalityTraits.emotionalDamageIndex,
       format: (v: number) => v.toFixed(1),
       higherIsBetter: true,
+      maxValue: 10, // Index 0-10
     },
     {
       label: 'Mainstream Index',
@@ -73,6 +78,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.behavioralMetrics.mainstreamIndex * 10,
       format: (v: number) => v.toFixed(1),
       higherIsBetter: true,
+      maxValue: 10, // Index 0-10
     },
     {
       label: 'Diversity Index',
@@ -82,6 +88,7 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
       val2: user2.profile.behavioralMetrics.diversityIndex * 10,
       format: (v: number) => v.toFixed(1),
       higherIsBetter: true,
+      maxValue: 10, // Index 0-10
     },
   ];
 
@@ -149,18 +156,18 @@ export function TasteBattle({ user1, user2, activeType = 'ANIME' }: TasteBattleP
                 </div>
               </div>
 
-              {/* Progress Bars */}
+              {/* Progress Bars - Now use absolute scaling based on maxValue */}
               <div className="mt-4 flex gap-4 items-center">
-                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden flex justify-end">
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden flex justify-end">
                   <div 
-                    className={`h-full bg-purple-500 rounded-full transition-all duration-1000 ${winner === 1 ? 'shadow-[0_0_12px_rgba(168,85,247,0.4)]' : 'opacity-30'}`}
-                    style={{ width: `${(cat.val1 / (cat.val1 + cat.val2)) * 100}%` }}
+                    className={`h-full bg-purple-500 rounded-full transition-all duration-1000 ${winner === 1 ? 'shadow-[0_0_12px_rgba(168,85,247,0.4)]' : 'opacity-40'}`}
+                    style={{ width: `${Math.min(100, (cat.val1 / cat.maxValue) * 100)}%` }}
                   />
                 </div>
-                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full bg-blue-500 rounded-full transition-all duration-1000 ${winner === 2 ? 'shadow-[0_0_12px_rgba(59,130,246,0.4)]' : 'opacity-30'}`}
-                    style={{ width: `${(cat.val2 / (cat.val1 + cat.val2)) * 100}%` }}
+                    className={`h-full bg-blue-500 rounded-full transition-all duration-1000 ${winner === 2 ? 'shadow-[0_0_12px_rgba(59,130,246,0.4)]' : 'opacity-40'}`}
+                    style={{ width: `${Math.min(100, (cat.val2 / cat.maxValue) * 100)}%` }}
                   />
                 </div>
               </div>
