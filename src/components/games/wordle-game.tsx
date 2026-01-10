@@ -118,17 +118,20 @@ interface GameRound {
   currentGuess: string;
   isComplete: boolean;
   isWon: boolean;
+  startTime: number; // When this round started
+  completionTime?: number; // Time taken to complete (ms)
 }
 
 export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'ANIME' }: WordleGameProps) {
   const [startTime] = useState(() => Date.now());
   const [rounds, setRounds] = useState<GameRound[]>(() => 
-    Array.from({ length: roundCount }, () => ({
+    Array.from({ length: roundCount }, (_, i) => ({
       word: getRandomWord(),
       guesses: [],
       currentGuess: '',
       isComplete: false,
       isWon: false,
+      startTime: i === 0 ? Date.now() : 0, // First round starts immediately
     }))
   );
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
@@ -195,12 +198,14 @@ export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'A
       if (round.currentGuess === round.word) {
         round.isComplete = true;
         round.isWon = true;
+        round.completionTime = Date.now() - round.startTime; // Track completion time
         const points = (MAX_GUESSES - round.guesses.length + 1) * 20;
         setScore(s => s + points);
         setMessage('Correct!');
       } else if (round.guesses.length >= MAX_GUESSES) {
         round.isComplete = true;
         round.isWon = false;
+        round.completionTime = Date.now() - round.startTime; // Track completion time
         setMessage(`The word was: ${round.word}`);
       }
       
@@ -258,6 +263,15 @@ export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'A
   const nextRound = () => {
     setMessage('');
     if (currentRoundIndex < rounds.length - 1) {
+      // Start timer for next round
+      setRounds(prev => {
+        const updated = [...prev];
+        updated[currentRoundIndex + 1] = {
+          ...updated[currentRoundIndex + 1],
+          startTime: Date.now(),
+        };
+        return updated;
+      });
       setCurrentRoundIndex(i => i + 1);
     } else {
       setGameComplete(true);
@@ -277,7 +291,7 @@ export function WordleGame({ onComplete, onBack, roundCount = 3, activeType = 'A
         questionId: `wordle-${i}`,
         answer: r.guesses[r.guesses.length - 1] || 'Given Up',
         correct: r.isWon,
-        timeTaken: 0,
+        timeTaken: r.completionTime ? Math.round(r.completionTime / 1000) : 0, // Use actual completion time
         points: r.isWon ? (MAX_GUESSES - r.guesses.length + 1) * 20 : 0,
       }));
 

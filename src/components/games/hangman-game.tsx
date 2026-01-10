@@ -10,6 +10,9 @@ interface HangmanGameProps {
   onBack: () => void;
   questionCount?: number;
   activeType?: 'ANIME' | 'MANGA';
+  // Configurable settings from user feedback
+  maxWrongGuesses?: number; // Default 6
+  timeLimit?: number; // Seconds per round, 0 = no limit
 }
 
 interface HangmanRound {
@@ -21,9 +24,10 @@ interface HangmanRound {
   wrongGuesses: number;
   isComplete: boolean;
   isWon: boolean;
+  timeRemaining?: number;
 }
 
-const MAX_WRONG_GUESSES = 6;
+const DEFAULT_maxWrongGuesses = 6;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 function normalizeTitle(title: string): string {
@@ -31,7 +35,15 @@ function normalizeTitle(title: string): string {
   return title.toUpperCase().replace(/[^A-Z\s]/g, '');
 }
 
-export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, activeType = 'ANIME' }: HangmanGameProps) {
+export function HangmanGame({ 
+  entries, 
+  onComplete, 
+  onBack, 
+  questionCount = 5, 
+  activeType = 'ANIME',
+  maxWrongGuesses = DEFAULT_maxWrongGuesses,
+  timeLimit = 0, // 0 = no time limit
+}: HangmanGameProps) {
   const [startTime] = useState(() => Date.now());
   const [rounds, setRounds] = useState<HangmanRound[]>(() => {
     const shuffled = [...entries].sort(() => Math.random() - 0.5);
@@ -55,12 +67,42 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
   const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   const [gameComplete, setGameComplete] = useState(false);
   const [score, setScore] = useState(0);
-
-  // No longer need useEffect for initialization as we use lazy state initializer
-  // However, if entries change, we might want to reset the game.
-  // In our case, the parent (GameHub) should probably just re-mount the component if entries change drastically.
+  const [timeRemaining, setTimeRemaining] = useState(timeLimit);
 
   const currentRound = rounds[currentRoundIndex];
+
+  // Reset timer when round changes
+  useEffect(() => {
+    if (timeLimit > 0) {
+      setTimeRemaining(timeLimit);
+    }
+  }, [currentRoundIndex, timeLimit]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (timeLimit === 0 || currentRound?.isComplete) return;
+    if (timeRemaining <= 0) {
+      // Time's up - mark round as lost
+      setRounds(prevRounds => {
+        const updated = [...prevRounds];
+        if (!updated[currentRoundIndex].isComplete) {
+          updated[currentRoundIndex] = { 
+            ...updated[currentRoundIndex], 
+            isComplete: true, 
+            isWon: false 
+          };
+        }
+        return updated;
+      });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setTimeRemaining(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [timeRemaining, timeLimit, currentRound?.isComplete, currentRoundIndex]);
 
   const guessLetter = useCallback((letter: string) => {
     if (!currentRound || currentRound.isComplete) return;
@@ -84,8 +126,8 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
       if (allGuessed) {
         round.isComplete = true;
         round.isWon = true;
-        setScore(s => s + Math.max(0, (MAX_WRONG_GUESSES - round.wrongGuesses) * 10));
-      } else if (round.wrongGuesses >= MAX_WRONG_GUESSES) {
+        setScore(s => s + Math.max(0, (maxWrongGuesses - round.wrongGuesses) * 10));
+      } else if (round.wrongGuesses >= maxWrongGuesses) {
         round.isComplete = true;
         round.isWon = false;
       }
@@ -93,7 +135,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
       updated[currentRoundIndex] = round;
       return updated;
     });
-  }, [currentRound, currentRoundIndex]);
+  }, [currentRound, currentRoundIndex, maxWrongGuesses]);
 
   const nextRound = () => {
     if (currentRoundIndex < rounds.length - 1) {
@@ -109,7 +151,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
         difficulty: 'MEDIUM',
         question: 'Guess the title',
         correctAnswer: r.displayTitle,
-        points: MAX_WRONG_GUESSES * 10,
+        points: maxWrongGuesses * 10,
         timeLimit: 0,
       }));
 
@@ -118,7 +160,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
         answer: r.isWon ? r.displayTitle : 'Given Up',
         correct: r.isWon,
         timeTaken: 0,
-        points: r.isWon ? Math.max(0, (MAX_WRONG_GUESSES - r.wrongGuesses) * 10) : 0,
+        points: r.isWon ? Math.max(0, (maxWrongGuesses - r.wrongGuesses) * 10) : 0,
       }));
 
       const session: GameSession = {
@@ -188,6 +230,12 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
       {/* Progress */}
       <div className="flex items-center justify-between">
         <span className="text-gray-400">Round {currentRoundIndex + 1} of {rounds.length}</span>
+        {/* Timer display when timeLimit is set */}
+        {timeLimit > 0 && !currentRound.isComplete && (
+          <span className={`font-bold ${timeRemaining <= 10 ? 'text-red-400 animate-pulse' : 'text-yellow-400'}`}>
+            ⏱️ {timeRemaining}s
+          </span>
+        )}
         <span className="text-purple-400 font-bold">Score: {score}</span>
       </div>
 
@@ -197,7 +245,7 @@ export function HangmanGame({ entries, onComplete, onBack, questionCount = 5, ac
         
         {/* Wrong guesses indicator */}
         <div className="flex justify-center gap-2 mb-6">
-          {Array.from({ length: MAX_WRONG_GUESSES }).map((_, i) => (
+          {Array.from({ length: maxWrongGuesses }).map((_, i) => (
             <div
               key={i}
               className={`w-4 h-4 rounded-full ${

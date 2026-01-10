@@ -172,29 +172,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
 
   return (
     <div className="space-y-8">
-      {/* Quick Game Access - only show when used as standalone tab */}
-      {onNavigateToGames && (
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-              <Swords className="w-5 h-5 text-purple-400" />
-            </div>
-            <div>
-              <p className="font-medium text-white">Ready to play?</p>
-              <p className="text-xs text-gray-400">8+ game modes based on your list</p>
-            </div>
-          </div>
-          <button
-            onClick={onNavigateToGames}
-            className="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors flex items-center gap-2"
-          >
-            <Zap className="w-4 h-4" />
-            Play Games
-          </button>
-        </div>
-      )}
-
-      {/* Header with Player Card */}
+      {/* Header with Player Card - User feedback: profile should be first */}
       <div className="p-6 rounded-2xl bg-linear-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 border border-white/20">
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
           {/* Avatar & Basic Info */}
@@ -253,6 +231,28 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
           </div>
         </div>
       </div>
+
+      {/* Quick Game Access - moved below profile per user feedback */}
+      {onNavigateToGames && (
+        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+              <Swords className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="font-medium text-white">Ready to play?</p>
+              <p className="text-xs text-gray-400">8+ game modes based on your list</p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToGames}
+            className="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium transition-colors flex items-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            Play Games
+          </button>
+        </div>
+      )}
 
       {/* Daily Challenge Banner */}
       <div className={`p-6 rounded-2xl border ${
@@ -379,25 +379,30 @@ function PlayerStatsTab({ dbRatings, dbStats, overallRating }: { dbRatings: DbRa
   // statsMap currently unused but kept for future stats visualization
   // const statsMap = new Map(dbStats.map(s => [s.game_type, s]));
 
-  // Calculate achievements based on real stats
-  const achievements: string[] = [];
+  // Calculate achievements based on real stats - with descriptions per user feedback
+  interface Achievement {
+    name: string;
+    description: string;
+    icon: string;
+  }
+  const achievements: Achievement[] = [];
   const totalGames = dbRatings.reduce((sum, r) => sum + r.games_played, 0);
   const totalWins = dbRatings.reduce((sum, r) => sum + r.wins, 0);
   const bestStreak = dbRatings.reduce((max, r) => Math.max(max, r.best_streak), 0);
   const highestRating = dbRatings.reduce((max, r) => Math.max(max, r.rating), 0);
 
-  if (totalGames >= 1) achievements.push('First Game');
-  if (totalGames >= 10) achievements.push('Dedicated Player');
-  if (totalGames >= 50) achievements.push('Veteran');
-  if (totalWins >= 5) achievements.push('Winner');
-  if (totalWins >= 25) achievements.push('Champion');
-  if (bestStreak >= 3) achievements.push('On Fire');
-  if (bestStreak >= 10) achievements.push('Unstoppable');
-  if (highestRating >= 400) achievements.push('Bronze Tier');
-  if (highestRating >= 800) achievements.push('Silver Tier');
-  if (highestRating >= 1200) achievements.push('Gold Tier');
-  if (highestRating >= 1600) achievements.push('Platinum Tier');
-  if (highestRating >= 2000) achievements.push('Diamond Tier');
+  if (totalGames >= 1) achievements.push({ name: 'First Game', description: 'Played your first game', icon: '🎮' });
+  if (totalGames >= 10) achievements.push({ name: 'Dedicated Player', description: 'Played 10+ games', icon: '🎯' });
+  if (totalGames >= 50) achievements.push({ name: 'Veteran', description: 'Played 50+ games', icon: '🏅' });
+  if (totalWins >= 5) achievements.push({ name: 'Winner', description: 'Won 5+ games', icon: '🏆' });
+  if (totalWins >= 25) achievements.push({ name: 'Champion', description: 'Won 25+ games', icon: '👑' });
+  if (bestStreak >= 3) achievements.push({ name: 'On Fire', description: 'Achieved a 3+ win streak', icon: '🔥' });
+  if (bestStreak >= 10) achievements.push({ name: 'Unstoppable', description: 'Achieved a 10+ win streak', icon: '⚡' });
+  if (highestRating >= 400) achievements.push({ name: 'Bronze Tier', description: 'Reached 400+ MMR in any game', icon: '🥉' });
+  if (highestRating >= 800) achievements.push({ name: 'Silver Tier', description: 'Reached 800+ MMR in any game', icon: '🥈' });
+  if (highestRating >= 1200) achievements.push({ name: 'Gold Tier', description: 'Reached 1200+ MMR in any game', icon: '🥇' });
+  if (highestRating >= 1600) achievements.push({ name: 'Platinum Tier', description: 'Reached 1600+ MMR in any game', icon: '💎' });
+  if (highestRating >= 2000) achievements.push({ name: 'Diamond Tier', description: 'Reached 2000+ MMR in any game', icon: '💠' });
 
   // Calculate overall rank
   const totalMMR = overallRating?.total_rating || dbRatings.reduce((sum, r) => sum + r.rating, 0);
@@ -534,11 +539,16 @@ function PlayerStatsTab({ dbRatings, dbStats, overallRating }: { dbRatings: DbRa
           <div className="flex flex-wrap gap-2">
             {achievements.map((achievement) => (
               <span 
-                key={achievement}
-                className="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 text-sm flex items-center gap-1"
+                key={achievement.name}
+                title={achievement.description}
+                className="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 text-sm flex items-center gap-1.5 cursor-help hover:bg-yellow-500/30 transition-colors group relative"
               >
-                <Star className="w-3 h-3" />
-                {achievement}
+                <span className="text-base">{achievement.icon}</span>
+                {achievement.name}
+                {/* Tooltip on hover - per user feedback */}
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-xs text-gray-300 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10">
+                  {achievement.description}
+                </span>
               </span>
             ))}
           </div>
