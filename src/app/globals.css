@@ -1,8 +1,51 @@
 @import "tailwindcss";
 
+/* ============================================
+   THEME SYSTEM - Light & Dark Mode
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light mode defaults */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --muted: #64748b;
+  --muted-foreground: #94a3b8;
+  --accent: #a855f7;
+  --accent-foreground: #ffffff;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #a855f7;
+  --destructive: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+/* Dark mode via .dark class */
+.dark {
+  --background: #030712;
+  --foreground: #f8fafc;
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --muted: #94a3b8;
+  --muted-foreground: #64748b;
+  --accent: #a855f7;
+  --accent-foreground: #ffffff;
+  --primary: #818cf8;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.05);
+  --secondary-foreground: #f1f5f9;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.05);
+  --ring: #a855f7;
+  --destructive: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 @theme inline {
@@ -12,17 +55,51 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Light mode specific overrides for components */
+:root:not(.dark) {
+  /* Cards and containers in light mode */
+  .bg-white\/5 {
+    background-color: var(--card-bg) !important;
+    border-color: var(--card-border) !important;
+  }
+  
+  /* Text colors in light mode */
+  .text-white {
+    color: var(--foreground) !important;
+  }
+  
+  .text-gray-400, .text-gray-500 {
+    color: var(--muted) !important;
+  }
+  
+  /* Border colors in light mode */
+  .border-white\/10, .border-white\/20 {
+    border-color: var(--border) !important;
+  }
+}
+
+/* Light mode card styles */
+html:not(.dark) .light-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+html:not(.dark) .light-input {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+}
+
+html:not(.dark) .light-input::placeholder {
+  color: #9ca3af;
 }
 
 /* ============================================

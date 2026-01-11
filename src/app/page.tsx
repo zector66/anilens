@@ -14,14 +14,15 @@ import {
   Gamepad2, 
   Users, 
   TrendingUp, 
-  Sparkles,
   Zap,
   Heart,
   Share2,
   LogOut,
-  Settings
+  Settings,
+  Sparkles
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
+import { Logo } from '@/components/ui/logo';
 
 type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
@@ -63,12 +64,7 @@ function LandingPage() {
       <nav className="relative z-10 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">AniLens</span>
-            </div>
+            <Logo size="md" />
             <LoginButton />
           </div>
         </div>
@@ -269,12 +265,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       <header className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">AniLens</span>
-            </div>
+            <Logo size="md" />
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
