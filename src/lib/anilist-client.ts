@@ -290,7 +290,7 @@ export class AniListClient {
                   rank
                   category
                 }
-                characters(sort: ROLE, perPage: 5) {
+                characters(sort: ROLE, perPage: 10) {
                   edges {
                     node {
                       id
@@ -303,6 +303,34 @@ export class AniListClient {
                       }
                     }
                     role
+                    voiceActors(language: JAPANESE) {
+                      id
+                      name {
+                        full
+                      }
+                      image {
+                        large
+                        medium
+                      }
+                      language
+                    }
+                  }
+                }
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      title {
+                        romaji
+                        english
+                      }
+                      type
+                      format
+                      coverImage {
+                        medium
+                      }
+                    }
                   }
                 }
               }
@@ -401,6 +429,23 @@ export class AniListClient {
                       }
                     }
                     role
+                  }
+                }
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      title {
+                        romaji
+                        english
+                      }
+                      type
+                      format
+                      coverImage {
+                        medium
+                      }
+                    }
                   }
                 }
               }
