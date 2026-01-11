@@ -10,6 +10,8 @@ import { ThemePlayerCompact } from './theme-player';
 import { useSettings } from '@/contexts/settings-context';
 import { useAuth } from '@/hooks/use-auth';
 import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom } from '@/lib/supabase';
+import { useUI } from '@/contexts/ui-context';
+import { StreakFlames } from '@/components/ui/confetti';
 
 // Component for OP/ED guessing with real audio from AnimeThemes
 function OPGuessContent({ 
@@ -146,8 +148,10 @@ function QuestionCard({
   currentUserId,
 }: QuestionCardProps) {
   const { getPreferredTitle } = useSettings();
+  const { playSound, reducedMotion } = useUI();
   const [timeLeft, setTimeLeft] = useState(question.timeLimit || 30);
   const [showHint, setShowHint] = useState(false);
+  const [answerAnimation, setAnswerAnimation] = useState<'correct' | 'wrong' | null>(null);
   // For OP_GUESS questions, pause timer until audio starts
   const [timerPaused, setTimerPaused] = useState(question?.type === 'OP_GUESS');
 
@@ -603,8 +607,10 @@ function QuestionCard({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, question?.options, timeLeft, onAnswer, onSelect]);
 
+  const showTimePressure = timeLeft <= 5 && gameState === 'playing' && !timerPaused && !reducedMotion;
+  
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className={`bg-white/5 border-white/10 ${showTimePressure ? 'animate-time-pressure' : ''}`}>
       {/* P1-8 FIX: Reduced padding for mobile */}
       <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <div className="flex items-center justify-between">
@@ -648,6 +654,11 @@ function QuestionCard({
                 p.selectedAnswers?.[questionIndex] === index
               ) || [];
               
+              const isCorrect = option === question.correctAnswer;
+              const wasSelected = selectedAnswer === option;
+              const showCorrectAnimation = gameState === 'answered' && isCorrect && !reducedMotion;
+              const showWrongAnimation = gameState === 'answered' && wasSelected && !isCorrect && !reducedMotion;
+              
               return (
                 <button
                   key={index}
@@ -655,18 +666,28 @@ function QuestionCard({
                     if (gameState === 'playing') {
                       onSelect(option);
                       onAnswer(option, timeLeft);
+                      // Play sound based on answer correctness
+                      setTimeout(() => {
+                        if (option === question.correctAnswer) {
+                          playSound('correct');
+                        } else {
+                          playSound('wrong');
+                        }
+                      }, 100);
                     }
                   }}
                   disabled={gameState !== 'playing'}
                   className={`relative text-left p-3 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
-                    gameState === 'answered' && option === question.correctAnswer
+                    gameState === 'answered' && isCorrect
                       ? 'bg-green-500/20 border-green-500 text-green-300'
-                      : gameState === 'answered' && selectedAnswer === option && option !== question.correctAnswer
+                      : gameState === 'answered' && wasSelected && !isCorrect
                       ? 'bg-red-500/20 border-red-500 text-red-300'
                       : selectedAnswer === option
                       ? 'bg-purple-500/20 border-purple-500 text-white'
                       : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20'
-                  } ${gameState !== 'playing' ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                  } ${gameState !== 'playing' ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  ${showCorrectAnimation ? 'animate-correct' : ''}
+                  ${showWrongAnimation ? 'animate-shake' : ''}`}
                 >
                   {optionImage && (
                     <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0 border border-white/10">

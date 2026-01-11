@@ -24,3 +24,226 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ============================================
+   ANIMATIONS FOR UI POLISH
+   ============================================ */
+
+/* Toast slide in from right */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Confetti fall animation */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall 3s ease-in forwards;
+}
+
+/* Flame flicker */
+@keyframes flame {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  25% {
+    transform: scale(1.1) translateY(-2px);
+  }
+  50% {
+    transform: scale(0.95) translateY(1px);
+  }
+  75% {
+    transform: scale(1.05) translateY(-1px);
+  }
+}
+
+.animate-flame {
+  animation: flame 0.5s ease-in-out infinite;
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Scale up */
+@keyframes scale-up {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-up {
+  animation: scale-up 0.4s ease-out forwards;
+}
+
+/* Glow effect */
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.8), 0 0 30px rgba(168, 85, 247, 0.6);
+  }
+}
+
+.animate-glow {
+  animation: glow 1.5s ease-in-out infinite;
+}
+
+/* Correct answer glow */
+@keyframes correct-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.animate-correct {
+  animation: correct-glow 0.6s ease-out;
+}
+
+/* Wrong answer shake */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Time pressure pulse */
+@keyframes time-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 50px 20px rgba(239, 68, 68, 0.1);
+  }
+}
+
+.animate-time-pressure {
+  animation: time-pulse 1s ease-in-out infinite;
+}
+
+/* Score counter tick up */
+@keyframes score-tick {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-score-tick {
+  animation: score-tick 0.3s ease-out;
+}
+
+/* Button hover ripple effect */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.5s ease-out, opacity 0.3s ease-out;
+}
+
+.btn-ripple:active::after {
+  transform: scale(2);
+  opacity: 1;
+  transition: transform 0s, opacity 0s;
+}
+
+/* Progress bar animation */
+.progress-bar-animated {
+  transition: width 0.5s ease-out;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px -10px rgba(168, 85, 247, 0.3);
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Theme transition */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}

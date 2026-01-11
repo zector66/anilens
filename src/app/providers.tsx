@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { MediaProvider } from '@/contexts/media-context';
+import { UIProvider } from '@/contexts/ui-context';
+import { ToastProvider } from '@/components/ui/toast';
+import { KeyboardShortcutsModal } from '@/components/ui/keyboard-shortcuts';
+import { SettingsPanel } from '@/components/ui/settings-panel';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -27,7 +31,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
         <MediaProvider>
-          {children}
+          <UIProvider>
+            <ToastProvider>
+              {children}
+              <KeyboardShortcutsModal />
+              <SettingsPanel />
+            </ToastProvider>
+          </UIProvider>
         </MediaProvider>
       </SettingsProvider>
     </QueryClientProvider>
