@@ -182,6 +182,18 @@ export function GameHub() {
       case 'studio-match':
         questions = GameEngine.generateStudioMatchQuestions(filteredEntries, questionCount);
         break;
+      case 'va-connection':
+        questions = GameEngine.generateVAConnectionQuestions(filteredEntries, questionCount);
+        break;
+      case 'relation-type':
+        questions = GameEngine.generateRelationTypeQuestions(filteredEntries, questionCount);
+        break;
+      case 'score-ladder':
+        questions = GameEngine.generateScoreLadderQuestions(filteredEntries, questionCount);
+        break;
+      case 'tag-ladder':
+        questions = GameEngine.generateTagLadderQuestions(filteredEntries, questionCount);
+        break;
       case 'bracket-anime':
         // P2-10 FIX: Handle anime bracket battle
         setBracketSettings({
@@ -526,6 +538,46 @@ export function GameHub() {
       description: 'Match anime to the studio that made it',
       icon: Trophy,
       gradient: 'from-emerald-500 to-teal-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '4-6 min',
+    },
+    {
+      id: 'va-connection',
+      title: 'VA Connection',
+      description: 'Do these characters share the same voice actor?',
+      icon: Users,
+      gradient: 'from-fuchsia-500 to-pink-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '3-5 min',
+    },
+    {
+      id: 'relation-type',
+      title: 'Sequel or Spin-off?',
+      description: 'Identify how titles are connected in a franchise',
+      icon: Activity,
+      gradient: 'from-sky-500 to-blue-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '4-6 min',
+    },
+    {
+      id: 'score-ladder',
+      title: 'Score Ladder',
+      description: 'Pick your highest-rated title from a batch of 5',
+      icon: Trophy,
+      gradient: 'from-amber-500 to-yellow-600',
+      difficulty: 'Personal',
+      difficultyColor: 'bg-purple-500/20 text-purple-400',
+      estimatedTime: '3-5 min',
+    },
+    {
+      id: 'tag-ladder',
+      title: 'Tag Ladder',
+      description: 'Guess the anime from its tags',
+      icon: Target,
+      gradient: 'from-teal-500 to-cyan-600',
       difficulty: 'Hard',
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '4-6 min',

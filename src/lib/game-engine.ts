@@ -1024,6 +1024,300 @@ export class GameEngine {
     return questions;
   }
 
+  /**
+   * VA Connection - Do two characters share the same voice actor? Yes/No
+   */
+  static generateVAConnectionQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    
+    // Build a map of VA name -> list of characters they voiced
+    const vaToCharacters = new Map<string, Array<{ charName: string; charImage: string; animeName: string; animeId: number }>>();
+    
+    entries.forEach(e => {
+      if (!e.media?.characters?.edges) return;
+      e.media.characters.edges.forEach(edge => {
+        edge.voiceActors?.forEach(va => {
+          if (!va.name?.full) return;
+          const vaName = va.name.full;
+          if (!vaToCharacters.has(vaName)) {
+            vaToCharacters.set(vaName, []);
+          }
+          vaToCharacters.get(vaName)!.push({
+            charName: edge.node.name.full,
+            charImage: edge.node.image?.large || edge.node.image?.medium || '',
+            animeName: e.media!.title.english || e.media!.title.romaji || 'Unknown',
+            animeId: e.media!.id,
+          });
+        });
+      });
+    });
+
+    // Get VAs with at least 2 characters
+    const vasWithMultiple = Array.from(vaToCharacters.entries())
+      .filter(([_, chars]) => chars.length >= 2)
+      .map(([vaName, chars]) => ({ vaName, chars }));
+
+    const shuffledVAs = shuffleArray(vasWithMultiple);
+    const usedPairs = new Set<string>();
+
+    for (let i = 0; i < count && shuffledVAs.length > 0; i++) {
+      // 50% chance: same VA (yes) or different VA (no)
+      const isSameVA = Math.random() > 0.5;
+
+      if (isSameVA && shuffledVAs.length > 0) {
+        // Pick 2 characters from the same VA
+        const va = shuffledVAs[i % shuffledVAs.length];
+        if (va.chars.length < 2) continue;
+        
+        const shuffledChars = shuffleArray(va.chars);
+        const char1 = shuffledChars[0];
+        const char2 = shuffledChars[1];
+        
+        const pairKey = [char1.charName, char2.charName].sort().join('|');
+        if (usedPairs.has(pairKey)) continue;
+        usedPairs.add(pairKey);
+
+        questions.push({
+          id: `va-${char1.animeId}-${char2.animeId}-${questions.length}`,
+          type: 'VA_CONNECTION',
+          difficulty: 'HARD',
+          question: `Do "${char1.charName}" and "${char2.charName}" share the same voice actor?`,
+          correctAnswer: 'Yes',
+          options: ['Yes', 'No'],
+          timeLimit: 10,
+          points: 100,
+          optionImages: {
+            [char1.charName]: char1.charImage,
+            [char2.charName]: char2.charImage,
+          },
+          hints: [`${char1.animeName}`, `${char2.animeName}`],
+        });
+      } else {
+        // Pick 2 characters from different VAs
+        if (shuffledVAs.length < 2) continue;
+        
+        const va1 = shuffledVAs[i % shuffledVAs.length];
+        const va2 = shuffledVAs[(i + 1) % shuffledVAs.length];
+        if (va1.vaName === va2.vaName) continue;
+        
+        const char1 = va1.chars[0];
+        const char2 = va2.chars[0];
+        
+        const pairKey = [char1.charName, char2.charName].sort().join('|');
+        if (usedPairs.has(pairKey)) continue;
+        usedPairs.add(pairKey);
+
+        questions.push({
+          id: `va-${char1.animeId}-${char2.animeId}-${questions.length}`,
+          type: 'VA_CONNECTION',
+          difficulty: 'HARD',
+          question: `Do "${char1.charName}" and "${char2.charName}" share the same voice actor?`,
+          correctAnswer: 'No',
+          options: ['Yes', 'No'],
+          timeLimit: 10,
+          points: 100,
+          optionImages: {
+            [char1.charName]: char1.charImage,
+            [char2.charName]: char2.charImage,
+          },
+          hints: [`${char1.animeName}`, `${char2.animeName}`],
+        });
+      }
+    }
+
+    return questions;
+  }
+
+  /**
+   * Sequel or Spin-off? - Identify the relation type between two titles
+   */
+  static generateRelationTypeQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    
+    // Collect all relation pairs
+    const relationPairs: Array<{
+      source: Media;
+      target: { id: number; title: string; coverImage: string };
+      relationType: string;
+    }> = [];
+
+    entries.forEach(e => {
+      if (!e.media?.relations?.edges) return;
+      e.media.relations.edges.forEach(edge => {
+        if (!edge.node || !edge.relationType) return;
+        // Only include meaningful relation types
+        if (['SEQUEL', 'PREQUEL', 'SIDE_STORY', 'ALTERNATIVE', 'SPIN_OFF', 'PARENT'].includes(edge.relationType)) {
+          relationPairs.push({
+            source: e.media!,
+            target: {
+              id: edge.node.id,
+              title: edge.node.title?.english || edge.node.title?.romaji || 'Unknown',
+              coverImage: edge.node.coverImage?.medium || '',
+            },
+            relationType: edge.relationType,
+          });
+        }
+      });
+    });
+
+    const shuffled = shuffleArray(relationPairs);
+    const usedPairs = new Set<string>();
+    const relationOptions = ['SEQUEL', 'PREQUEL', 'SIDE_STORY', 'SPIN_OFF'];
+
+    for (const pair of shuffled) {
+      if (questions.length >= count) break;
+      
+      const pairKey = `${pair.source.id}-${pair.target.id}`;
+      if (usedPairs.has(pairKey)) continue;
+      usedPairs.add(pairKey);
+
+      const sourceTitle = pair.source.title.english || pair.source.title.romaji || 'Unknown';
+      
+      // Format relation type for display
+      const formatRelation = (r: string) => r.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+      
+      // Generate decoy options
+      const correctFormatted = formatRelation(pair.relationType);
+      const decoys = relationOptions
+        .filter(r => r !== pair.relationType)
+        .map(formatRelation)
+        .slice(0, 3);
+      
+      const options = shuffleArray([correctFormatted, ...decoys]);
+
+      questions.push({
+        id: `rel-${pair.source.id}-${pair.target.id}`,
+        type: 'RELATION_TYPE',
+        difficulty: 'MEDIUM',
+        question: `What is "${pair.target.title}" to "${sourceTitle}"?`,
+        correctAnswer: correctFormatted,
+        options,
+        media: pair.source,
+        timeLimit: 15,
+        points: 100,
+        optionImages: {
+          [sourceTitle]: pair.source.coverImage?.medium || '',
+          [pair.target.title]: pair.target.coverImage,
+        },
+      });
+    }
+
+    return questions;
+  }
+
+  /**
+   * Score Ladder - Order 5 titles by your score (drag and drop style, but as multiple choice)
+   */
+  static generateScoreLadderQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    
+    // Only include entries with scores
+    const withScores = entries.filter(e => e.score && e.score > 0 && e.media);
+    if (withScores.length < 5) return questions;
+
+    const shuffled = shuffleArray(withScores);
+
+    for (let i = 0; i < count && i * 5 + 4 < shuffled.length; i++) {
+      // Take 5 consecutive entries
+      const batch = shuffled.slice(i * 5, i * 5 + 5);
+      
+      // Sort by score descending to get correct order
+      const sorted = [...batch].sort((a, b) => (b.score || 0) - (a.score || 0));
+      const highestTitle = sorted[0].media!.title.english || sorted[0].media!.title.romaji || 'Unknown';
+      
+      // Ask which one was rated highest
+      const titles = batch.map(e => e.media!.title.english || e.media!.title.romaji || 'Unknown');
+      const optionImages: Record<string, string> = {};
+      batch.forEach(e => {
+        const title = e.media!.title.english || e.media!.title.romaji || 'Unknown';
+        optionImages[title] = e.media!.coverImage?.medium || '';
+      });
+
+      questions.push({
+        id: `ladder-${batch.map(e => e.media!.id).join('-')}`,
+        type: 'SCORE_LADDER',
+        difficulty: 'MEDIUM',
+        question: 'Which of these 5 titles did you rate HIGHEST?',
+        correctAnswer: highestTitle,
+        options: shuffleArray(titles),
+        media: sorted[0].media,
+        timeLimit: 20,
+        points: 150,
+        optionImages,
+      });
+    }
+
+    return questions;
+  }
+
+  /**
+   * Tag Ladder - Progressive tag reveal, guess the anime
+   */
+  static generateTagLadderQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    const prioritized = prioritizeUnused(entries, recentIds);
+    
+    // Filter entries with enough tags
+    const withTags = prioritized.filter(e => e.media?.tags && e.media.tags.length >= 4);
+    const shuffled = shuffleArray(withTags);
+    const usedIds: number[] = [];
+
+    for (const entry of shuffled) {
+      if (questions.length >= count) break;
+      if (!entry.media || isMediaUsedInSession(entry.media.id)) continue;
+
+      const media = entry.media;
+      const tags = media.tags?.map(t => t.name) || [];
+      if (tags.length < 4) continue;
+
+      const title = media.title.english || media.title.romaji || 'Unknown';
+      
+      // Pick 4 random tags to reveal progressively (stored in hints)
+      const selectedTags = shuffleArray(tags).slice(0, 4);
+      
+      // Generate 3 decoy options from other anime
+      const decoys = shuffleArray(
+        entries
+          .filter(e => e.media && e.media.id !== media.id)
+          .map(e => e.media!.title.english || e.media!.title.romaji || 'Unknown')
+      ).slice(0, 3);
+
+      if (decoys.length < 3) continue;
+
+      const options = shuffleArray([title, ...decoys]);
+      const optionImages: Record<string, string> = {};
+      [entry, ...entries.filter(e => decoys.includes(e.media?.title.english || e.media?.title.romaji || ''))].forEach(e => {
+        if (e.media) {
+          const t = e.media.title.english || e.media.title.romaji || 'Unknown';
+          optionImages[t] = e.media.coverImage?.medium || '';
+        }
+      });
+
+      questions.push({
+        id: `tagladder-${media.id}-${questions.length}`,
+        type: 'TAG_LADDER',
+        difficulty: 'HARD',
+        question: `Tags: ${selectedTags.join(' • ')}\n\nWhich anime has these tags?`,
+        correctAnswer: title,
+        options,
+        media,
+        timeLimit: 20,
+        points: 120,
+        hints: selectedTags,
+        optionImages,
+      });
+
+      markMediaUsedInSession(media.id);
+      usedIds.push(media.id);
+    }
+
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
   // ============ END NEW GAMES ============
 
   static createGameSession(type: string, questions: GameQuestion[]): GameSession {
