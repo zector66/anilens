@@ -460,7 +460,7 @@ export interface Recommendation {
 
 export interface GameQuestion {
   id: string;
-  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS' | 'HANGMAN' | 'WORDLE' | 'SEIYUU_GUESS';
+  type: 'OP_GUESS' | 'SCREENSHOT_GUESS' | 'QUOTE_GUESS' | 'SCORE_GUESS' | 'CHARACTER_GUESS' | 'SEASON_MATCH' | 'COVER_GUESS' | 'CHAPTER_COUNT_GUESS' | 'HANGMAN' | 'WORDLE' | 'SEIYUU_GUESS' | 'TAG_OR_CAP' | 'POPULARITY_BATTLE' | 'TASTE_CONSISTENCY' | 'STUDIO_MATCH';
   media?: Media;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   question: string;

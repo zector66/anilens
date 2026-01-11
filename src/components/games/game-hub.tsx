@@ -25,7 +25,8 @@ import {
   Calendar,
   BookOpen,
   Swords,
-  User as UserIcon
+  User as UserIcon,
+  TrendingUp
 } from 'lucide-react';
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
@@ -168,6 +169,18 @@ export function GameHub() {
         break;
       case 'chapters-guessing':
         questions = GameEngine.generateChapterCountGuessQuestions(filteredEntries, questionCount);
+        break;
+      case 'tag-or-cap':
+        questions = GameEngine.generateTagOrCapQuestions(filteredEntries, questionCount);
+        break;
+      case 'popularity-battle':
+        questions = GameEngine.generatePopularityBattleQuestions(filteredEntries, questionCount);
+        break;
+      case 'taste-consistency':
+        questions = GameEngine.generateTasteConsistencyQuestions(filteredEntries, questionCount);
+        break;
+      case 'studio-match':
+        questions = GameEngine.generateStudioMatchQuestions(filteredEntries, questionCount);
         break;
       case 'bracket-anime':
         // P2-10 FIX: Handle anime bracket battle
@@ -475,6 +488,47 @@ export function GameHub() {
       difficulty: 'Easy',
       difficultyColor: 'bg-green-500/20 text-green-400',
       estimatedTime: '2-5 min',
+    },
+    // NEW GAMES
+    {
+      id: 'tag-or-cap',
+      title: 'Tag or Cap?',
+      description: 'Spot the fake tag among real ones',
+      icon: Target,
+      gradient: 'from-cyan-500 to-blue-600',
+      difficulty: 'Medium',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '3-5 min',
+    },
+    {
+      id: 'popularity-battle',
+      title: 'Popularity Battle',
+      description: 'Which title is more popular on AniList?',
+      icon: TrendingUp,
+      gradient: 'from-violet-500 to-purple-600',
+      difficulty: 'Easy',
+      difficultyColor: 'bg-green-500/20 text-green-400',
+      estimatedTime: '2-4 min',
+    },
+    {
+      id: 'taste-consistency',
+      title: 'Taste Consistency',
+      description: 'Remember which titles YOU rated higher',
+      icon: Activity,
+      gradient: 'from-rose-500 to-pink-600',
+      difficulty: 'Personal',
+      difficultyColor: 'bg-purple-500/20 text-purple-400',
+      estimatedTime: '2-4 min',
+    },
+    {
+      id: 'studio-match',
+      title: 'Studio Match',
+      description: 'Match anime to the studio that made it',
+      icon: Trophy,
+      gradient: 'from-emerald-500 to-teal-600',
+      difficulty: 'Hard',
+      difficultyColor: 'bg-red-500/20 text-red-400',
+      estimatedTime: '4-6 min',
     },
   ];
 

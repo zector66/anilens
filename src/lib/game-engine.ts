@@ -774,6 +774,258 @@ export class GameEngine {
     return '9-10';
   }
 
+  // ============ NEW GAMES ============
+
+  // Common fake tags that sound plausible but aren't real AniList tags
+  private static readonly FAKE_TAGS = [
+    'Time Loop', 'Time Skip', 'Memory Loss', 'Dream World', 'Parallel World',
+    'Power Awakening', 'Hidden Power', 'Sealed Power', 'Power Transfer',
+    'School Battle', 'School Mystery', 'School Sports', 'School Music',
+    'Dark Fantasy', 'Light Fantasy', 'Urban Fantasy', 'Modern Fantasy',
+    'Cyberpunk', 'Steampunk', 'Dieselpunk', 'Solarpunk',
+    'Revenge Plot', 'Rescue Arc', 'Training Arc', 'Tournament Arc',
+    'Childhood Promise', 'Lost Sibling', 'Secret Identity', 'Double Life',
+    'Monster Hunter', 'Demon Hunter', 'Vampire Hunter', 'Ghost Hunter',
+    'Virtual World', 'Digital World', 'Game World', 'Fantasy World',
+    'Ancient Prophecy', 'Chosen One', 'Destined Hero', 'Reluctant Hero',
+    'Magic School', 'Combat School', 'Spy School', 'Monster School',
+    'Alien Invasion', 'Robot Uprising', 'Zombie Outbreak', 'Demon Invasion',
+    'Love Polygon', 'Forbidden Love', 'First Love', 'Unrequited Love',
+    'Coming of Age', 'Self Discovery', 'Personal Growth', 'Identity Crisis',
+  ];
+
+  /**
+   * Tag or Cap? - Show anime + 3 tags, guess which is real or fake
+   */
+  static generateTagOrCapQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    const prioritized = prioritizeUnused(entries, recentIds);
+    
+    // Filter entries that have tags
+    const withTags = prioritized.filter(e => e.media?.tags && e.media.tags.length >= 2);
+    const shuffled = shuffleArray(withTags);
+    const usedIds: number[] = [];
+
+    for (const entry of shuffled) {
+      if (questions.length >= count) break;
+      if (!entry.media || isMediaUsedInSession(entry.media.id)) continue;
+
+      const media = entry.media;
+      const realTags = media.tags?.map(t => t.name) || [];
+      if (realTags.length < 2) continue;
+
+      // Pick 2 real tags
+      const shuffledReal = shuffleArray(realTags);
+      const selectedReal = shuffledReal.slice(0, 2);
+
+      // Pick 1 fake tag that's NOT in real tags
+      const availableFakes = this.FAKE_TAGS.filter(f => !realTags.includes(f));
+      const fakeTag = shuffleArray(availableFakes)[0];
+
+      // 50% chance: "Which tag is FAKE?" vs "Which tag is REAL?"
+      const askForFake = Math.random() > 0.5;
+      const options = shuffleArray([...selectedReal, fakeTag]);
+      const correctAnswer = askForFake ? fakeTag : selectedReal[0];
+
+      const title = media.title.english || media.title.romaji || 'Unknown';
+
+      questions.push({
+        id: `tag-${media.id}-${questions.length}`,
+        type: 'TAG_OR_CAP',
+        difficulty: 'MEDIUM',
+        question: askForFake 
+          ? `Which tag is FAKE for "${title}"?`
+          : `Which tag is REAL for "${title}"?`,
+        correctAnswer,
+        options,
+        media,
+        timeLimit: 15,
+        points: 100,
+      });
+
+      markMediaUsedInSession(media.id);
+      usedIds.push(media.id);
+    }
+
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
+  /**
+   * Popularity Battle - Two titles, which is more popular? (Endless potential)
+   */
+  static generatePopularityBattleQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    const prioritized = prioritizeUnused(entries, recentIds);
+    
+    // Need entries with popularity data
+    const withPopularity = prioritized.filter(e => e.media?.popularity && e.media.popularity > 0);
+    const shuffled = shuffleArray(withPopularity);
+    const usedIds: number[] = [];
+
+    for (let i = 0; i < shuffled.length - 1 && questions.length < count; i += 2) {
+      const entry1 = shuffled[i];
+      const entry2 = shuffled[i + 1];
+      
+      if (!entry1?.media || !entry2?.media) continue;
+      if (isMediaUsedInSession(entry1.media.id) || isMediaUsedInSession(entry2.media.id)) continue;
+
+      const media1 = entry1.media;
+      const media2 = entry2.media;
+
+      // Skip if popularity is too similar (within 10%)
+      const popDiff = Math.abs(media1.popularity - media2.popularity);
+      const avgPop = (media1.popularity + media2.popularity) / 2;
+      if (popDiff / avgPop < 0.1) continue;
+
+      const title1 = media1.title.english || media1.title.romaji || 'Unknown';
+      const title2 = media2.title.english || media2.title.romaji || 'Unknown';
+      const morePopular = media1.popularity > media2.popularity ? title1 : title2;
+
+      questions.push({
+        id: `pop-${media1.id}-${media2.id}`,
+        type: 'POPULARITY_BATTLE',
+        difficulty: 'EASY',
+        question: 'Which title is MORE POPULAR on AniList?',
+        correctAnswer: morePopular,
+        options: [title1, title2],
+        media: media1.popularity > media2.popularity ? media1 : media2,
+        timeLimit: 10,
+        points: 100,
+        optionImages: {
+          [title1]: media1.coverImage?.medium || '',
+          [title2]: media2.coverImage?.medium || '',
+        },
+      });
+
+      markMediaUsedInSession(media1.id);
+      markMediaUsedInSession(media2.id);
+      usedIds.push(media1.id, media2.id);
+    }
+
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
+  /**
+   * Taste Consistency - Two shows you rated, which did you rate higher?
+   */
+  static generateTasteConsistencyQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    
+    // Only include entries with scores
+    const withScores = entries.filter(e => e.score && e.score > 0 && e.media);
+    const prioritized = prioritizeUnused(withScores, recentIds);
+    const shuffled = shuffleArray(prioritized);
+    const usedIds: number[] = [];
+
+    for (let i = 0; i < shuffled.length - 1 && questions.length < count; i += 2) {
+      const entry1 = shuffled[i];
+      const entry2 = shuffled[i + 1];
+      
+      if (!entry1?.media || !entry2?.media) continue;
+      if (isMediaUsedInSession(entry1.media.id) || isMediaUsedInSession(entry2.media.id)) continue;
+
+      // Skip if scores are identical
+      if (entry1.score === entry2.score) continue;
+
+      const media1 = entry1.media;
+      const media2 = entry2.media;
+      const title1 = media1.title.english || media1.title.romaji || 'Unknown';
+      const title2 = media2.title.english || media2.title.romaji || 'Unknown';
+      const higherRated = entry1.score! > entry2.score! ? title1 : title2;
+
+      questions.push({
+        id: `taste-${media1.id}-${media2.id}`,
+        type: 'TASTE_CONSISTENCY',
+        difficulty: 'MEDIUM',
+        question: 'Which title did YOU rate higher?',
+        correctAnswer: higherRated,
+        options: [title1, title2],
+        media: entry1.score! > entry2.score! ? media1 : media2,
+        timeLimit: 10,
+        points: 100,
+        optionImages: {
+          [title1]: media1.coverImage?.medium || '',
+          [title2]: media2.coverImage?.medium || '',
+        },
+      });
+
+      markMediaUsedInSession(media1.id);
+      markMediaUsedInSession(media2.id);
+      usedIds.push(media1.id, media2.id);
+    }
+
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
+  /**
+   * Studio Match - Guess the studio from the anime
+   */
+  static generateStudioMatchQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+    const questions: GameQuestion[] = [];
+    const recentIds = getRecentlyUsedIds();
+    const prioritized = prioritizeUnused(entries, recentIds);
+    
+    // Build a pool of all studios for decoys
+    const allStudios = new Set<string>();
+    entries.forEach(e => {
+      e.media?.studios?.edges?.forEach(edge => {
+        if (edge.node.isAnimationStudio) allStudios.add(edge.node.name);
+      });
+    });
+    const studioPool = Array.from(allStudios);
+
+    // Filter entries with studio data
+    const withStudios = prioritized.filter(e => 
+      e.media?.studios?.edges?.some(edge => edge.node.isAnimationStudio)
+    );
+    const shuffled = shuffleArray(withStudios);
+    const usedIds: number[] = [];
+
+    for (const entry of shuffled) {
+      if (questions.length >= count) break;
+      if (!entry.media || isMediaUsedInSession(entry.media.id)) continue;
+
+      const media = entry.media;
+      const mainStudioEdge = media.studios?.edges?.find(edge => edge.node.isAnimationStudio);
+      const mainStudio = mainStudioEdge?.node;
+      if (!mainStudio) continue;
+
+      const title = media.title.english || media.title.romaji || 'Unknown';
+
+      // Get 3 decoy studios (not the correct one)
+      const decoys = shuffleArray(studioPool.filter(s => s !== mainStudio.name)).slice(0, 3);
+      if (decoys.length < 3) continue; // Need enough decoys
+
+      const options = shuffleArray([mainStudio.name, ...decoys]);
+
+      questions.push({
+        id: `studio-${media.id}-${questions.length}`,
+        type: 'STUDIO_MATCH',
+        difficulty: 'HARD',
+        question: `Which studio made "${title}"?`,
+        correctAnswer: mainStudio.name,
+        options,
+        media,
+        timeLimit: 15,
+        points: 100,
+      });
+
+      markMediaUsedInSession(media.id);
+      usedIds.push(media.id);
+    }
+
+    saveRecentlyUsedIds([...recentIds, ...usedIds]);
+    return questions;
+  }
+
+  // ============ END NEW GAMES ============
+
   static createGameSession(type: string, questions: GameQuestion[]): GameSession {
     return {
       id: `game-${Date.now()}`,
