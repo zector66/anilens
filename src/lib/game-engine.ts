@@ -1143,12 +1143,15 @@ export class GameEngine {
       relationType: string;
     }> = [];
 
+    // Only use relation types that will be in the options
+    const validRelationTypes = ['SEQUEL', 'PREQUEL', 'SIDE_STORY', 'SPIN_OFF'];
+    
     entries.forEach(e => {
       if (!e.media?.relations?.edges) return;
       e.media.relations.edges.forEach(edge => {
         if (!edge.node || !edge.relationType) return;
-        // Only include meaningful relation types
-        if (['SEQUEL', 'PREQUEL', 'SIDE_STORY', 'ALTERNATIVE', 'SPIN_OFF', 'PARENT'].includes(edge.relationType)) {
+        // Only include relation types that are in our options
+        if (validRelationTypes.includes(edge.relationType)) {
           relationPairs.push({
             source: e.media!,
             target: {
@@ -1164,7 +1167,6 @@ export class GameEngine {
 
     const shuffled = shuffleArray(relationPairs);
     const usedPairs = new Set<string>();
-    const relationOptions = ['SEQUEL', 'PREQUEL', 'SIDE_STORY', 'SPIN_OFF'];
 
     for (const pair of shuffled) {
       if (questions.length >= count) break;
@@ -1178,12 +1180,11 @@ export class GameEngine {
       // Format relation type for display
       const formatRelation = (r: string) => r.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
       
-      // Generate decoy options
+      // Generate decoy options from valid types
       const correctFormatted = formatRelation(pair.relationType);
-      const decoys = relationOptions
+      const decoys = validRelationTypes
         .filter(r => r !== pair.relationType)
-        .map(formatRelation)
-        .slice(0, 3);
+        .map(formatRelation);
       
       const options = shuffleArray([correctFormatted, ...decoys]);
 

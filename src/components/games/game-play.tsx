@@ -385,8 +385,198 @@ function QuestionCard({
           </div>
         );
 
+      case 'TAG_OR_CAP':
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              {question?.media?.coverImage && (
+                <div className="relative w-32 h-44 mx-auto mb-4">
+                  <Image
+                    src={question.media.coverImage.large || question.media.coverImage.medium}
+                    alt={getPreferredTitle(question.media.title)}
+                    fill
+                    className="rounded-xl object-cover border-2 border-white/20"
+                  />
+                </div>
+              )}
+              <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
+              <p className="text-sm text-gray-400">One of these tags is not like the others...</p>
+            </div>
+          </div>
+        );
+
+      case 'POPULARITY_BATTLE':
+      case 'TASTE_CONSISTENCY':
+        // Binary comparison with two cover images
+        const titles = question?.options || [];
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
+              <h3 className="text-xl font-bold text-white mb-6">{question?.question}</h3>
+              <div className="flex items-center justify-center gap-4 md:gap-8">
+                {titles.slice(0, 2).map((title, idx) => (
+                  <div key={idx} className="text-center">
+                    {question?.optionImages?.[title] && (
+                      <div className="relative w-24 h-32 md:w-32 md:h-44 mx-auto mb-2">
+                        <Image
+                          src={question.optionImages[title]}
+                          alt={title}
+                          fill
+                          className="rounded-xl object-cover border-2 border-white/20"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 line-clamp-2 max-w-[120px]">{title}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500 mt-4">
+                {question?.type === 'TASTE_CONSISTENCY' ? 'Test your memory of your own ratings!' : 'Which one has more fans?'}
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'STUDIO_MATCH':
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              {question?.media?.coverImage && (
+                <div className="relative w-32 h-44 mx-auto mb-4">
+                  <Image
+                    src={question.media.coverImage.large || question.media.coverImage.medium}
+                    alt={getPreferredTitle(question.media.title)}
+                    fill
+                    className="rounded-xl object-cover border-2 border-white/20"
+                  />
+                </div>
+              )}
+              <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
+              <p className="text-sm text-gray-400">Which animation studio created this?</p>
+            </div>
+          </div>
+        );
+
+      case 'VA_CONNECTION':
+        // Show two character images side by side
+        const charNames = question?.question.match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
+              <h3 className="text-lg font-bold text-white mb-4">Same Voice Actor?</h3>
+              <div className="flex items-center justify-center gap-6 md:gap-12">
+                {charNames.slice(0, 2).map((name, idx) => (
+                  <div key={idx} className="text-center">
+                    {question?.optionImages?.[name] && (
+                      <div className="relative w-20 h-20 md:w-28 md:h-28 mx-auto mb-2">
+                        <Image
+                          src={question.optionImages[name]}
+                          alt={name}
+                          fill
+                          className="rounded-full object-cover border-2 border-purple-500/30"
+                        />
+                      </div>
+                    )}
+                    <p className="text-sm text-white font-medium line-clamp-1 max-w-[100px]">{name}</p>
+                    {question?.hints?.[idx] && (
+                      <p className="text-xs text-gray-500 line-clamp-1">from {question.hints[idx]}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 text-2xl">🎙️</div>
+            </div>
+          </div>
+        );
+
+      case 'RELATION_TYPE':
+        // Show two titles and ask about their relation
+        const sourceTitle = question?.question.match(/to "([^"]+)"\?$/)?.[1] || '';
+        const targetTitle = question?.question.match(/^What is "([^"]+)"/)?.[1] || '';
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
+              <h3 className="text-lg font-bold text-white mb-4">How are these related?</h3>
+              <div className="flex items-center justify-center gap-4 md:gap-8">
+                {[targetTitle, sourceTitle].map((title, idx) => (
+                  <div key={idx} className="text-center">
+                    {question?.optionImages?.[title] && (
+                      <div className="relative w-20 h-28 md:w-28 md:h-40 mx-auto mb-2">
+                        <Image
+                          src={question.optionImages[title]}
+                          alt={title}
+                          fill
+                          className="rounded-xl object-cover border-2 border-white/20"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 line-clamp-2 max-w-[100px]">{title}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-purple-400 mt-4">
+                What is <span className="font-bold">{targetTitle}</span> to <span className="font-bold">{sourceTitle}</span>?
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'SCORE_LADDER':
+        // Show 5 titles with their covers
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
+              <h3 className="text-xl font-bold text-white mb-4">{question?.question}</h3>
+              <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
+                {question?.options?.map((title, idx) => (
+                  <div key={idx} className="text-center">
+                    {question?.optionImages?.[title] && (
+                      <div className="relative w-16 h-22 md:w-20 md:h-28 mx-auto">
+                        <Image
+                          src={question.optionImages[title]}
+                          alt={title}
+                          fill
+                          className="rounded-lg object-cover border border-white/20"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-4">Which one did you rate the highest?</p>
+            </div>
+          </div>
+        );
+
+      case 'TAG_LADDER':
+        // Show tags and ask to identify the anime
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              <h3 className="text-lg font-bold text-white mb-4">Guess from the Tags!</h3>
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
+                {question?.hints?.map((tag, idx) => (
+                  <span 
+                    key={idx}
+                    className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full text-sm font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400">Which anime has ALL these tags?</p>
+            </div>
+          </div>
+        );
+
       default:
-        return <div>Unknown question type</div>;
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
+            </div>
+          </div>
+        );
     }
   };
 

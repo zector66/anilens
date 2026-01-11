@@ -218,6 +218,14 @@ export function GameHub() {
         return;
     }
 
+    // Check if we got any questions
+    if (!questions || questions.length === 0) {
+      alert('Not enough data to generate questions for this game. Try a different game or add more entries to your list!');
+      setShowSettings(false);
+      setSelectedGameType(null);
+      return;
+    }
+
     // Apply time multiplier to questions
     questions = questions.map(q => ({
       ...q,
