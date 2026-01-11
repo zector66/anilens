@@ -666,7 +666,7 @@ export function GameHub() {
               <div 
                 key={gameType.id} 
                 className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 ${
-                  isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1'
+                  isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10'
                 }`}
               >
                 <div className="flex items-start gap-4 mb-4">

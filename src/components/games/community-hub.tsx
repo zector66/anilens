@@ -653,7 +653,8 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
               return (
                 <div 
                   key={player.anilist_id}
-                  className={`p-4 flex items-center gap-4 ${isCurrentUser ? 'bg-purple-500/10' : ''}`}
+                  className={`p-4 flex items-center gap-4 transition-all duration-200 hover:bg-white/5 ${isCurrentUser ? 'bg-purple-500/10' : ''}`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {/* Rank */}
                   <div className="w-10 text-center">
