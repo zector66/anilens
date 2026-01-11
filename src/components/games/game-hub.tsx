@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { GameSession, MediaListEntry, GameQuestion } from '@/types/anilist';
+import { GameSession, GameQuestion } from '@/types/anilist';
+import { useToast } from '@/components/ui/toast';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
@@ -40,6 +41,7 @@ export function GameHub() {
   const { activeType, setActiveType, getSeriesTerm, getWatchReadTerm } = useMedia();
   const { data: animeList, isLoading: isLoadingAnime } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: isLoadingManga } = useMangaList(user?.id || 0);
+  const toast = useToast();
   
   const [currentGame, setCurrentGame] = useState<GameSession | null>(null);
   const [gameResults, setGameResults] = useState<GameSession | null>(null);
@@ -220,7 +222,7 @@ export function GameHub() {
 
     // Check if we got any questions
     if (!questions || questions.length === 0) {
-      alert('Not enough data to generate questions for this game. Try a different game or add more entries to your list!');
+      toast.warning('Not Enough Data', 'Try a different game or add more entries to your list!');
       setShowSettings(false);
       setSelectedGameType(null);
       return;
