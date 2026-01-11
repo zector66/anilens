@@ -682,7 +682,7 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
                   {/* Player Info */}
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium truncate ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
-                      {player.username}
+                      {player.username || `User #${player.anilist_id}`}
                       {isCurrentUser && <span className="text-xs text-purple-400 ml-2">(You)</span>}
                     </p>
                     <p className="text-xs text-gray-500">

@@ -335,7 +335,9 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {renderContent()}
+        <div key={activeTab} className="tab-content">
+          {renderContent()}
+        </div>
       </main>
     </div>
   );
