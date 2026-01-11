@@ -6,6 +6,7 @@ import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { GameEngine } from '@/lib/game-engine';
 import { GameSession, GameQuestion } from '@/types/anilist';
 import { useToast } from '@/components/ui/toast';
+import { FadeIn } from '@/components/ui/page-transition';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { GamePlay } from './game-play';
 import { GameResults } from './game-results';
@@ -659,16 +660,16 @@ export function GameHub() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {gameTypes.map((gameType) => {
+          {gameTypes.map((gameType, index) => {
             const Icon = gameType.icon;
             const isDisabled = 'disabled' in gameType && (gameType as { disabled?: boolean }).disabled === true;
             return (
-              <div 
-                key={gameType.id} 
-                className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 ${
-                  isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10'
-                }`}
-              >
+              <FadeIn key={gameType.id} delay={index * 50}>
+                <div 
+                  className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 h-full ${
+                    isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10'
+                  }`}
+                >
                 <div className="flex items-start gap-4 mb-4">
                   <div className={`w-12 h-12 rounded-xl bg-linear-to-br ${gameType.gradient} flex items-center justify-center shrink-0`}>
                     <Icon className="w-6 h-6 text-white" />
@@ -716,7 +717,8 @@ export function GameHub() {
                     </button>
                   </div>
                 </div>
-              </div>
+                </div>
+              </FadeIn>
             );
           })}
         </div>

@@ -27,8 +27,13 @@ import {
   BarChart3,
   Swords,
   Sparkles,
+  Heart,
 } from 'lucide-react';
 import Image from 'next/image';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { FadeIn } from '@/components/ui/page-transition';
+import { CompatibilityScore } from '@/components/social/compatibility-score';
+import { WatchHistoryTimeline } from '@/components/social/watch-history-timeline';
 
 interface CommunityHubProps {
   onStartDailyChallenge?: () => void;
@@ -38,7 +43,7 @@ interface CommunityHubProps {
 
 export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNavigateToGames }: CommunityHubProps) {
   const { user, isOAuthAuthenticated, loginWithAniList } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'leaderboard' | 'history' | 'challenges'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'leaderboard' | 'history' | 'challenges' | 'compatibility' | 'timeline'>('profile');
   const [dbProfile, setDbProfile] = useState<{
     ratings: Array<{ game_type: string; rating: number; games_played: number; wins: number; best_streak: number }>;
     stats: Array<{ game_type: string; games_played: number; avg_accuracy: number }>;
@@ -301,6 +306,8 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
           { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
           { id: 'history', label: 'Match History', icon: Clock },
           { id: 'challenges', label: 'Challenges', icon: Swords },
+          { id: 'compatibility', label: 'Compatibility', icon: Heart },
+          { id: 'timeline', label: 'Timeline', icon: Calendar },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -333,6 +340,16 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
       )}
       {activeTab === 'challenges' && (
         <ChallengesTab onStartChallenge={onStartChallenge || (() => {})} />
+      )}
+      {activeTab === 'compatibility' && (
+        <FadeIn>
+          <CompatibilityScore />
+        </FadeIn>
+      )}
+      {activeTab === 'timeline' && (
+        <FadeIn>
+          <WatchHistoryTimeline />
+        </FadeIn>
       )}
     </div>
   );
@@ -418,20 +435,20 @@ function PlayerStatsTab({ dbRatings, dbStats, overallRating }: { dbRatings: DbRa
         </h3>
         <div className="flex items-center gap-6">
           <div className="text-center">
-            <div className="text-5xl font-bold text-white">{totalMMR}</div>
+            <div className="text-5xl font-bold text-white"><AnimatedCounter value={totalMMR} /></div>
             <div className={`text-lg font-medium ${overallRank.color}`}>{overallRank.title}</div>
           </div>
           <div className="flex-1 grid grid-cols-3 gap-4">
-            <div className="text-center p-3 rounded-xl bg-white/5">
-              <div className="text-2xl font-bold text-white">{overallRating?.total_games || totalGames}</div>
+            <div className="text-center p-3 rounded-xl bg-white/5 stat-card">
+              <div className="text-2xl font-bold text-white"><AnimatedCounter value={overallRating?.total_games || totalGames} /></div>
               <div className="text-xs text-gray-400">Games Played</div>
             </div>
-            <div className="text-center p-3 rounded-xl bg-white/5">
-              <div className="text-2xl font-bold text-green-400">{overallRating?.total_wins || totalWins}</div>
+            <div className="text-center p-3 rounded-xl bg-white/5 stat-card">
+              <div className="text-2xl font-bold text-green-400"><AnimatedCounter value={overallRating?.total_wins || totalWins} /></div>
               <div className="text-xs text-gray-400">Wins</div>
             </div>
-            <div className="text-center p-3 rounded-xl bg-white/5">
-              <div className="text-2xl font-bold text-orange-400">{overallRating?.best_streak || bestStreak}</div>
+            <div className="text-center p-3 rounded-xl bg-white/5 stat-card">
+              <div className="text-2xl font-bold text-orange-400"><AnimatedCounter value={overallRating?.best_streak || bestStreak} /></div>
               <div className="text-xs text-gray-400">Best Streak</div>
             </div>
           </div>
@@ -630,9 +647,21 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
         </div>
         
         {isLoading ? (
-          <div className="p-8 text-center">
-            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Loading leaderboard...</p>
+          <div className="p-4 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-white/5 animate-pulse">
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <div className="w-10 h-10 rounded-lg bg-white/10" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-white/10 rounded w-1/3" />
+                  <div className="h-3 bg-white/10 rounded w-1/4" />
+                </div>
+                <div className="text-right space-y-2">
+                  <div className="h-5 bg-white/10 rounded w-16" />
+                  <div className="h-3 bg-white/10 rounded w-12" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : leaderboard.length === 0 ? (
           <div className="p-8 text-center">
