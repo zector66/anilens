@@ -272,7 +272,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* Image Notice Banner */}
       {showImageNotice && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/90 backdrop-blur-sm border-b border-yellow-600/50">
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-yellow-500/90 backdrop-blur-sm border-b border-yellow-600/50">
           <div className="max-w-7xl mx-auto px-4 py-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2 text-yellow-900">
