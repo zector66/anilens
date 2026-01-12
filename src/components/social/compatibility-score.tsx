@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Heart, Users, Search, Loader2, Sparkles, TrendingUp, Film, BookOpen, Star, ChevronDown, ChevronUp, Tag, Trophy, Flame, Target } from 'lucide-react';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { AniListClient } from '@/lib/anilist-client';
@@ -387,7 +388,7 @@ export function CompatibilityScore() {
       <div key={media.id} className="group relative">
         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-white/5 shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-purple-500/20">
           {coverUrl ? (
-            <Image
+            <OptimizedImage
               src={coverUrl}
               alt={title}
               fill
@@ -395,7 +396,7 @@ export function CompatibilityScore() {
               sizes="(max-width: 768px) 25vw, 150px"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+            <div className="w-full h-full bg-linear-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
               <Film className="w-8 h-8 text-gray-500" />
             </div>
           )}
@@ -510,8 +511,8 @@ export function CompatibilityScore() {
               <div className="flex items-center gap-4">
                 {user?.avatar?.large ? (
                   <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur opacity-50 group-hover:opacity-75 transition" />
-                    <Image
+                    <div className="absolute -inset-1 bg-linear-to-r from-purple-500 to-blue-500 rounded-full blur opacity-50 group-hover:opacity-75 transition" />
+                    <OptimizedImage
                       src={user.avatar.large}
                       alt={user.name}
                       width={80}
@@ -532,8 +533,8 @@ export function CompatibilityScore() {
                 
                 {comparedUser.avatar ? (
                   <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full blur opacity-50 group-hover:opacity-75 transition" />
-                    <Image
+                    <div className="absolute -inset-1 bg-linear-to-r from-pink-500 to-rose-500 rounded-full blur opacity-50 group-hover:opacity-75 transition" />
+                    <OptimizedImage
                       src={comparedUser.avatar}
                       alt={comparedUser.name}
                       width={80}
