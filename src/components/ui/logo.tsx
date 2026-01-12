@@ -19,7 +19,7 @@ export function Logo({ size = 'md', showText = true, className }: LogoProps) {
   const s = sizes[size];
 
   return (
-    <div className={cn('flex items-center gap-3', className)}>
+    <div className={cn('flex items-center gap-3 cursor-pointer', className)} onClick={() => window.location.href = '/'}>
       {/* Logo Icon - A stylized lens/eye with anime sparkle */}
       <div className={cn(
         'relative rounded-2xl bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30',

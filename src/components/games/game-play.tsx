@@ -199,7 +199,8 @@ function QuestionCard({
                     src={charImage}
                     alt="Character"
                     fill
-                    className="rounded-xl object-cover border-2 border-purple-500/20"
+                    className="rounded-xl object-cover"
+                    eager={true}
                   />
                 ) : (
                   <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-purple-500/20">
@@ -229,6 +230,7 @@ function QuestionCard({
                     width={80}
                     height={80}
                     className="w-20 h-20 rounded-xl object-cover border-2 border-white/10"
+                    eager={true}
                   />
                   <div className="text-left">
                     <p className="font-bold text-white line-clamp-1">{getPreferredTitle(question.media.title)}</p>
@@ -267,6 +269,7 @@ function QuestionCard({
                     width={600}
                     height={300}
                     className="w-full h-48 md:h-64 object-cover"
+                    eager={true}
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                 </div>
@@ -321,6 +324,7 @@ function QuestionCard({
                     width={80}
                     height={120}
                     className="w-20 h-28 rounded-lg object-cover border-2 border-white/10"
+                    eager={true}
                   />
                   <div className="text-left">
                     <p className="font-bold text-white text-lg">{getPreferredTitle(question.media.title)}</p>
@@ -352,6 +356,7 @@ function QuestionCard({
                     alt="Cover art"
                     fill
                     className="rounded-xl object-cover border-2 border-white/20 shadow-2xl"
+                    eager={true}
                   />
                 ) : (
                   <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">
@@ -378,6 +383,7 @@ function QuestionCard({
                     width={80}
                     height={120}
                     className="w-20 h-28 rounded-lg object-cover border-2 border-white/10"
+                    eager={true}
                   />
                   <div className="text-left">
                     <p className="font-bold text-white text-lg">{getPreferredTitle(question.media.title)}</p>
@@ -406,6 +412,7 @@ function QuestionCard({
                     alt={getPreferredTitle(question.media.title)}
                     fill
                     className="rounded-xl object-cover border-2 border-white/20"
+                    eager={true}
                   />
                 ) : (
                   <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">

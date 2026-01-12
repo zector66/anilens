@@ -174,6 +174,12 @@ export class GameEngine {
       const difficulty = this.calculateDifficulty(entry);
       
       const { options, optionImages } = this.generateOptionsWithImages(media, shuffled);
+      
+      // Skip if no valid options generated (missing images)
+      if (options.length === 0) {
+        continue;
+      }
+      
       questions.push({
         id: `screenshot-${i}`,
         type: 'SCREENSHOT_GUESS',
@@ -498,11 +504,27 @@ export class GameEngine {
       if (!entry.media) continue;
       
       const media = entry.media;
+      
+      // Check if media has a valid cover image
+      const hasCover = media.coverImage?.extraLarge || 
+                      media.coverImage?.large || 
+                      media.coverImage?.medium;
+      
+      if (!hasCover) {
+        continue; // Skip media without cover image
+      }
+      
       usedIds.push(media.id);
       const difficulty = this.calculateDifficulty(entry);
       
       // P0-4 FIX: Don't include cover images in options (would reveal the answer)
       const { options } = this.generateOptionsWithImages(media, shuffled, true);
+      
+      // Skip if no valid options generated
+      if (options.length === 0) {
+        continue;
+      }
+      
       questions.push({
         id: `cover-guess-${i}`,
         type: 'COVER_GUESS',
@@ -651,9 +673,23 @@ export class GameEngine {
     const optionImages: Record<string, string> = {};
     const correctTitle = correctMedia.title.romaji || correctMedia.title.english || '';
     const options = [correctTitle];
+    
+    // Get the best available cover image with proper fallback
+    const getCoverImage = (media: Media): string => {
+      return media.coverImage?.extraLarge || 
+             media.coverImage?.large || 
+             media.coverImage?.medium || 
+             '';
+    };
+    
     // Don't include cover for correct answer in COVER_GUESS (would give it away)
     if (!excludeCorrectCover) {
-      optionImages[correctTitle] = correctMedia.coverImage?.medium || correctMedia.coverImage?.large || '';
+      const coverImg = getCoverImage(correctMedia);
+      if (!coverImg) {
+        // Skip this media if no cover image available
+        return { options: [], optionImages: {} };
+      }
+      optionImages[correctTitle] = coverImg;
     }
     
     // Add 3 random incorrect options, excluding related series
@@ -670,10 +706,17 @@ export class GameEngine {
     incorrectEntries.forEach(entry => {
       if (entry.media) {
         const title = entry.media.title.romaji || entry.media.title.english || '';
+        const coverImg = getCoverImage(entry.media);
+        
+        // Skip entries without cover images
+        if (!excludeCorrectCover && !coverImg) {
+          return;
+        }
+        
         options.push(title);
         // Don't include covers in answer options for COVER_GUESS
         if (!excludeCorrectCover) {
-          optionImages[title] = entry.media.coverImage?.medium || entry.media.coverImage?.large || '';
+          optionImages[title] = coverImg;
         }
       }
     });

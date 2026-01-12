@@ -17,6 +17,7 @@ interface OptimizedImageProps {
   blurDataURL?: string;
   onLoad?: () => void;
   onClick?: () => void;
+  eager?: boolean; // Disable lazy loading for game contexts
 }
 
 // Generate a tiny placeholder color based on image URL hash
@@ -56,15 +57,16 @@ function OptimizedImageInner({
   blurDataURL,
   onLoad,
   onClick,
+  eager = false,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isInView, setIsInView] = useState(priority);
+  const [isInView, setIsInView] = useState(priority || eager);
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
 
-  // Intersection Observer for lazy loading
+  // Intersection Observer for lazy loading (disabled for eager loading)
   useEffect(() => {
-    if (priority || isInView) return;
+    if (priority || isInView || eager) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -84,7 +86,7 @@ function OptimizedImageInner({
     }
 
     return () => observer.disconnect();
-  }, [priority, isInView]);
+  }, [priority, isInView, eager]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -150,7 +152,7 @@ function OptimizedImageInner({
           blurDataURL={generatedBlurURL}
           onLoad={handleLoad}
           onError={handleError}
-          loading={priority ? 'eager' : 'lazy'}
+          loading={priority || eager ? 'eager' : 'lazy'}
         />
       )}
     </div>
