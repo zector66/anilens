@@ -1023,3 +1023,226 @@ html:not(.dark) .glass-strong {
 .bounce-click:active {
   animation: bounce-click 0.15s ease;
 }
+
+/* ============================================
+   ENHANCED UI ANIMATIONS & EFFECTS
+   ============================================ */
+
+/* Animated gradient background */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Subtle float animation for cards */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Glow pulse for interactive elements */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(var(--accent-color-rgb, 168, 85, 247), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(var(--accent-color-rgb, 168, 85, 247), 0.6);
+  }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Border gradient animation */
+@keyframes border-dance {
+  0% {
+    border-image-source: linear-gradient(45deg, var(--accent-color), transparent, var(--accent-color));
+  }
+  50% {
+    border-image-source: linear-gradient(225deg, var(--accent-color), transparent, var(--accent-color));
+  }
+  100% {
+    border-image-source: linear-gradient(45deg, var(--accent-color), transparent, var(--accent-color));
+  }
+}
+
+/* Smooth reveal animation */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal {
+  animation: reveal-up 0.5s ease-out forwards;
+}
+
+/* Stagger animation delays for lists */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* Enhanced hover effects */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(var(--accent-color-rgb, 168, 85, 247), 0.4);
+}
+
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Smooth text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-color) 0%, #60a5fa 50%, var(--accent-color) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 5s ease infinite;
+}
+
+/* Focus ring with accent color */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb, 168, 85, 247), 0.4);
+}
+
+/* Smooth backdrop blur transition */
+.backdrop-transition {
+  transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
+}
+
+/* Loading skeleton */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease infinite, skeleton-pulse 2s ease-in-out infinite;
+}
+
+/* Typewriter cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '|';
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Success/Error state animations */
+@keyframes success-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-success {
+  animation: success-pop 0.4s ease-out forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* Particle burst on click */
+@keyframes particle-burst {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Morphing blob for backgrounds */
+@keyframes morph {
+  0%, 100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+}
+
+.animate-morph {
+  animation: morph 8s ease-in-out infinite;
+}
+
+/* Subtle breathing effect for ambient elements */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 6s ease-in-out infinite;
+}

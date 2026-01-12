@@ -422,7 +422,7 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
   );
 
   return (
-    <div className={`fixed inset-0 overflow-hidden pointer-events-none ${className}`} style={{ zIndex: -1 }}>
+    <div className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${className}`}>
       {/* Night sky with stars and aurora */}
       {!isDay && (
         <>
