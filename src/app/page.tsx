@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
+import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
+import { useUI } from '@/contexts/ui-context';
 
 type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
@@ -233,6 +235,11 @@ interface DashboardProps {
 
 function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { weatherEnabled, weatherData, weatherIntensity, weatherOverride, effectiveTheme } = useUI();
+  
+  // Determine effective weather condition
+  const effectiveWeather = weatherOverride || weatherData?.condition || 'clear';
+  const isDay = weatherData?.isDay ?? (effectiveTheme === 'light');
   
   const tabs = [
     { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
@@ -261,6 +268,15 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
+      {/* Weather Effects Background */}
+      {weatherEnabled && (
+        <WeatherEffects 
+          condition={effectiveWeather} 
+          isDay={isDay} 
+          intensity={weatherIntensity}
+        />
+      )}
+      
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -268,6 +284,18 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
             <Logo size="md" />
 
             <div className="flex items-center gap-2">
+              {/* Weather Widget */}
+              {weatherEnabled && weatherData && (
+                <WeatherWidget 
+                  condition={weatherData.condition}
+                  temperature={weatherData.temperature}
+                  description={weatherData.description}
+                  icon={weatherData.icon}
+                  isDay={weatherData.isDay}
+                  className="hidden md:flex"
+                />
+              )}
+              
               <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
                 {user?.avatar?.medium && (
                   <Image 

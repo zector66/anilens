@@ -16,10 +16,22 @@ import {
   BellOff,
   Eye,
   EyeOff,
-  Languages
+  Languages,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Cloud,
+  CloudLightning,
+  CloudFog,
+  Sparkles,
+  RefreshCw,
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import { KeyboardShortcutsHelp } from '@/components/ui/tooltip';
 import { useSettings as useGlobalSettings, TitleLanguage } from '@/contexts/settings-context';
+import { useUI } from '@/contexts/ui-context';
+import { WeatherCondition } from '@/lib/weather-service';
 
 interface UserSettings {
   theme: 'dark' | 'light' | 'system';
@@ -91,7 +103,22 @@ interface SettingsPanelProps {
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { settings, updateSetting, resetSettings } = useSettings();
   const { titleLanguage, setTitleLanguage } = useGlobalSettings();
-  const [activeTab, setActiveTab] = useState<'general' | 'display' | 'shortcuts'>('general');
+  const { 
+    accentColor, 
+    setAccentColor, 
+    weatherEnabled, 
+    setWeatherEnabled, 
+    weatherData, 
+    weatherLoading, 
+    refreshWeather,
+    weatherIntensity,
+    setWeatherIntensity,
+    weatherOverride,
+    setWeatherOverride,
+    theme,
+    setTheme
+  } = useUI();
+  const [activeTab, setActiveTab] = useState<'general' | 'display' | 'effects' | 'shortcuts'>('general');
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -135,10 +162,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-4 border-b border-white/10">
+        <div className="flex gap-2 p-4 border-b border-white/10 overflow-x-auto">
           {[
             { id: 'general', label: 'General', icon: Settings },
             { id: 'display', label: 'Display', icon: Monitor },
+            { id: 'effects', label: 'Effects', icon: Sparkles },
             { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
           ].map((tab) => (
             <button
@@ -241,19 +269,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     { id: 'dark', label: 'Dark', icon: Moon },
                     { id: 'light', label: 'Light', icon: Sun },
                     { id: 'system', label: 'System', icon: Monitor },
-                  ].map((theme) => (
+                  ].map((themeOption) => (
                     <button
-                      key={theme.id}
-                      onClick={() => updateSetting('theme', theme.id as UserSettings['theme'])}
+                      key={themeOption.id}
+                      onClick={() => setTheme(themeOption.id as 'dark' | 'light' | 'system')}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
-                        settings.theme === theme.id
+                        theme === themeOption.id
                           ? 'border-purple-500 bg-purple-500/10'
                           : 'border-white/10 hover:border-white/20 bg-white/5'
                       }`}
                     >
-                      <theme.icon className={`w-6 h-6 ${settings.theme === theme.id ? 'text-purple-400' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-medium ${settings.theme === theme.id ? 'text-white' : 'text-gray-400'}`}>
-                        {theme.label}
+                      <themeOption.icon className={`w-6 h-6 ${theme === themeOption.id ? 'text-purple-400' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-medium ${theme === themeOption.id ? 'text-white' : 'text-gray-400'}`}>
+                        {themeOption.label}
                       </span>
                     </button>
                   ))}
@@ -286,6 +314,169 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 enabled={settings.compactMode}
                 onChange={(v) => updateSetting('compactMode', v)}
               />
+            </div>
+          )}
+
+          {activeTab === 'effects' && (
+            <div className="space-y-6">
+              {/* Accent Color */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-purple-400" />
+                  <label className="text-sm font-medium text-white">Accent Color</label>
+                </div>
+                <p className="text-xs text-gray-400">Choose your preferred accent color for buttons and highlights</p>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { id: 'purple', color: '#a855f7', label: 'Purple' },
+                    { id: 'blue', color: '#3b82f6', label: 'Blue' },
+                    { id: 'green', color: '#10b981', label: 'Green' },
+                    { id: 'pink', color: '#ec4899', label: 'Pink' },
+                    { id: 'orange', color: '#f59e0b', label: 'Orange' },
+                    { id: 'red', color: '#ef4444', label: 'Red' },
+                    { id: 'cyan', color: '#06b6d4', label: 'Cyan' },
+                    { id: 'indigo', color: '#6366f1', label: 'Indigo' },
+                  ].map((accent) => (
+                    <button
+                      key={accent.id}
+                      onClick={() => setAccentColor(accent.id as typeof accentColor)}
+                      className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                        accentColor === accent.id
+                          ? 'border-white/40 scale-105'
+                          : 'border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div 
+                        className="w-8 h-8 rounded-full shadow-lg"
+                        style={{ backgroundColor: accent.color, boxShadow: `0 4px 14px ${accent.color}40` }}
+                      />
+                      <span className={`text-xs font-medium ${accentColor === accent.id ? 'text-white' : 'text-gray-400'}`}>
+                        {accent.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weather Effects */}
+              <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${weatherEnabled ? 'bg-blue-500/20' : 'bg-white/10'}`}>
+                      <CloudSun className={`w-5 h-5 ${weatherEnabled ? 'text-blue-400' : 'text-gray-500'}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">Weather Effects</p>
+                      <p className="text-sm text-gray-400">Animated weather based on your location</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setWeatherEnabled(!weatherEnabled)}
+                    className={`relative w-12 h-7 rounded-full transition-colors ${
+                      weatherEnabled ? 'bg-blue-500' : 'bg-white/20'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                        weatherEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {weatherEnabled && (
+                  <div className="space-y-4 pt-4 border-t border-white/10">
+                    {/* Current Weather */}
+                    {weatherData && !weatherOverride && (
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                        <div className="flex items-center gap-3">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-sm text-white flex items-center gap-2">
+                              <span className="text-lg">{weatherData.icon}</span>
+                              {weatherData.description} · {weatherData.temperature}°C
+                            </p>
+                            <p className="text-xs text-gray-500">{weatherData.isDay ? 'Daytime' : 'Nighttime'}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => refreshWeather()}
+                          disabled={weatherLoading}
+                          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                          {weatherLoading ? (
+                            <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Weather Override */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400">Override Weather (for preview)</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { id: null, label: 'Auto', icon: MapPin },
+                          { id: 'clear', label: 'Clear', icon: CloudSun },
+                          { id: 'cloudy', label: 'Cloudy', icon: Cloud },
+                          { id: 'rain', label: 'Rain', icon: CloudRain },
+                          { id: 'snow', label: 'Snow', icon: CloudSnow },
+                          { id: 'thunderstorm', label: 'Storm', icon: CloudLightning },
+                          { id: 'fog', label: 'Fog', icon: CloudFog },
+                        ].map((weather) => (
+                          <button
+                            key={weather.id || 'auto'}
+                            onClick={() => setWeatherOverride(weather.id as WeatherCondition | null)}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                              weatherOverride === weather.id
+                                ? 'bg-blue-500/20 border border-blue-500/50'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <weather.icon className={`w-4 h-4 ${weatherOverride === weather.id ? 'text-blue-400' : 'text-gray-400'}`} />
+                            <span className={`text-xs ${weatherOverride === weather.id ? 'text-blue-300' : 'text-gray-500'}`}>
+                              {weather.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Intensity */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400">Effect Intensity</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'light', label: 'Light' },
+                          { id: 'medium', label: 'Medium' },
+                          { id: 'heavy', label: 'Heavy' },
+                        ].map((intensity) => (
+                          <button
+                            key={intensity.id}
+                            onClick={() => setWeatherIntensity(intensity.id as typeof weatherIntensity)}
+                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                              weatherIntensity === intensity.id
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                          >
+                            {intensity.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Info about weather */}
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <p className="text-sm text-blue-300">
+                  🌤️ <strong>Weather Effects</strong> use your device&apos;s location to show real-time animated weather on the site background. No location data is stored.
+                </p>
+              </div>
             </div>
           )}
 

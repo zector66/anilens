@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { WeatherData, getWeather, WeatherCondition } from '@/lib/weather-service';
 
 type Theme = 'dark' | 'light' | 'system';
-type AccentColor = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red';
+type AccentColor = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'indigo';
 
 interface UIContextType {
   // Theme
@@ -27,6 +28,21 @@ interface UIContextType {
   // Keyboard shortcuts modal
   showShortcuts: boolean;
   setShowShortcuts: (show: boolean) => void;
+  
+  // Weather theming
+  weatherEnabled: boolean;
+  setWeatherEnabled: (enabled: boolean) => void;
+  weatherData: WeatherData | null;
+  weatherLoading: boolean;
+  refreshWeather: () => Promise<void>;
+  
+  // Weather effects intensity
+  weatherIntensity: 'light' | 'medium' | 'heavy';
+  setWeatherIntensity: (intensity: 'light' | 'medium' | 'heavy') => void;
+  
+  // Manual weather override (for testing/preference)
+  weatherOverride: WeatherCondition | null;
+  setWeatherOverride: (condition: WeatherCondition | null) => void;
 }
 
 const UIContext = createContext<UIContextType | null>(null);
@@ -46,6 +62,8 @@ const ACCENT_COLORS: Record<AccentColor, string> = {
   pink: '#ec4899',
   orange: '#f59e0b',
   red: '#ef4444',
+  cyan: '#06b6d4',
+  indigo: '#6366f1',
 };
 
 export function UIProvider({ children }: { children: ReactNode }) {
@@ -55,6 +73,28 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [effectiveTheme, setEffectiveTheme] = useState<'dark' | 'light'>('dark');
+  
+  // Weather state
+  const [weatherEnabled, setWeatherEnabledState] = useState(false);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherIntensity, setWeatherIntensityState] = useState<'light' | 'medium' | 'heavy'>('medium');
+  const [weatherOverride, setWeatherOverrideState] = useState<WeatherCondition | null>(null);
+
+  // Fetch weather data
+  const refreshWeather = useCallback(async () => {
+    if (!weatherEnabled) return;
+    
+    setWeatherLoading(true);
+    try {
+      const data = await getWeather();
+      setWeatherData(data);
+    } catch (error) {
+      console.error('Failed to fetch weather:', error);
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, [weatherEnabled]);
 
   // Load preferences from localStorage
   useEffect(() => {
@@ -62,11 +102,17 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const savedAccent = localStorage.getItem('ui-accent') as AccentColor | null;
     const savedMotion = localStorage.getItem('ui-reduced-motion');
     const savedSound = localStorage.getItem('ui-sound');
+    const savedWeather = localStorage.getItem('ui-weather-enabled');
+    const savedWeatherIntensity = localStorage.getItem('ui-weather-intensity') as 'light' | 'medium' | 'heavy' | null;
+    const savedWeatherOverride = localStorage.getItem('ui-weather-override') as WeatherCondition | null;
 
     if (savedTheme) setThemeState(savedTheme);
     if (savedAccent) setAccentColorState(savedAccent);
     if (savedMotion) setReducedMotionState(savedMotion === 'true');
     if (savedSound !== null) setSoundEnabledState(savedSound !== 'false');
+    if (savedWeather === 'true') setWeatherEnabledState(true);
+    if (savedWeatherIntensity) setWeatherIntensityState(savedWeatherIntensity);
+    if (savedWeatherOverride) setWeatherOverrideState(savedWeatherOverride);
 
     // Check system preference for reduced motion
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -110,6 +156,39 @@ export function UIProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('ui-sound', String(soundEnabled));
   }, [soundEnabled]);
+
+  // Handle weather enabled changes
+  useEffect(() => {
+    localStorage.setItem('ui-weather-enabled', String(weatherEnabled));
+    if (weatherEnabled && !weatherData) {
+      refreshWeather();
+    }
+  }, [weatherEnabled, weatherData, refreshWeather]);
+
+  // Save weather intensity
+  useEffect(() => {
+    localStorage.setItem('ui-weather-intensity', weatherIntensity);
+  }, [weatherIntensity]);
+
+  // Save weather override
+  useEffect(() => {
+    if (weatherOverride) {
+      localStorage.setItem('ui-weather-override', weatherOverride);
+    } else {
+      localStorage.removeItem('ui-weather-override');
+    }
+  }, [weatherOverride]);
+
+  // Refresh weather periodically (every 30 minutes)
+  useEffect(() => {
+    if (!weatherEnabled) return;
+    
+    const interval = setInterval(() => {
+      refreshWeather();
+    }, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [weatherEnabled, refreshWeather]);
 
   // Sound player
   const playSound = useCallback((sound: 'correct' | 'wrong' | 'tick' | 'victory' | 'rankup') => {
@@ -187,6 +266,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const setAccentColor = useCallback((c: AccentColor) => setAccentColorState(c), []);
   const setReducedMotion = useCallback((r: boolean) => setReducedMotionState(r), []);
   const setSoundEnabled = useCallback((s: boolean) => setSoundEnabledState(s), []);
+  const setWeatherEnabled = useCallback((w: boolean) => setWeatherEnabledState(w), []);
+  const setWeatherIntensity = useCallback((i: 'light' | 'medium' | 'heavy') => setWeatherIntensityState(i), []);
+  const setWeatherOverride = useCallback((c: WeatherCondition | null) => setWeatherOverrideState(c), []);
 
   return (
     <UIContext.Provider value={{
@@ -202,6 +284,15 @@ export function UIProvider({ children }: { children: ReactNode }) {
       playSound,
       showShortcuts,
       setShowShortcuts,
+      weatherEnabled,
+      setWeatherEnabled,
+      weatherData,
+      weatherLoading,
+      refreshWeather,
+      weatherIntensity,
+      setWeatherIntensity,
+      weatherOverride,
+      setWeatherOverride,
     }}>
       {children}
     </UIContext.Provider>
