@@ -666,8 +666,8 @@ export function GameHub() {
             return (
               <FadeIn key={gameType.id} delay={index * 50}>
                 <div 
-                  className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 h-full ${
-                    isDisabled ? 'opacity-60' : 'hover:border-white/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10'
+                  className={`group p-6 rounded-2xl bg-white/5 border border-white/10 transition-all duration-300 h-full hover-lift hover-glow ${
+                    isDisabled ? 'opacity-60 pointer-events-none' : ''
                   }`}
                 >
                 <div className="flex items-start gap-4 mb-4">
