@@ -342,7 +342,11 @@ export function GameHub() {
     return (
       <GamePlay 
         game={currentGame} 
-        onComplete={handleGameComplete} 
+        onComplete={handleGameComplete}
+        onQuit={() => {
+          setCurrentGame(null);
+          setLastPlayedGameType(null);
+        }}
         multiplayerRoomId={multiplayerRoom?.id}
       />
     );

@@ -23,6 +23,7 @@ import {
   MultiplayerRoom,
 } from '@/lib/supabase';
 import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { MediaListEntry, GameQuestion } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
 import { GameSettings } from './game-settings';
@@ -368,8 +369,12 @@ export function MultiplayerLobby({ gameType, activeType = 'ANIME', allEntries, o
                 className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
               >
                 <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-700">
-                  {player.avatar && (
-                    <Image src={player.avatar} alt={player.name} fill className="object-cover" />
+                  {player.avatar ? (
+                    <OptimizedImage src={player.avatar} alt={player.name} fill className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
                   )}
                 </div>
                 <div className="flex-1">

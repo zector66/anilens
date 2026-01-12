@@ -388,3 +388,144 @@ export async function leaveRoom(roomId: string, playerId: string): Promise<boole
 
   return !error;
 }
+
+// ============================================
+// USER SETTINGS PERSISTENCE
+// ============================================
+
+export interface UserSettings {
+  anilist_id: number;
+  theme: string;
+  accent_color: string;
+  reduced_motion: boolean;
+  sound_enabled: boolean;
+  weather_enabled: boolean;
+  weather_intensity: string;
+  weather_override: string | null;
+  title_language: string;
+  quit_warning_dismissed: boolean;
+}
+
+// Save user settings to Supabase
+export async function saveUserSettings(
+  anilistId: number,
+  settings: Partial<Omit<UserSettings, 'anilist_id'>>
+): Promise<boolean> {
+  if (!supabase) {
+    console.error('Supabase not configured');
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({
+      anilist_id: anilistId,
+      ...settings,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'anilist_id',
+    });
+
+  if (error) {
+    console.error('Failed to save user settings:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Load user settings from Supabase
+export async function loadUserSettings(
+  anilistId: number
+): Promise<UserSettings | null> {
+  if (!supabase) {
+    console.error('Supabase not configured');
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('anilist_id', anilistId)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      console.error('Failed to load user settings:', error);
+    }
+    return null;
+  }
+
+  return data as UserSettings;
+}
+
+// Update a single setting
+export async function updateUserSetting(
+  anilistId: number,
+  key: keyof Omit<UserSettings, 'anilist_id'>,
+  value: string | boolean | null
+): Promise<boolean> {
+  if (!supabase) {
+    console.error('Supabase not configured');
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({
+      anilist_id: anilistId,
+      [key]: value,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'anilist_id',
+    });
+
+  if (error) {
+    console.error('Failed to update user setting:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Update user MMR (for game quit penalty, etc.)
+export async function updateUserMMR(
+  anilistId: number,
+  mmrChange: number
+): Promise<{ newRating: number } | null> {
+  if (!supabase) {
+    console.error('Supabase not configured');
+    return null;
+  }
+
+  const { data: userData, error: fetchError } = await supabase
+    .from('user_game_stats')
+    .select('rating')
+    .eq('anilist_id', anilistId)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Failed to fetch user rating:', fetchError);
+    return null;
+  }
+
+  const currentRating = userData?.rating || 1000;
+  const newRating = Math.max(0, currentRating + mmrChange);
+
+  const { error: updateError } = await supabase
+    .from('user_game_stats')
+    .upsert({
+      anilist_id: anilistId,
+      rating: newRating,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'anilist_id',
+    });
+
+  if (updateError) {
+    console.error('Failed to update user rating:', updateError);
+    return null;
+  }
+
+  return { newRating };
+}

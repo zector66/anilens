@@ -5,12 +5,12 @@ import Image from 'next/image';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { GameSession, GameQuestion } from '@/types/anilist';
-import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon } from 'lucide-react';
+import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useAnimeTheme } from '@/hooks/use-anime-theme';
 import { ThemePlayerCompact } from './theme-player';
 import { useSettings } from '@/contexts/settings-context';
 import { useAuth } from '@/hooks/use-auth';
-import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom } from '@/lib/supabase';
+import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom, updateUserMMR, loadUserSettings, updateUserSetting } from '@/lib/supabase';
 import { useUI } from '@/contexts/ui-context';
 import { StreakFlames } from '@/components/ui/confetti';
 
@@ -809,10 +809,11 @@ function QuestionCard({
 interface GamePlayProps {
   game: GameSession;
   onComplete: (results: GameSession, finalRoom?: MultiplayerRoom) => void;
+  onQuit?: () => void;
   multiplayerRoomId?: string;
 }
 
-export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps) {
+export function GamePlay({ game, onComplete, onQuit, multiplayerRoomId }: GamePlayProps) {
   const { user } = useAuth();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -823,6 +824,52 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
   const [room, setRoom] = useState<MultiplayerRoom | null>(null);
   const [opponentAnswered, setOpponentAnswered] = useState(false);
   const prevOpponentAnswersRef = useRef<number>(0);
+  
+  // Quit confirmation state
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [quitWarningDismissed, setQuitWarningDismissed] = useState(false);
+  const [isQuitting, setIsQuitting] = useState(false);
+
+  // Load quit warning dismissed state from Supabase on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    loadUserSettings(user.id).then((settings) => {
+      if (settings?.quit_warning_dismissed) {
+        setQuitWarningDismissed(true);
+      }
+    });
+  }, [user?.id]);
+
+  // Handle quit game with MMR penalty
+  const handleQuitGame = useCallback(async () => {
+    if (!user?.id || isQuitting) return;
+    
+    setIsQuitting(true);
+    
+    // Apply -5 MMR penalty
+    await updateUserMMR(user.id, -5);
+    
+    // If user checked "don't show again", save that preference
+    if (quitWarningDismissed) {
+      await updateUserSetting(user.id, 'quit_warning_dismissed', true);
+    }
+    
+    setIsQuitting(false);
+    setShowQuitConfirm(false);
+    onQuit?.();
+  }, [user?.id, isQuitting, quitWarningDismissed, onQuit]);
+
+  // Handle back button click
+  const handleBackClick = useCallback(() => {
+    if (quitWarningDismissed) {
+      // User already dismissed the warning, quit directly
+      handleQuitGame();
+    } else {
+      // Show confirmation modal
+      setShowQuitConfirm(true);
+    }
+  }, [quitWarningDismissed, handleQuitGame]);
 
   // Sync multiplayer state
   useEffect(() => {
@@ -972,10 +1019,71 @@ export function GamePlay({ game, onComplete, multiplayerRoomId }: GamePlayProps)
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Quit Confirmation Modal */}
+      {showQuitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Leave Game?</h3>
+                <p className="text-sm text-gray-400">You will lose MMR for quitting</p>
+              </div>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+              <p className="text-red-300 text-sm">
+                ⚠️ Leaving mid-game will result in a <strong className="text-red-400">-5 MMR</strong> penalty.
+              </p>
+            </div>
+            
+            <label className="flex items-center gap-3 mb-6 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={quitWarningDismissed}
+                onChange={(e) => setQuitWarningDismissed(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/50"
+              />
+              <span className="text-sm text-gray-400 group-hover:text-gray-300">
+                Don&apos;t show this warning again
+              </span>
+            </label>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQuitConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleQuitGame}
+                disabled={isQuitting}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {isQuitting ? 'Leaving...' : 'Leave (-5 MMR)'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Game Header */}
       <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
+            {/* Back/Quit Button */}
+            {onQuit && (
+              <button
+                onClick={handleBackClick}
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-colors"
+                title="Leave game (-5 MMR)"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/20">
               <Trophy className="w-5 h-5 text-yellow-400" />
               <span className="font-bold text-yellow-400">{score}</span>
