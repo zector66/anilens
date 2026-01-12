@@ -120,6 +120,7 @@ function HeaderWidget({ data, theme }: { data: PosterData; theme: StudioProject[
             alt="Banner"
             fill
             className="object-cover opacity-50"
+            unoptimized
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent" />
         </div>
@@ -136,6 +137,7 @@ function HeaderWidget({ data, theme }: { data: PosterData; theme: StudioProject[
               width={48}
               height={48}
               className="object-cover"
+              unoptimized
             />
           </div>
         )}
@@ -177,6 +179,7 @@ function TopMediaWidget({
             alt={topData.primary.title}
             fill
             className="object-cover"
+            unoptimized
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -190,7 +193,7 @@ function TopMediaWidget({
         <div className="flex flex-col gap-1 w-1/3">
           {topData.secondary.slice(0, 4).map((item) => (
             <div key={item.id} className="relative flex-1 rounded overflow-hidden">
-              <Image src={item.cover || "/placeholder.png"} alt={item.title} fill className="object-cover" />
+              <Image src={item.cover || "/placeholder.png"} alt={item.title} fill className="object-cover" unoptimized />
             </div>
           ))}
         </div>

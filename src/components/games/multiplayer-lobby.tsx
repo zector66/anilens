@@ -22,7 +22,6 @@ import {
   leaveRoom,
   MultiplayerRoom,
 } from '@/lib/supabase';
-import Image from 'next/image';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { MediaListEntry, GameQuestion } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';

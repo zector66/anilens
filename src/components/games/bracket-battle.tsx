@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { MediaListEntry } from '@/types/anilist';
 import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
-import Image from 'next/image';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
 

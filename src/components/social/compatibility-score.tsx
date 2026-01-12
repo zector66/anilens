@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { Heart, Users, Search, Loader2, Sparkles, TrendingUp, Film, BookOpen, Star, ChevronDown, ChevronUp, Tag, Trophy, Flame, Target } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { useAuth } from '@/hooks/use-auth';
