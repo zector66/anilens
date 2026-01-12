@@ -96,8 +96,10 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   }, [weatherEnabled]);
 
-  // Load preferences from localStorage
+  // Load preferences from localStorage and apply immediately
   useEffect(() => {
+    const root = document.documentElement;
+    
     const savedTheme = localStorage.getItem('ui-theme') as Theme | null;
     const savedAccent = localStorage.getItem('ui-accent') as AccentColor | null;
     const savedMotion = localStorage.getItem('ui-reduced-motion');
@@ -107,7 +109,12 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const savedWeatherOverride = localStorage.getItem('ui-weather-override') as WeatherCondition | null;
 
     if (savedTheme) setThemeState(savedTheme);
-    if (savedAccent) setAccentColorState(savedAccent);
+    if (savedAccent) {
+      setAccentColorState(savedAccent);
+      // Apply accent color immediately on load
+      root.style.setProperty('--accent-color', ACCENT_COLORS[savedAccent]);
+      root.setAttribute('data-accent', savedAccent);
+    }
     if (savedMotion) setReducedMotionState(savedMotion === 'true');
     if (savedSound !== null) setSoundEnabledState(savedSound !== 'false');
     if (savedWeather === 'true') setWeatherEnabledState(true);

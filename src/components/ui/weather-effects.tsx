@@ -190,25 +190,54 @@ function Moon() {
   );
 }
 
-// Shooting star component
-function ShootingStar({ delay, startX, startY }: { delay: number; startX: number; startY: number }) {
+// High-quality shooting star component with glow and realistic trail
+function ShootingStar({ delay, startX, startY, speed, length }: { 
+  delay: number; startX: number; startY: number; speed: number; length: number 
+}) {
   return (
     <div
-      className="absolute animate-shooting-star pointer-events-none"
+      className="absolute pointer-events-none"
       style={{
         top: `${startY}%`,
         left: `${startX}%`,
+        animation: `shooting-star ${speed}s ease-out infinite`,
         animationDelay: `${delay}s`,
+        transform: 'rotate(35deg)',
       }}
     >
-      <div className="relative">
-        {/* Star head */}
-        <div className="w-1 h-1 bg-white rounded-full shadow-lg shadow-white/50" />
-        {/* Trail */}
+      {/* Main shooting star container */}
+      <div className="relative" style={{ width: `${length}px`, height: '3px' }}>
+        {/* Outer glow trail */}
         <div 
-          className="absolute top-0 left-0 w-20 h-0.5 origin-left -rotate-45"
+          className="absolute inset-0 rounded-full blur-sm"
           style={{
-            background: 'linear-gradient(to left, white, transparent)',
+            background: `linear-gradient(to right, transparent 0%, rgba(255,255,255,0.1) 20%, rgba(200,220,255,0.3) 60%, rgba(255,255,255,0.8) 95%, white 100%)`,
+            height: '6px',
+            top: '-1.5px',
+          }}
+        />
+        
+        {/* Core trail */}
+        <div 
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `linear-gradient(to right, transparent 0%, transparent 10%, rgba(255,255,255,0.2) 30%, rgba(200,230,255,0.6) 70%, rgba(255,255,255,0.95) 95%, white 100%)`,
+          }}
+        />
+        
+        {/* Bright head */}
+        <div 
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full"
+          style={{
+            boxShadow: '0 0 4px 2px rgba(255,255,255,0.8), 0 0 8px 4px rgba(200,220,255,0.5), 0 0 16px 6px rgba(150,180,255,0.3)',
+          }}
+        />
+        
+        {/* Sparkle at head */}
+        <div 
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 animate-pulse"
+          style={{
+            background: 'radial-gradient(circle, white 0%, transparent 70%)',
           }}
         />
       </div>
@@ -252,7 +281,7 @@ function Aurora() {
 
 // Enhanced Cloud component with more detail
 function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number; scale: number; delay: number; isDark?: boolean }) {
-  const opacity = isDark ? 0.15 : 0.2;
+  const cloudOpacity = isDark ? 0.08 : 0.12;
   return (
     <div
       className="absolute animate-float-cloud pointer-events-none"
@@ -264,9 +293,10 @@ function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number;
       }}
     >
       <div className="relative">
-        <div className="w-16 h-6 bg-white/10 rounded-full backdrop-blur-sm" />
-        <div className="absolute -top-3 left-3 w-10 h-10 bg-white/10 rounded-full backdrop-blur-sm" />
-        <div className="absolute -top-1 left-10 w-8 h-8 bg-white/10 rounded-full backdrop-blur-sm" />
+        <div className="w-20 h-8 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity})` }} />
+        <div className="absolute -top-4 left-4 w-12 h-12 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.9})` }} />
+        <div className="absolute -top-2 left-12 w-10 h-10 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.8})` }} />
+        <div className="absolute -top-1 left-20 w-8 h-8 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.7})` }} />
       </div>
     </div>
   );
@@ -384,13 +414,15 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
     })), [particleCount]
   );
 
-  // Generate shooting stars for night
+  // Generate shooting stars for night with varied properties
   const shootingStars = useMemo(() =>
-    [...Array(5)].map((_, i) => ({
+    [...Array(8)].map((_, i) => ({
       id: i,
-      delay: i * 4 + Math.random() * 3,
-      startX: 10 + Math.random() * 60,
-      startY: 5 + Math.random() * 25,
+      delay: i * 3 + Math.random() * 5,
+      startX: 5 + Math.random() * 70,
+      startY: 2 + Math.random() * 30,
+      speed: 1.5 + Math.random() * 1.5, // 1.5-3 seconds
+      length: 60 + Math.random() * 80, // 60-140px trail length
     })), []
   );
 

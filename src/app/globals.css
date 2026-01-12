@@ -681,23 +681,26 @@ html:not(.dark) .light-input::placeholder {
    ENHANCED WEATHER ANIMATIONS
    ============================================ */
 
-/* Shooting star */
+/* Shooting star - smooth diagonal movement with fade */
 @keyframes shooting-star {
   0% {
-    transform: translateX(0) translateY(0);
+    transform: rotate(35deg) translateX(-100px);
+    opacity: 0;
+  }
+  5% {
     opacity: 1;
   }
-  70% {
+  60% {
     opacity: 1;
   }
   100% {
-    transform: translateX(200px) translateY(200px);
+    transform: rotate(35deg) translateX(300px);
     opacity: 0;
   }
 }
 
 .animate-shooting-star {
-  animation: shooting-star 1.5s ease-out infinite;
+  animation: shooting-star 2s ease-in-out infinite;
 }
 
 /* Aurora wave */
