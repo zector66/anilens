@@ -181,7 +181,10 @@ export class AniListClient {
                   }
                 }
                 coverImage {
+                  extraLarge
                   large
+                  medium
+                  color
                 }
               }
             }
@@ -443,7 +446,9 @@ export class AniListClient {
                       type
                       format
                       coverImage {
+                        large
                         medium
+                        color
                       }
                     }
                   }
