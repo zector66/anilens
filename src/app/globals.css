@@ -678,6 +678,195 @@ html:not(.dark) .light-input::placeholder {
 }
 
 /* ============================================
+   ENHANCED WEATHER ANIMATIONS
+   ============================================ */
+
+/* Shooting star */
+@keyframes shooting-star {
+  0% {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(200px) translateY(200px);
+    opacity: 0;
+  }
+}
+
+.animate-shooting-star {
+  animation: shooting-star 1.5s ease-out infinite;
+}
+
+/* Aurora wave */
+@keyframes aurora-wave {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-20px) scaleY(1.1);
+  }
+}
+
+.animate-aurora-wave {
+  animation: aurora-wave 8s ease-in-out infinite;
+}
+
+/* Aurora shimmer */
+@keyframes aurora-shimmer {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scaleX(1.1);
+  }
+}
+
+.animate-aurora-shimmer {
+  animation: aurora-shimmer 5s ease-in-out infinite;
+}
+
+/* Rain splash */
+@keyframes splash {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-splash {
+  animation: splash 0.5s ease-out infinite;
+}
+
+/* Splash particles */
+@keyframes splash-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-splash-particle {
+  animation: splash-particle 0.3s ease-out infinite;
+}
+
+/* Lightning flash */
+@keyframes lightning-flash {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-lightning-flash {
+  animation: lightning-flash 0.3s ease-out;
+}
+
+/* Lightning bolt */
+@keyframes lightning-bolt {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+.animate-lightning-bolt {
+  animation: lightning-bolt 0.4s ease-out;
+  transform-origin: top;
+}
+
+/* Sun ray rotation */
+@keyframes ray-rotate {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.animate-ray-rotate {
+  animation: ray-rotate 3s ease-in-out infinite;
+}
+
+/* Lens flare */
+@keyframes flare {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.animate-flare {
+  animation: flare 4s ease-in-out infinite;
+}
+
+/* Enhanced snow with wobble */
+@keyframes snow-wobble {
+  0% {
+    transform: translateY(-20px) rotate(0deg) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(25vh) rotate(90deg) translateX(var(--wobble, 20px));
+  }
+  50% {
+    transform: translateY(50vh) rotate(180deg) translateX(0);
+  }
+  75% {
+    transform: translateY(75vh) rotate(270deg) translateX(calc(var(--wobble, 20px) * -1));
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg) translateX(0);
+    opacity: 0;
+  }
+}
+
+/* ============================================
    ACCENT COLOR SYSTEM
    ============================================ */
 
@@ -690,17 +879,42 @@ html:not(.dark) .light-input::placeholder {
   --accent-red: #ef4444;
   --accent-cyan: #06b6d4;
   --accent-indigo: #6366f1;
+  
+  /* Default accent */
+  --accent-color: var(--accent-purple);
+  --accent-color-rgb: 168, 85, 247;
 }
 
-/* Accent color classes */
-.accent-purple { --accent-color: var(--accent-purple); }
-.accent-blue { --accent-color: var(--accent-blue); }
-.accent-green { --accent-color: var(--accent-green); }
-.accent-pink { --accent-color: var(--accent-pink); }
-.accent-orange { --accent-color: var(--accent-orange); }
-.accent-red { --accent-color: var(--accent-red); }
-.accent-cyan { --accent-color: var(--accent-cyan); }
-.accent-indigo { --accent-color: var(--accent-indigo); }
+/* Accent color application - these apply globally */
+[data-accent="purple"] { --accent-color: #a855f7; --accent-color-rgb: 168, 85, 247; }
+[data-accent="blue"] { --accent-color: #3b82f6; --accent-color-rgb: 59, 130, 246; }
+[data-accent="green"] { --accent-color: #10b981; --accent-color-rgb: 16, 185, 129; }
+[data-accent="pink"] { --accent-color: #ec4899; --accent-color-rgb: 236, 72, 153; }
+[data-accent="orange"] { --accent-color: #f59e0b; --accent-color-rgb: 245, 158, 11; }
+[data-accent="red"] { --accent-color: #ef4444; --accent-color-rgb: 239, 68, 68; }
+[data-accent="cyan"] { --accent-color: #06b6d4; --accent-color-rgb: 6, 182, 212; }
+[data-accent="indigo"] { --accent-color: #6366f1; --accent-color-rgb: 99, 102, 241; }
+
+/* Apply accent color to common elements */
+.bg-accent { background-color: var(--accent-color) !important; }
+.text-accent { color: var(--accent-color) !important; }
+.border-accent { border-color: var(--accent-color) !important; }
+
+/* Override purple with accent color throughout the app */
+.bg-purple-500, [class*="bg-purple-500"] { background-color: var(--accent-color) !important; }
+.bg-purple-500\/10, [class*="bg-purple-500/10"] { background-color: rgba(var(--accent-color-rgb), 0.1) !important; }
+.bg-purple-500\/20, [class*="bg-purple-500/20"] { background-color: rgba(var(--accent-color-rgb), 0.2) !important; }
+.text-purple-400, [class*="text-purple-400"] { color: var(--accent-color) !important; }
+.text-purple-500, [class*="text-purple-500"] { color: var(--accent-color) !important; }
+.border-purple-500, [class*="border-purple-500"] { border-color: var(--accent-color) !important; }
+.hover\:bg-purple-600:hover { background-color: color-mix(in srgb, var(--accent-color) 85%, black) !important; }
+.from-purple-500 { --tw-gradient-from: var(--accent-color) !important; }
+.to-purple-500 { --tw-gradient-to: var(--accent-color) !important; }
+.via-purple-500 { --tw-gradient-via: var(--accent-color) !important; }
+
+/* Ring and focus states */
+.ring-purple-500 { --tw-ring-color: var(--accent-color) !important; }
+.focus\:ring-purple-500:focus { --tw-ring-color: var(--accent-color) !important; }
 
 /* ============================================
    GLASS MORPHISM UTILITIES

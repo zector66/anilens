@@ -10,94 +10,249 @@ interface WeatherEffectsProps {
   className?: string;
 }
 
-// Rain drop component
-function RainDrop({ delay, left, duration }: { delay: number; left: number; duration: number }) {
+// Enhanced Rain drop with varied sizes and speeds
+function RainDrop({ delay, left, duration, height, opacity }: { 
+  delay: number; left: number; duration: number; height: number; opacity: number 
+}) {
   return (
     <div
-      className="absolute w-0.5 h-4 bg-gradient-to-b from-transparent via-blue-400/60 to-blue-300/80 rounded-full animate-rain"
+      className="absolute animate-rain"
       style={{
         left: `${left}%`,
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
+        width: '1px',
+        height: `${height}px`,
+        background: `linear-gradient(to bottom, transparent, rgba(147, 197, 253, ${opacity}), rgba(96, 165, 250, ${opacity * 1.2}))`,
+        borderRadius: '2px',
+        filter: 'blur(0.5px)',
       }}
     />
   );
 }
 
-// Snowflake component
-function Snowflake({ delay, left, size, duration }: { delay: number; left: number; size: number; duration: number }) {
+// Rain splash effect at bottom
+function RainSplash({ left, delay }: { left: number; delay: number }) {
   return (
     <div
-      className="absolute text-white/80 animate-snow select-none"
+      className="absolute bottom-0 animate-splash pointer-events-none"
+      style={{
+        left: `${left}%`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <div className="relative">
+        <div className="w-1 h-1 bg-blue-300/40 rounded-full" />
+        <div className="absolute -left-1 -top-1 w-0.5 h-0.5 bg-blue-300/30 rounded-full animate-splash-particle" />
+        <div className="absolute left-1 -top-1 w-0.5 h-0.5 bg-blue-300/30 rounded-full animate-splash-particle" style={{ animationDelay: '0.05s' }} />
+      </div>
+    </div>
+  );
+}
+
+// Enhanced Snowflake with multiple styles
+function Snowflake({ delay, left, size, duration, type, wobble }: { 
+  delay: number; left: number; size: number; duration: number; type: number; wobble: number 
+}) {
+  const snowflakeChars = ['❄', '❅', '❆', '✦', '✧', '•'];
+  return (
+    <div
+      className="absolute animate-snow select-none"
       style={{
         left: `${left}%`,
         fontSize: `${size}px`,
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
+        opacity: 0.6 + Math.random() * 0.4,
+        filter: size > 14 ? 'blur(0.5px)' : 'none',
+        ['--wobble' as string]: `${wobble}px`,
       }}
     >
-      ❄
+      {snowflakeChars[type % snowflakeChars.length]}
     </div>
   );
 }
 
-// Lightning flash
-function Lightning({ active }: { active: boolean }) {
+// Lightning flash with multiple flickers
+function Lightning({ active, intensity }: { active: boolean; intensity: number }) {
   if (!active) return null;
   return (
-    <div className="absolute inset-0 bg-white/20 animate-lightning pointer-events-none" />
+    <>
+      <div 
+        className="absolute inset-0 pointer-events-none animate-lightning-flash"
+        style={{ 
+          background: `radial-gradient(ellipse at ${30 + Math.random() * 40}% ${10 + Math.random() * 30}%, rgba(255,255,255,${0.3 * intensity}), transparent 60%)` 
+        }}
+      />
+      {/* Lightning bolt */}
+      <svg 
+        className="absolute pointer-events-none animate-lightning-bolt"
+        style={{ 
+          top: '5%', 
+          left: `${20 + Math.random() * 60}%`,
+          opacity: intensity,
+        }}
+        width="40" 
+        height="120" 
+        viewBox="0 0 40 120"
+      >
+        <path
+          d="M20 0 L25 40 L35 42 L18 70 L25 72 L10 120 L15 75 L8 73 L22 45 L12 43 Z"
+          fill="rgba(255, 255, 200, 0.9)"
+          filter="drop-shadow(0 0 10px rgba(255,255,200,0.8))"
+        />
+      </svg>
+    </>
   );
 }
 
-// Sun rays component
+// Enhanced Sun with lens flare and god rays
 function SunRays() {
   return (
-    <div className="absolute top-0 right-0 w-64 h-64 -translate-y-1/4 translate-x-1/4 pointer-events-none">
-      <div className="relative w-full h-full">
-        {/* Sun glow */}
-        <div className="absolute inset-0 bg-gradient-radial from-yellow-300/30 via-orange-300/10 to-transparent rounded-full animate-pulse-slow" />
-        {/* Sun core */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-radial from-yellow-200/50 to-orange-400/20 rounded-full blur-sm" />
-        {/* Rays */}
-        {[...Array(8)].map((_, i) => (
+    <div className="absolute top-4 right-12 pointer-events-none">
+      <div className="relative w-48 h-48">
+        {/* Outer glow */}
+        <div className="absolute inset-0 bg-gradient-radial from-yellow-200/40 via-orange-200/20 to-transparent rounded-full animate-pulse-slow blur-xl" />
+        
+        {/* God rays */}
+        {[...Array(12)].map((_, i) => (
           <div
             key={i}
-            className="absolute top-1/2 left-1/2 w-1 h-16 bg-gradient-to-b from-yellow-300/40 to-transparent origin-bottom"
+            className="absolute top-1/2 left-1/2 origin-center animate-ray-rotate"
             style={{
-              transform: `translate(-50%, -100%) rotate(${i * 45}deg)`,
+              width: '2px',
+              height: '200px',
+              background: 'linear-gradient(to bottom, rgba(255,220,100,0.4), transparent)',
+              transform: `translate(-50%, -50%) rotate(${i * 30}deg)`,
+              animationDelay: `${i * 0.5}s`,
             }}
           />
         ))}
+        
+        {/* Middle glow */}
+        <div className="absolute inset-4 bg-gradient-radial from-yellow-100/60 via-orange-200/30 to-transparent rounded-full" />
+        
+        {/* Sun core */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16">
+          <div className="w-full h-full rounded-full bg-gradient-radial from-yellow-100 via-yellow-200 to-orange-300 shadow-lg shadow-yellow-500/50 animate-pulse-slow" />
+          <div className="absolute inset-1 rounded-full bg-gradient-radial from-white/80 to-transparent" />
+        </div>
+        
+        {/* Lens flares */}
+        <div className="absolute top-[70%] left-[30%] w-6 h-6 bg-gradient-radial from-cyan-400/30 to-transparent rounded-full blur-sm animate-flare" />
+        <div className="absolute top-[80%] left-[40%] w-3 h-3 bg-gradient-radial from-purple-400/20 to-transparent rounded-full blur-sm animate-flare" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute top-[90%] left-[50%] w-8 h-8 bg-gradient-radial from-orange-300/20 to-transparent rounded-full blur-md animate-flare" style={{ animationDelay: '1s' }} />
       </div>
     </div>
   );
 }
 
-// Moon component
+// Enhanced Moon with detailed surface and glow - positioned to be fully visible
 function Moon() {
   return (
-    <div className="absolute top-8 right-8 pointer-events-none">
+    <div className="absolute top-16 right-16 pointer-events-none">
       <div className="relative">
-        {/* Moon glow */}
-        <div className="absolute -inset-4 bg-gradient-radial from-blue-200/20 to-transparent rounded-full blur-lg" />
-        {/* Moon */}
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 shadow-lg shadow-blue-200/20 relative overflow-hidden">
-          {/* Craters */}
-          <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-gray-200/50" />
-          <div className="absolute top-6 left-8 w-2 h-2 rounded-full bg-gray-200/50" />
-          <div className="absolute top-10 left-4 w-4 h-4 rounded-full bg-gray-200/50" />
+        {/* Outer atmospheric glow */}
+        <div className="absolute -inset-12 bg-gradient-radial from-blue-100/15 via-blue-200/5 to-transparent rounded-full blur-2xl animate-pulse-slow" />
+        
+        {/* Inner glow */}
+        <div className="absolute -inset-6 bg-gradient-radial from-blue-100/20 to-transparent rounded-full blur-lg" />
+        
+        {/* Moon body */}
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-2xl shadow-blue-200/30 relative overflow-hidden">
+          {/* Surface texture overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-gray-300/20 to-gray-500/30 rounded-full" />
+          
+          {/* Craters with depth */}
+          <div className="absolute top-2 left-4 w-4 h-4 rounded-full bg-gradient-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
+          <div className="absolute top-3 left-5 w-2 h-2 rounded-full bg-gray-200/40" />
+          
+          <div className="absolute top-8 left-12 w-3 h-3 rounded-full bg-gradient-to-br from-gray-300/50 to-gray-400/70 shadow-inner" />
+          
+          <div className="absolute top-12 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
+          <div className="absolute top-13 left-4 w-2 h-2 rounded-full bg-gray-200/30" />
+          
+          <div className="absolute top-6 left-8 w-2 h-2 rounded-full bg-gray-400/40" />
+          <div className="absolute top-15 left-10 w-3 h-3 rounded-full bg-gray-300/50" />
+          
+          {/* Highlight */}
+          <div className="absolute top-1 left-2 w-6 h-6 bg-gradient-radial from-white/40 to-transparent rounded-full blur-sm" />
         </div>
-        {/* Stars around moon */}
-        <div className="absolute -top-4 -left-8 text-white/60 text-xs animate-twinkle">✦</div>
-        <div className="absolute top-0 -right-6 text-white/40 text-sm animate-twinkle" style={{ animationDelay: '0.5s' }}>✦</div>
-        <div className="absolute -bottom-2 -left-4 text-white/50 text-xs animate-twinkle" style={{ animationDelay: '1s' }}>✦</div>
+        
+        {/* Orbiting stars/sparkles */}
+        <div className="absolute -top-6 -left-10 text-white/70 text-sm animate-twinkle">✦</div>
+        <div className="absolute top-2 -right-10 text-white/50 text-base animate-twinkle" style={{ animationDelay: '0.7s' }}>✧</div>
+        <div className="absolute -bottom-4 -left-8 text-white/60 text-xs animate-twinkle" style={{ animationDelay: '1.4s' }}>✦</div>
+        <div className="absolute bottom-0 -right-8 text-white/40 text-sm animate-twinkle" style={{ animationDelay: '2.1s' }}>✦</div>
+        <div className="absolute top-10 -left-12 text-white/30 text-xs animate-twinkle" style={{ animationDelay: '0.3s' }}>✧</div>
       </div>
     </div>
   );
 }
 
-// Cloud component
-function Cloud({ top, left, scale, delay }: { top: number; left: number; scale: number; delay: number }) {
+// Shooting star component
+function ShootingStar({ delay, startX, startY }: { delay: number; startX: number; startY: number }) {
+  return (
+    <div
+      className="absolute animate-shooting-star pointer-events-none"
+      style={{
+        top: `${startY}%`,
+        left: `${startX}%`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <div className="relative">
+        {/* Star head */}
+        <div className="w-1 h-1 bg-white rounded-full shadow-lg shadow-white/50" />
+        {/* Trail */}
+        <div 
+          className="absolute top-0 left-0 w-20 h-0.5 origin-left -rotate-45"
+          style={{
+            background: 'linear-gradient(to left, white, transparent)',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Aurora Borealis effect for clear nights
+function Aurora() {
+  return (
+    <div className="absolute top-0 left-0 w-full h-1/2 pointer-events-none overflow-hidden opacity-30">
+      <div className="absolute inset-0 animate-aurora-wave">
+        <div 
+          className="absolute top-0 left-1/4 w-1/2 h-full"
+          style={{
+            background: 'linear-gradient(to bottom, transparent, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2), rgba(45, 212, 191, 0.15), transparent)',
+            filter: 'blur(40px)',
+            transform: 'skewX(-15deg)',
+          }}
+        />
+        <div 
+          className="absolute top-0 left-1/3 w-1/3 h-full animate-aurora-shimmer"
+          style={{
+            background: 'linear-gradient(to bottom, transparent, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.15), transparent)',
+            filter: 'blur(50px)',
+            transform: 'skewX(10deg)',
+          }}
+        />
+        <div 
+          className="absolute top-0 right-1/4 w-1/4 h-3/4 animate-aurora-shimmer"
+          style={{
+            background: 'linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.2), rgba(6, 182, 212, 0.1), transparent)',
+            filter: 'blur(45px)',
+            animationDelay: '2s',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Enhanced Cloud component with more detail
+function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number; scale: number; delay: number; isDark?: boolean }) {
+  const opacity = isDark ? 0.15 : 0.2;
   return (
     <div
       className="absolute animate-float-cloud pointer-events-none"
@@ -163,12 +318,13 @@ function Stars() {
 
 export function WeatherEffects({ condition, isDay, intensity = 'medium', className = '' }: WeatherEffectsProps) {
   const [lightningActive, setLightningActive] = useState(false);
+  const [lightningIntensity, setLightningIntensity] = useState(1);
 
   // Calculate number of particles based on intensity
   const particleCount = {
-    light: 20,
-    medium: 40,
-    heavy: 80,
+    light: 30,
+    medium: 60,
+    heavy: 120,
   }[intensity];
 
   // Random lightning for thunderstorms
@@ -176,97 +332,154 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
     if (condition !== 'thunderstorm') return;
 
     const triggerLightning = () => {
+      setLightningIntensity(0.5 + Math.random() * 0.5);
       setLightningActive(true);
-      setTimeout(() => setLightningActive(false), 200);
+      setTimeout(() => setLightningActive(false), 150 + Math.random() * 100);
     };
 
     const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
+      if (Math.random() > 0.6) {
         triggerLightning();
+        // Double flash effect
+        if (Math.random() > 0.5) {
+          setTimeout(triggerLightning, 100);
+        }
       }
-    }, 3000);
+    }, 2000 + Math.random() * 2000);
 
     return () => clearInterval(interval);
   }, [condition]);
 
-  // Generate rain drops
+  // Generate enhanced rain drops with varied properties
   const rainDrops = useMemo(() => 
     [...Array(particleCount)].map((_, i) => ({
       id: i,
       delay: Math.random() * 2,
       left: Math.random() * 100,
-      duration: 0.5 + Math.random() * 0.5,
+      duration: 0.4 + Math.random() * 0.4,
+      height: 12 + Math.random() * 20,
+      opacity: 0.4 + Math.random() * 0.4,
     })), [particleCount]
   );
 
-  // Generate snowflakes
+  // Generate rain splashes
+  const rainSplashes = useMemo(() =>
+    [...Array(Math.floor(particleCount / 3))].map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+    })), [particleCount]
+  );
+
+  // Generate enhanced snowflakes with varied properties
   const snowflakes = useMemo(() =>
     [...Array(particleCount)].map((_, i) => ({
       id: i,
-      delay: Math.random() * 5,
+      delay: Math.random() * 8,
       left: Math.random() * 100,
-      size: 8 + Math.random() * 12,
-      duration: 3 + Math.random() * 4,
+      size: 6 + Math.random() * 16,
+      duration: 4 + Math.random() * 6,
+      type: Math.floor(Math.random() * 6),
+      wobble: 10 + Math.random() * 30,
     })), [particleCount]
   );
 
-  // Generate clouds
-  const clouds = useMemo(() =>
+  // Generate shooting stars for night
+  const shootingStars = useMemo(() =>
     [...Array(5)].map((_, i) => ({
       id: i,
-      top: 5 + Math.random() * 20,
-      left: -20 + i * 25,
-      scale: 0.8 + Math.random() * 0.6,
-      delay: i * 2,
+      delay: i * 4 + Math.random() * 3,
+      startX: 10 + Math.random() * 60,
+      startY: 5 + Math.random() * 25,
+    })), []
+  );
+
+  // Generate clouds with more variety
+  const clouds = useMemo(() =>
+    [...Array(7)].map((_, i) => ({
+      id: i,
+      top: 3 + Math.random() * 25,
+      left: -30 + i * 20,
+      scale: 0.6 + Math.random() * 0.8,
+      delay: i * 3,
     })), []
   );
 
   return (
     <div className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${className}`}>
-      {/* Night sky with stars */}
-      {!isDay && <Stars />}
+      {/* Night sky with stars and aurora */}
+      {!isDay && (
+        <>
+          <Stars />
+          {/* Aurora for clear nights */}
+          {condition === 'clear' && <Aurora />}
+          {/* Shooting stars */}
+          {condition === 'clear' && shootingStars.map((star) => (
+            <ShootingStar key={star.id} {...star} />
+          ))}
+        </>
+      )}
 
       {/* Sun or Moon */}
       {condition === 'clear' && (isDay ? <SunRays /> : <Moon />)}
+      
+      {/* Moon also shows for cloudy nights */}
+      {!isDay && condition !== 'clear' && condition !== 'thunderstorm' && <Moon />}
 
       {/* Clouds */}
       {(condition === 'cloudy' || condition === 'rain' || condition === 'thunderstorm') && 
-        clouds.map((cloud) => <Cloud key={cloud.id} {...cloud} />)
+        clouds.map((cloud) => <Cloud key={cloud.id} {...cloud} isDark={!isDay} />)
       }
 
-      {/* Rain */}
-      {(condition === 'rain' || condition === 'thunderstorm') &&
-        rainDrops.map((drop) => <RainDrop key={drop.id} {...drop} />)
-      }
+      {/* Rain with splashes */}
+      {(condition === 'rain' || condition === 'thunderstorm') && (
+        <>
+          {rainDrops.map((drop) => <RainDrop key={drop.id} {...drop} />)}
+          {rainSplashes.map((splash) => <RainSplash key={splash.id} {...splash} />)}
+        </>
+      )}
 
       {/* Snow */}
       {condition === 'snow' &&
         snowflakes.map((flake) => <Snowflake key={flake.id} {...flake} />)
       }
 
-      {/* Fog */}
+      {/* Fog with multiple layers */}
       {condition === 'fog' && (
         <>
-          <FogLayer opacity={0.3} delay={0} />
-          <FogLayer opacity={0.2} delay={3} />
-          <FogLayer opacity={0.25} delay={6} />
+          <FogLayer opacity={0.35} delay={0} />
+          <FogLayer opacity={0.25} delay={4} />
+          <FogLayer opacity={0.3} delay={8} />
+          <FogLayer opacity={0.2} delay={12} />
         </>
       )}
 
-      {/* Lightning flash */}
-      <Lightning active={lightningActive} />
+      {/* Lightning flash with intensity */}
+      <Lightning active={lightningActive} intensity={lightningIntensity} />
 
       {/* Ambient overlay based on weather */}
       <div 
         className={`absolute inset-0 transition-colors duration-1000 ${
-          condition === 'rain' || condition === 'thunderstorm'
+          condition === 'rain' 
             ? 'bg-blue-900/10'
+            : condition === 'thunderstorm'
+            ? 'bg-purple-900/15'
             : condition === 'snow'
             ? 'bg-blue-100/5'
             : condition === 'fog'
-            ? 'bg-gray-400/10'
+            ? 'bg-gray-400/15'
+            : condition === 'cloudy'
+            ? 'bg-gray-600/5'
             : ''
         }`}
+      />
+      
+      {/* Vignette effect for atmosphere */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.2) 100%)',
+        }}
       />
     </div>
   );

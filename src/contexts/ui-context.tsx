@@ -138,7 +138,10 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   // Handle accent color changes
   useEffect(() => {
-    document.documentElement.style.setProperty('--accent-color', ACCENT_COLORS[accentColor]);
+    const root = document.documentElement;
+    // Set both the CSS variable and the data attribute for CSS selectors
+    root.style.setProperty('--accent-color', ACCENT_COLORS[accentColor]);
+    root.setAttribute('data-accent', accentColor);
     localStorage.setItem('ui-accent', accentColor);
   }, [accentColor]);
 
