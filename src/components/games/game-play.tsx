@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { GameSession, GameQuestion } from '@/types/anilist';
 import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon } from 'lucide-react';
@@ -192,18 +193,20 @@ function QuestionCard({
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
-              {charImage ? (
-                <div className="relative w-32 h-32 mx-auto mb-4">
-                  <Image
+              <div className="relative w-32 h-32 mx-auto mb-4">
+                {charImage ? (
+                  <OptimizedImage
                     src={charImage}
                     alt="Character"
                     fill
                     className="rounded-xl object-cover border-2 border-purple-500/20"
                   />
-                </div>
-              ) : (
-                <Users className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-              )}
+                ) : (
+                  <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-purple-500/20">
+                    <Users className="w-12 h-12 text-purple-400" />
+                  </div>
+                )}
+              </div>
               <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
               <p className="text-gray-400 text-sm italic">
                 Use your memory of character names to identify the source!
@@ -220,8 +223,8 @@ function QuestionCard({
               <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
               {question?.media && (
                 <div className="flex items-center justify-center gap-4 mt-4">
-                  <Image
-                    src={question.media.coverImage.medium}
+                  <OptimizedImage
+                    src={question.media.coverImage?.medium || question.media.coverImage?.large || ''}
                     alt={getPreferredTitle(question.media.title)}
                     width={80}
                     height={80}
@@ -258,13 +261,12 @@ function QuestionCard({
             <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
               {bannerImage ? (
                 <div className="relative rounded-xl overflow-hidden mb-4">
-                  <Image
+                  <OptimizedImage
                     src={bannerImage}
                     alt="Anime scene"
                     width={600}
                     height={300}
                     className="w-full h-48 md:h-64 object-cover"
-                    style={{ filter: 'blur(0px)' }}
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                 </div>
@@ -313,8 +315,8 @@ function QuestionCard({
               <h3 className="text-lg font-semibold text-white mb-6">{question?.question}</h3>
               {question?.media && (
                 <div className="flex items-center justify-center gap-4 p-4 bg-white/5 rounded-xl">
-                  <Image
-                    src={question.media.coverImage.large || question.media.coverImage.medium}
+                  <OptimizedImage
+                    src={question.media.coverImage?.large || question.media.coverImage?.medium || ''}
                     alt={getPreferredTitle(question.media.title)}
                     width={80}
                     height={120}
@@ -343,16 +345,20 @@ function QuestionCard({
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
-              {question?.media?.coverImage && (
-                <div className="relative w-40 h-56 mx-auto mb-4">
-                  <Image
-                    src={question.media.coverImage.extraLarge || question.media.coverImage.large}
+              <div className="relative w-40 h-56 mx-auto mb-4">
+                {question?.media?.coverImage ? (
+                  <OptimizedImage
+                    src={question.media.coverImage.extraLarge || question.media.coverImage.large || ''}
                     alt="Cover art"
                     fill
                     className="rounded-xl object-cover border-2 border-white/20 shadow-2xl"
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">
+                    <ImageIcon className="w-12 h-12 text-gray-500" />
+                  </div>
+                )}
+              </div>
               <h3 className="text-lg font-bold text-white">Name this {question?.media?.type === 'MANGA' ? 'manga' : 'anime'}!</h3>
               <p className="text-sm text-gray-400 mt-1">Recognize this cover art?</p>
             </div>
@@ -366,8 +372,8 @@ function QuestionCard({
               <h3 className="text-lg font-semibold text-white mb-6">{question?.question}</h3>
               {question?.media && (
                 <div className="flex items-center justify-center gap-4 p-4 bg-white/5 rounded-xl">
-                  <Image
-                    src={question.media.coverImage.large || question.media.coverImage.medium}
+                  <OptimizedImage
+                    src={question.media.coverImage?.large || question.media.coverImage?.medium || ''}
                     alt={getPreferredTitle(question.media.title)}
                     width={80}
                     height={120}
@@ -393,16 +399,20 @@ function QuestionCard({
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
-              {question?.media?.coverImage && (
-                <div className="relative w-32 h-44 mx-auto mb-4">
-                  <Image
-                    src={question.media.coverImage.large || question.media.coverImage.medium}
+              <div className="relative w-32 h-44 mx-auto mb-4">
+                {question?.media?.coverImage ? (
+                  <OptimizedImage
+                    src={question.media.coverImage.large || question.media.coverImage.medium || ''}
                     alt={getPreferredTitle(question.media.title)}
                     fill
                     className="rounded-xl object-cover border-2 border-white/20"
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">
+                    <ImageIcon className="w-10 h-10 text-gray-500" />
+                  </div>
+                )}
+              </div>
               <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
               <p className="text-sm text-gray-400">One of these tags is not like the others...</p>
             </div>
@@ -420,16 +430,20 @@ function QuestionCard({
               <div className="flex items-center justify-center gap-4 md:gap-8">
                 {titles.slice(0, 2).map((title, idx) => (
                   <div key={idx} className="text-center">
-                    {question?.optionImages?.[title] && (
-                      <div className="relative w-24 h-32 md:w-32 md:h-44 mx-auto mb-2">
-                        <Image
+                    <div className="relative w-24 h-32 md:w-32 md:h-44 mx-auto mb-2">
+                      {question?.optionImages?.[title] ? (
+                        <OptimizedImage
                           src={question.optionImages[title]}
                           alt={title}
                           fill
                           className="rounded-xl object-cover border-2 border-white/20"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">
+                          <ImageIcon className="w-8 h-8 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 line-clamp-2 max-w-[120px]">{title}</p>
                   </div>
                 ))}
