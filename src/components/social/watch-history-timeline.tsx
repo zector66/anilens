@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import Image from 'next/image';
 import { Calendar, Film, BookOpen, Star, Clock } from 'lucide-react';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
@@ -197,7 +197,7 @@ export function WatchHistoryTimeline() {
                 >
                   {/* Cover */}
                   <div className="relative aspect-[2/3]">
-                    <Image
+                    <OptimizedImage
                       src={entry.media?.coverImage?.medium || entry.media?.coverImage?.large || ''}
                       alt={entry.media?.title ? getPreferredTitle(entry.media.title) : ''}
                       fill

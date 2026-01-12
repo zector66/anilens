@@ -29,7 +29,7 @@ import {
   Sparkles,
   Heart,
 } from 'lucide-react';
-import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { FadeIn } from '@/components/ui/page-transition';
 import { CompatibilityScore } from '@/components/social/compatibility-score';
@@ -183,7 +183,7 @@ export function CommunityHub({ onStartDailyChallenge, onStartChallenge, onNaviga
           {/* Avatar & Basic Info */}
           <div className="flex items-center gap-4">
             {user.avatar?.large ? (
-              <Image
+              <OptimizedImage
                 src={user.avatar.large}
                 alt={user.name}
                 width={80}
@@ -696,7 +696,7 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
                   
                   {/* Avatar */}
                   {player.avatar_url ? (
-                    <Image
+                    <OptimizedImage
                       src={player.avatar_url}
                       alt={player.username}
                       width={40}

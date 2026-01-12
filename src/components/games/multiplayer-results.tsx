@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { GameSession } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
 import { Target, Clock, Crown, Swords, Users, RotateCcw, ArrowLeft, Star, Zap, TrendingUp } from 'lucide-react';
@@ -166,7 +166,7 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
           <div className={`text-center p-4 rounded-xl ${isWinner ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5'}`}>
             <div className="relative inline-block mb-3">
               {currentPlayer?.avatar ? (
-                <Image
+                <OptimizedImage
                   src={currentPlayer.avatar}
                   alt={currentPlayer.name}
                   width={64}
@@ -206,7 +206,7 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
           <div className={`text-center p-4 rounded-xl ${!isWinner && !isDraw ? 'bg-red-500/10 border border-red-500/30' : 'bg-white/5'}`}>
             <div className="relative inline-block mb-3">
               {opponent?.avatar ? (
-                <Image
+                <OptimizedImage
                   src={opponent.avatar}
                   alt={opponent.name}
                   width={64}

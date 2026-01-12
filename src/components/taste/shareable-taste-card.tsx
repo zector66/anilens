@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useCallback } from 'react';
-import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import { TasteProfile } from '@/types/anilist';
 import { Share2, Download, Copy, Check, Loader2 } from 'lucide-react';
 
@@ -146,7 +146,7 @@ export function ShareableTasteCard({ profile, username, avatarUrl, activeType = 
           <div className="flex items-center gap-4 mb-8">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-purple-500/50">
               {avatarUrl ? (
-                <Image 
+                <OptimizedImage 
                   src={avatarUrl} 
                   alt={username} 
                   width={64}
