@@ -190,9 +190,9 @@ function Moon() {
   );
 }
 
-// High-quality shooting star component with glow and realistic trail
-function ShootingStar({ delay, startX, startY, speed, length }: { 
-  delay: number; startX: number; startY: number; speed: number; length: number 
+// Subtle shooting star - designed to be non-distracting background element
+function ShootingStar({ delay, startX, startY, speed, length, opacity }: { 
+  delay: number; startX: number; startY: number; speed: number; length: number; opacity: number 
 }) {
   return (
     <div
@@ -203,41 +203,24 @@ function ShootingStar({ delay, startX, startY, speed, length }: {
         animation: `shooting-star ${speed}s ease-out infinite`,
         animationDelay: `${delay}s`,
         transform: 'rotate(35deg)',
+        opacity: opacity,
       }}
     >
-      {/* Main shooting star container */}
-      <div className="relative" style={{ width: `${length}px`, height: '3px' }}>
-        {/* Outer glow trail */}
-        <div 
-          className="absolute inset-0 rounded-full blur-sm"
-          style={{
-            background: `linear-gradient(to right, transparent 0%, rgba(255,255,255,0.1) 20%, rgba(200,220,255,0.3) 60%, rgba(255,255,255,0.8) 95%, white 100%)`,
-            height: '6px',
-            top: '-1.5px',
-          }}
-        />
-        
-        {/* Core trail */}
+      {/* Simple, subtle shooting star */}
+      <div className="relative" style={{ width: `${length}px`, height: '1px' }}>
+        {/* Subtle trail */}
         <div 
           className="absolute inset-0 rounded-full"
           style={{
-            background: `linear-gradient(to right, transparent 0%, transparent 10%, rgba(255,255,255,0.2) 30%, rgba(200,230,255,0.6) 70%, rgba(255,255,255,0.95) 95%, white 100%)`,
+            background: `linear-gradient(to right, transparent 0%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.4) 80%, rgba(255,255,255,0.6) 100%)`,
           }}
         />
         
-        {/* Bright head */}
+        {/* Small head glow */}
         <div 
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full"
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-1 bg-white/60 rounded-full"
           style={{
-            boxShadow: '0 0 4px 2px rgba(255,255,255,0.8), 0 0 8px 4px rgba(200,220,255,0.5), 0 0 16px 6px rgba(150,180,255,0.3)',
-          }}
-        />
-        
-        {/* Sparkle at head */}
-        <div 
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 animate-pulse"
-          style={{
-            background: 'radial-gradient(circle, white 0%, transparent 70%)',
+            boxShadow: '0 0 2px 1px rgba(255,255,255,0.3)',
           }}
         />
       </div>
@@ -414,15 +397,16 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
     })), [particleCount]
   );
 
-  // Generate shooting stars for night with varied properties
+  // Generate subtle shooting stars for night - fewer and more spread out
   const shootingStars = useMemo(() =>
-    [...Array(8)].map((_, i) => ({
+    [...Array(4)].map((_, i) => ({
       id: i,
-      delay: i * 3 + Math.random() * 5,
-      startX: 5 + Math.random() * 70,
-      startY: 2 + Math.random() * 30,
-      speed: 1.5 + Math.random() * 1.5, // 1.5-3 seconds
-      length: 60 + Math.random() * 80, // 60-140px trail length
+      delay: i * 8 + Math.random() * 10, // Much longer delays between stars
+      startX: 5 + Math.random() * 60,
+      startY: 3 + Math.random() * 25,
+      speed: 2.5 + Math.random() * 2, // Slower: 2.5-4.5 seconds
+      length: 40 + Math.random() * 40, // Shorter: 40-80px trail
+      opacity: 0.3 + Math.random() * 0.3, // Subtle: 30-60% opacity
     })), []
   );
 
@@ -438,7 +422,7 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
   );
 
   return (
-    <div className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${className}`}>
+    <div className={`fixed inset-0 overflow-hidden pointer-events-none ${className}`} style={{ zIndex: -1 }}>
       {/* Night sky with stars and aurora */}
       {!isDay && (
         <>
