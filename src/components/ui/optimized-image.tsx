@@ -20,6 +20,12 @@ interface OptimizedImageProps {
   eager?: boolean; // Disable lazy loading for game contexts
 }
 
+// Check if URL is remote (should bypass Vercel image optimization)
+function isRemoteUrl(src: string): boolean {
+  if (!src) return false;
+  return src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//');
+}
+
 // Generate a tiny placeholder color based on image URL hash
 function generatePlaceholderColor(src: string): string {
   let hash = 0;
@@ -153,6 +159,7 @@ function OptimizedImageInner({
           onLoad={handleLoad}
           onError={handleError}
           loading={priority || eager ? 'eager' : 'lazy'}
+          unoptimized={isRemoteUrl(src)}
         />
       )}
     </div>

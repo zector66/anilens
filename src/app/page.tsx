@@ -330,6 +330,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
                     width={32}
                     height={32}
                     className="w-8 h-8 rounded-lg"
+                    unoptimized
                   />
                 )}
                 <span className="text-white font-medium hidden sm:inline">{user?.name}</span>
