@@ -96,7 +96,7 @@ const EMOTION_LABELS: Record<PrimaryEmotion, { low: string; medium: string; high
   fear: { low: 'Apprehension', medium: 'Fear', high: 'Terror' },
   surprise: { low: 'Distraction', medium: 'Surprise', high: 'Amazement' },
   sadness: { low: 'Pensiveness', medium: 'Sadness', high: 'Grief' },
-  disgust: { low: 'Boredom', medium: 'Disgust', high: 'Loathing' },
+  disgust: { low: 'Unease', medium: 'Disgust', high: 'Loathing' },
   anger: { low: 'Annoyance', medium: 'Anger', high: 'Rage' },
   anticipation: { low: 'Interest', medium: 'Anticipation', high: 'Vigilance' },
 };
