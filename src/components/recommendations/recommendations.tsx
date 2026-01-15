@@ -288,19 +288,21 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const extendedMedia = (recommendedMedia || []) as ExtendedMedia[];
 
   // Process recommendations - they now come with match scores from the API
-  const processedRecommendations = extendedMedia.map(media => ({
-    id: media.id,
-    title: getPreferredTitle(media.title),
-    coverImage: media.coverImage?.extraLarge || media.coverImage?.large || '',
-    genres: media.genres || [],
-    format: media.format || '',
-    score: media.meanScore || 0,
-    popularity: media.popularity || 0,
-    reason: media._matchReason || 'Matches your taste profile',
-    reasons: media._reasons || [],
-    matchScore: media._matchScore || 70,
-    category: media._category || 'safe' as const
-  }));
+  const processedRecommendations = extendedMedia
+    .map(media => ({
+      id: media.id,
+      title: getPreferredTitle(media.title),
+      coverImage: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '',
+      genres: media.genres || [],
+      format: media.format || '',
+      score: media.meanScore || 0,
+      popularity: media.popularity || 0,
+      reason: media._matchReason || 'Matches your taste profile',
+      reasons: media._reasons || [],
+      matchScore: media._matchScore || 70,
+      category: media._category || 'safe' as const
+    }))
+    .filter(rec => rec.coverImage); // Filter out any recommendations without cover images
 
   const topGenres = tasteProfile.genreAffinity.slice(0, 5);
   const topTags = tasteProfile.tagAffinity.slice(0, 5);
