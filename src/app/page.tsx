@@ -9,7 +9,6 @@ import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHub } from '@/components/games/community-hub';
 import { StudioComingSoon } from '@/components/studio/studio-coming-soon';
-import { TodayPanel } from '@/components/today/today-panel';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -20,20 +19,18 @@ import {
   Share2,
   LogOut,
   Settings,
-  Sparkles,
-  Calendar
+  Sparkles
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
 import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
 import { useUI } from '@/contexts/ui-context';
 
-type TabType = 'today' | 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
+type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
 export default function Home() {
   const { isAuthenticated, user, logout, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('today');
-  const [showImageNotice, setShowImageNotice] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('taste');
 
   if (loading && !isAuthenticated) {
     return (
@@ -238,7 +235,6 @@ interface DashboardProps {
 
 function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showImageNotice, setShowImageNotice] = useState(true);
   const { weatherEnabled, weatherData, weatherIntensity, weatherOverride, effectiveTheme } = useUI();
   
   // Determine effective weather condition
@@ -246,7 +242,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const isDay = weatherData?.isDay ?? (effectiveTheme === 'light');
   
   const tabs = [
-    { id: 'today' as const, label: 'Today', icon: Calendar },
     { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
     { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
     { id: 'games' as const, label: 'Games', icon: Gamepad2 },
@@ -256,8 +251,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'today':
-        return <TodayPanel />;
       case 'studio':
         return <StudioComingSoon />;
       case 'taste':
@@ -269,37 +262,12 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       case 'recommendations':
         return <Recommendations userId={user?.id} />;
       default:
-        return <TodayPanel />;
+        return <TasteProfile userId={user?.id} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      {/* Image Notice Banner */}
-      {showImageNotice && (
-        <div className="fixed top-0 left-0 right-0 z-[999] bg-yellow-500/90 backdrop-blur-sm border-b border-yellow-600/50">
-          <div className="max-w-7xl mx-auto px-4 py-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-yellow-900">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <span className="font-medium">Some images may not be loading properly - we&apos;re working on a fix!</span>
-              </div>
-              <button 
-                onClick={() => setShowImageNotice(false)}
-                className="text-yellow-900 hover:text-yellow-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Weather Effects Background */}
       {weatherEnabled && (
         <WeatherEffects 
           condition={effectiveWeather} 
@@ -308,7 +276,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         />
       )}
       
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
