@@ -1,6 +1,11 @@
 import { gql, GraphQLClient } from 'graphql-request';
 import { AniListUser, Media, MediaList, UserStats } from '@/types/anilist';
 import { logger } from './logger';
+import { 
+  createFallbackLog, 
+  updateFallbackStage, 
+  finalizeFallbackLog
+} from './recommendation-fallback';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
@@ -992,10 +997,14 @@ export class AniListClient {
       }
     `;
 
+    // Initialize fallback log for debug tracking
+    const fallbackLog = createFallbackLog(mode, minScore, searchGenres, searchTags, formats);
+    let currentMinScore = minScore;
+
     try {
       logger.debug(`[AniListClient] getRecommendations started. Type: ${type}, Mode: ${mode}, Formats: ${formats.join(',') || 'any'}`);
       
-      // 1. Initial Attempt
+      // 1. Initial Attempt (Stage 1)
       const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
         genres: searchGenres.length > 0 ? searchGenres : undefined,
         tags: searchTags.length > 0 ? searchTags : undefined,
@@ -1007,26 +1016,27 @@ export class AniListClient {
       });
 
       let results = response.Page.media.filter(media => !watchedIds.has(media.id));
-      logger.debug(`[AniListClient] Attempt 1 results: ${results.length}`);
+      logger.debug(`[AniListClient] Stage 1 results: ${results.length}`);
+      updateFallbackStage(fallbackLog, 1, results.length);
 
-      // 2. Fallback Attempt (Broaden search if no results)
+      // 2. Fallback Stage 2: Drop tags, lower score threshold
       if (results.length < limit && (searchGenres.length > 0 || searchTags.length > 0 || formats.length > 0)) {
-        logger.debug('[AniListClient] Fallback 1: Broadening search criteria...');
-        // Try again with either just genres or just tags, and lower minScore
-        const fallbackMinScore = Math.max(40, minScore - 15);
+        logger.debug('[AniListClient] Stage 2: Dropping tags, lowering score...');
+        currentMinScore = Math.max(40, minScore - 15);
         
         const fallbackResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: searchGenres.length > 0 ? searchGenres : undefined,
           tags: undefined, // Drop tags for broader search
           type,
           perPage: 100,
-          minScore: fallbackMinScore,
+          minScore: currentMinScore,
           sort: sortCriteria,
           formats: formats.length > 0 ? formats : undefined,
         });
 
         const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
-        logger.debug(`[AniListClient] Fallback 1 results: ${fallbackResults.length}`);
+        logger.debug(`[AniListClient] Stage 2 results: ${fallbackResults.length}`);
+        updateFallbackStage(fallbackLog, 2, fallbackResults.length, 'Dropped tag requirement');
         
         // Merge results, prioritizing original results
         const existingIds = new Set(results.map(m => m.id));
@@ -1037,21 +1047,24 @@ export class AniListClient {
         });
       }
 
-      // 3. Fallback Attempt 2: Relax format constraints if still low
+      // 3. Fallback Stage 3: Relax format constraints
       if (results.length < limit && formats.length > 0) {
-        logger.debug('[AniListClient] Fallback 2: Relaxing format constraints...');
+        logger.debug('[AniListClient] Stage 3: Relaxing format constraints...');
+        currentMinScore = 40;
+        
         const fallbackResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: searchGenres.length > 0 ? searchGenres : undefined,
           tags: undefined,
           type,
           perPage: 100,
-          minScore: 40,
+          minScore: currentMinScore,
           sort: sortCriteria,
           formats: undefined, // Drop formats
         });
 
         const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
-        logger.debug(`[AniListClient] Fallback 2 results: ${fallbackResults.length}`);
+        logger.debug(`[AniListClient] Stage 3 results: ${fallbackResults.length}`);
+        updateFallbackStage(fallbackLog, 3, fallbackResults.length, 'Dropped format requirement');
         
         const existingIds = new Set(results.map(m => m.id));
         fallbackResults.forEach(m => {
@@ -1061,26 +1074,38 @@ export class AniListClient {
         });
       }
 
-      // 4. Last Resort (Global Trending/Popular if still low)
+      // 4. Fallback Stage 4: Global Trending (Last Resort)
       if (results.length < 5) {
-        logger.debug('[AniListClient] Last Resort: Global trending...');
+        logger.debug('[AniListClient] Stage 4: Global trending fallback...');
+        currentMinScore = 50;
+        
         const lastResortResponse = await this.client.request<{ Page: { media: Media[] } }>(query, {
           genres: undefined,
           tags: undefined,
           type,
           perPage: 50,
-          minScore: 50,
+          minScore: currentMinScore,
           sort: ['TRENDING_DESC', 'POPULARITY_DESC'],
           formats: undefined,
         });
         
         const lastResortResults = lastResortResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        logger.debug(`[AniListClient] Stage 4 results: ${lastResortResults.length}`);
+        updateFallbackStage(fallbackLog, 4, lastResortResults.length, 'Global trending fallback');
+        
         const existingIds = new Set(results.map(m => m.id));
         lastResortResults.forEach(m => {
           if (!existingIds.has(m.id)) {
             results.push(m);
           }
         });
+      }
+      
+      // Finalize fallback log
+      finalizeFallbackLog(fallbackLog, results.length, currentMinScore);
+      logger.debug(`[AniListClient] Fallback summary: Stage ${fallbackLog.finalStageUsed}, ${results.length} candidates`);
+      if (fallbackLog.warnings.length > 0) {
+        logger.debug(`[AniListClient] Warnings: ${fallbackLog.warnings.join(', ')}`);
       }
 
       // Apply popularity filter based on mode (only if we have enough results)
