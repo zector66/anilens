@@ -318,7 +318,7 @@ export interface StudioPosterProfile {
 
 export const DEFAULT_POSTER_SETTINGS: StudioPosterSettings = {
   timeWindow: 'ALL_TIME',
-  statuses: ['COMPLETED'],
+  statuses: ['COMPLETED', 'CURRENT', 'REPEATING'],
   weightingStyle: 'balanced',
   excludeFormats: [],
   theme: {

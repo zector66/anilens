@@ -60,7 +60,9 @@ export function Studio() {
   const isLoading = mode === 'ANIME' ? animeLoading : mangaLoading;
   const currentList = mode === 'ANIME' ? animeList : mangaList;
   
-  const allEntries = useMemo(() => normalizeMediaList(currentList), [currentList]);
+  const allEntries = useMemo(() => normalizeMediaList(currentList, {
+    statuses: ['COMPLETED', 'CURRENT', 'REPEATING', 'PAUSED', 'DROPPED', 'PLANNING'],
+  }), [currentList]);
   
   const filteredEntries = useMemo(() => {
     let entries = filterByTimeWindow(allEntries, settings.timeWindow);
@@ -76,13 +78,20 @@ export function Studio() {
   
   const posterProfile = useMemo(() => {
     if (!tasteProfile || !user) return null;
+    
+    // Get accurate stats from user's AniList statistics when available
+    const userStats = mode === 'ANIME' 
+      ? (user as any).statistics?.anime
+      : (user as any).statistics?.manga;
+    
     return buildStudioPosterProfile(
       tasteProfile,
       {
         id: user.id,
         name: user.name,
         avatar: user.avatar,
-        bannerImage: (user as { bannerImage?: string }).bannerImage,
+        bannerImage: (user as any).bannerImage,
+        statistics: userStats,
       },
       filteredEntries,
       mode,

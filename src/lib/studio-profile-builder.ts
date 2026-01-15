@@ -6,6 +6,14 @@ interface UserInfo {
   name: string;
   avatar?: { large?: string; medium?: string };
   bannerImage?: string;
+  statistics?: {
+    count?: number;
+    episodesWatched?: number;
+    minutesWatched?: number;
+    chaptersRead?: number;
+    volumesRead?: number;
+    meanScore?: number;
+  };
 }
 
 /**
@@ -258,36 +266,48 @@ function getTopMedia(entries: MediaListEntry[], count: number = 5): TopMediaItem
 }
 
 /**
- * Calculates activity stats from entries
+ * Calculates activity stats from entries and user statistics
  */
 function calculateActivityStats(
   entries: MediaListEntry[],
   mode: 'ANIME' | 'MANGA',
-  tasteProfile: TasteProfile
+  tasteProfile: TasteProfile,
+  userStats?: UserInfo['statistics']
 ) {
   const totalTitles = entries.length;
   
+  // Use AniList user statistics if available (more accurate)
+  // Otherwise calculate from entries
   let episodesWatched = 0;
   let chaptersRead = 0;
+  let meanScore = 0;
   
-  for (const entry of entries) {
-    if (mode === 'ANIME') {
-      episodesWatched += entry.progress || 0;
-    } else {
-      chaptersRead += entry.progress || 0;
+  if (userStats) {
+    // Use official AniList stats
+    episodesWatched = userStats.episodesWatched || 0;
+    chaptersRead = userStats.chaptersRead || 0;
+    meanScore = userStats.meanScore || 0;
+  } else {
+    // Calculate from entries
+    for (const entry of entries) {
+      if (mode === 'ANIME') {
+        episodesWatched += entry.progress || 0;
+      } else {
+        chaptersRead += entry.progress || 0;
+      }
     }
+    
+    const scoredEntries = entries.filter(e => e.score && e.score > 0);
+    meanScore = scoredEntries.length > 0
+      ? scoredEntries.reduce((sum, e) => sum + (e.score || 0), 0) / scoredEntries.length
+      : 0;
   }
-  
-  const scoredEntries = entries.filter(e => e.score && e.score > 0);
-  const meanScore = scoredEntries.length > 0
-    ? scoredEntries.reduce((sum, e) => sum + (e.score || 0), 0) / scoredEntries.length
-    : 0;
   
   return {
     totalTitles,
     episodesWatched: mode === 'ANIME' ? episodesWatched : undefined,
     chaptersRead: mode === 'MANGA' ? chaptersRead : undefined,
-    daysActive: undefined, // Could compute from date range
+    daysActive: undefined,
     meanScore,
     completionRate: tasteProfile.behavioralMetrics.completionRate,
   };
@@ -344,8 +364,8 @@ export function buildStudioPosterProfile(
     };
   });
   
-  // Activity stats
-  const activityStats = calculateActivityStats(filteredEntries, mode, tasteProfile);
+  // Activity stats - use user's AniList statistics when available
+  const activityStats = calculateActivityStats(filteredEntries, mode, tasteProfile, user.statistics);
   
   // Fallback gradient if no banner
   const fallbackGradient = !user.bannerImage 

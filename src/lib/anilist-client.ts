@@ -66,6 +66,7 @@ export class AniListClient {
             large
             medium
           }
+          bannerImage
           options {
             titleLanguage
             displayAdultContent
@@ -74,6 +75,7 @@ export class AniListClient {
             anime {
               count
               episodesWatched
+              minutesWatched
               meanScore
             }
             manga {
@@ -229,6 +231,8 @@ export class AniListClient {
               progress
               repeat
               notes
+              updatedAt
+              createdAt
               startedAt {
                 year
                 month
@@ -371,6 +375,8 @@ export class AniListClient {
               progressVolumes
               repeat
               notes
+              updatedAt
+              createdAt
               startedAt {
                 year
                 month
