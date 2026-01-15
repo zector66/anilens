@@ -80,17 +80,109 @@ export async function initializeDatabase() {
     )
   `;
 
+  // AniList list cache table - cache user's anime/manga lists
+  await getDb()`
+    CREATE TABLE IF NOT EXISTS anilist_list_cache (
+      id SERIAL PRIMARY KEY,
+      anilist_id INTEGER NOT NULL,
+      list_type VARCHAR(10) NOT NULL,
+      max_updated_at BIGINT NOT NULL,
+      payload_json JSONB NOT NULL,
+      cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(anilist_id, list_type)
+    )
+  `;
+
+  // Taste profile cache table - cache computed taste profiles
+  await getDb()`
+    CREATE TABLE IF NOT EXISTS taste_profile_cache (
+      id SERIAL PRIMARY KEY,
+      anilist_id INTEGER NOT NULL,
+      profile_type VARCHAR(10) NOT NULL,
+      analysis_version VARCHAR(10) NOT NULL,
+      max_updated_at BIGINT NOT NULL,
+      profile_json JSONB NOT NULL,
+      computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(anilist_id, profile_type, analysis_version)
+    )
+  `;
+
   // Create indexes for performance
   await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_game_type ON player_ratings(game_type)`;
   await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_rating ON player_ratings(rating DESC)`;
   await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_user ON game_sessions(user_id)`;
   await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_game_type ON game_sessions(game_type)`;
   await getDb()`CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type ON leaderboard_cache(game_type, rank)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_anilist_cache_user ON anilist_list_cache(anilist_id, list_type)`;
+  await getDb()`CREATE INDEX IF NOT EXISTS idx_taste_cache_user ON taste_profile_cache(anilist_id, profile_type)`;
 }
 
 // ============================================================================
 // User Operations
 // ============================================================================
+
+// ============================================================================
+// AniList Cache Operations
+// ============================================================================
+
+export async function getCachedList(anilistId: number, listType: 'ANIME' | 'MANGA') {
+  const result = await getDb()`
+    SELECT payload_json, max_updated_at, cached_at 
+    FROM anilist_list_cache 
+    WHERE anilist_id = ${anilistId} AND list_type = ${listType}
+  `;
+  return result[0] || null;
+}
+
+export async function setCachedList(
+  anilistId: number, 
+  listType: 'ANIME' | 'MANGA', 
+  maxUpdatedAt: number, 
+  payload: unknown
+) {
+  await getDb()`
+    INSERT INTO anilist_list_cache (anilist_id, list_type, max_updated_at, payload_json)
+    VALUES (${anilistId}, ${listType}, ${maxUpdatedAt}, ${JSON.stringify(payload)})
+    ON CONFLICT (anilist_id, list_type)
+    DO UPDATE SET 
+      max_updated_at = ${maxUpdatedAt},
+      payload_json = ${JSON.stringify(payload)},
+      cached_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function getCachedTasteProfile(
+  anilistId: number, 
+  profileType: 'ANIME' | 'MANGA',
+  analysisVersion: string = 'v1'
+) {
+  const result = await getDb()`
+    SELECT profile_json, max_updated_at, computed_at 
+    FROM taste_profile_cache 
+    WHERE anilist_id = ${anilistId} 
+      AND profile_type = ${profileType}
+      AND analysis_version = ${analysisVersion}
+  `;
+  return result[0] || null;
+}
+
+export async function setCachedTasteProfile(
+  anilistId: number,
+  profileType: 'ANIME' | 'MANGA',
+  analysisVersion: string,
+  maxUpdatedAt: number,
+  profile: unknown
+) {
+  await getDb()`
+    INSERT INTO taste_profile_cache (anilist_id, profile_type, analysis_version, max_updated_at, profile_json)
+    VALUES (${anilistId}, ${profileType}, ${analysisVersion}, ${maxUpdatedAt}, ${JSON.stringify(profile)})
+    ON CONFLICT (anilist_id, profile_type, analysis_version)
+    DO UPDATE SET 
+      max_updated_at = ${maxUpdatedAt},
+      profile_json = ${JSON.stringify(profile)},
+      computed_at = CURRENT_TIMESTAMP
+  `;
+}
 
 export async function getOrCreateUser(anilistId: number, username: string, avatarUrl?: string) {
   // Try to get existing user
