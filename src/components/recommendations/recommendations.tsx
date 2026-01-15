@@ -72,7 +72,7 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
       className="group relative rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 transition-all"
       onMouseEnter={handleMouseEnter}
     >
-      <div className="aspect-3/4 relative overflow-hidden">
+      <div className="relative overflow-hidden" style={{ aspectRatio: '3/4' }}>
         <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent z-10" />
         <OptimizedImage
           src={rec.coverImage}
