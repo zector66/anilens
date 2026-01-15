@@ -32,11 +32,16 @@ export function TodayPanel() {
     return TasteAnalyzer.analyzeTaste(allEntries, activeType);
   }, [allEntries, activeType]);
 
+  // Get day of year once (outside useMemo to avoid impurity)
+  const dayOfYear = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    return Math.floor((now.getTime() - start.getTime()) / 86400000);
+  }, []);
+
   // Get daily stat highlight (changes based on day of year)
   const dailyStatHighlight = useMemo(() => {
     if (!tasteProfile) return null;
-    
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
     const stats = [
       {
         label: 'Top Genre',
@@ -61,14 +66,14 @@ export function TodayPanel() {
       },
       {
         label: 'Avg Rating',
-        value: tasteProfile.averageScore.toFixed(1),
+        value: tasteProfile.scorePatterns.meanScore.toFixed(1),
         subtext: `across ${allEntries.length} titles`,
         icon: TrendingUp,
         color: 'green'
       },
       {
         label: 'Completion Rate',
-        value: `${tasteProfile.completionRate.toFixed(0)}%`,
+        value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(0)}%`,
         subtext: 'of started series',
         icon: Target,
         color: 'pink'
@@ -76,7 +81,7 @@ export function TodayPanel() {
     ];
 
     return stats[dayOfYear % stats.length];
-  }, [tasteProfile, allEntries.length]);
+  }, [tasteProfile, allEntries.length, dayOfYear]);
 
   // Get today's date string
   const todayDate = useMemo(() => {
@@ -240,7 +245,7 @@ export function TodayPanel() {
             <div className="text-xs text-gray-400">Genres</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-white mb-1">{tasteProfile.averageScore.toFixed(1)}</div>
+            <div className="text-2xl font-bold text-white mb-1">{tasteProfile.scorePatterns.meanScore.toFixed(1)}</div>
             <div className="text-xs text-gray-400">Avg Score</div>
           </div>
         </div>
