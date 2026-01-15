@@ -1,5 +1,13 @@
 import { Media, MediaListEntry, TasteProfile } from '@/types/anilist';
 import { tasteAnalyzerCache } from './taste-analyzer-cache';
+import { 
+  calculateEngagementWeight, 
+  calculateUserScoreStats, 
+  calculateConfidence,
+  filterByTimeWindow,
+  filterByStatus
+} from './engagement-weights';
+import { generateListHash, analyzeDataCompleteness, DataCompletenessFlags } from './taste-profile-cache';
 
 // Favorites profile vectors for blending
 export interface FavoritesProfile {
@@ -11,6 +19,21 @@ export interface FavoritesProfile {
   count: number;
 }
 
+// Analysis options for filtering
+export interface AnalysisOptions {
+  timeWindow?: 'all' | '12months' | '90days';
+  includedStatuses?: string[];
+  type?: 'ANIME' | 'MANGA';
+}
+
+export interface AnalysisResult {
+  profile: TasteProfile;
+  dataCompleteness: DataCompletenessFlags;
+  listHash: string;
+  filteredCount: number;
+  originalCount: number;
+}
+
 export class TasteAnalyzer {
   // Constants for Bayesian/Dirichlet smoothing and shrinkage
   private static readonly GLOBAL_MEAN_SCORE = 6.8;
@@ -18,6 +41,11 @@ export class TasteAnalyzer {
   private static readonly PROPORTION_PRIOR_ALPHA = 2;
   private static readonly PROPORTION_PRIOR_BETA = 2;
   private static readonly DIRICHLET_ALPHA = 0.5;
+  
+  // Confidence calculation constants
+  private static readonly GENRE_CONFIDENCE_K = 8;
+  private static readonly TAG_CONFIDENCE_K = 6;
+  private static readonly STUDIO_CONFIDENCE_K = 5;
 
   // Completionist correction utilities
   private static getCompletionistWeights(completionRate: number) {
@@ -48,6 +76,37 @@ export class TasteAnalyzer {
     return (score - userStats.mean) / userStats.std;
   }
 
+  /**
+   * Full analysis with options - returns profile + metadata
+   */
+  static analyzeWithOptions(
+    mediaList: MediaListEntry[], 
+    options: AnalysisOptions = {}
+  ): AnalysisResult {
+    const type = options.type || 'ANIME';
+    const timeWindow = options.timeWindow || 'all';
+    const includedStatuses = options.includedStatuses || ['COMPLETED', 'CURRENT', 'DROPPED', 'PAUSED', 'REPEATING'];
+    
+    // Apply filters
+    let filteredList = filterByStatus(mediaList, includedStatuses);
+    filteredList = filterByTimeWindow(filteredList, timeWindow);
+    
+    // Generate hash and check completeness
+    const listHash = generateListHash(filteredList, type);
+    const dataCompleteness = analyzeDataCompleteness(filteredList, type);
+    
+    // Analyze
+    const profile = this.analyzeTaste(filteredList, type);
+    
+    return {
+      profile,
+      dataCompleteness,
+      listHash,
+      filteredCount: filteredList.length,
+      originalCount: mediaList.length
+    };
+  }
+
   static analyzeTaste(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): TasteProfile {
     // Check cache first
     const cached = tasteAnalyzerCache.get(mediaList, type);
@@ -58,13 +117,18 @@ export class TasteAnalyzer {
     
     console.log('[TasteAnalyzer] Cache miss, analyzing', mediaList.length, 'entries');
     
-    const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
-    const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>();
-    const sourceData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
-    const yearData = new Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
-    const formatData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
+    // Calculate user score stats for engagement weighting
+    const userScoreStats = calculateUserScoreStats(mediaList);
+    
+    // Extended data structures with engagement weights
+    const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
+    const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number; engagementWeight: number }>();
+    const sourceData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
+    const yearData = new Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
+    const formatData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
     
     let totalProgress = 0;
+    let totalEngagementWeight = 0;
     let completedCount = 0;
     let droppedCount = 0;
     let rewatchCount = 0;
@@ -89,7 +153,12 @@ export class TasteAnalyzer {
       
       const score = entry.score || 0;
       
+      // Calculate engagement weight for this entry
+      const engagementData = calculateEngagementWeight(entry, userScoreStats, type);
+      const entryWeight = engagementData.weight;
+      
       totalProgress += progressWatched;
+      totalEngagementWeight += entryWeight;
       
       if (entry.status === 'COMPLETED') completedCount++;
       else if (entry.status === 'DROPPED') droppedCount++;
@@ -104,12 +173,13 @@ export class TasteAnalyzer {
 
       if (media.genres) {
         media.genres.forEach((genre: string) => {
-          const existing = genreData.get(genre) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
+          const existing = genreData.get(genre) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
           genreData.set(genre, {
             count: existing.count + 1,
             totalScore: existing.totalScore + score,
             progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
+            engagementWeight: existing.engagementWeight + entryWeight,
           });
         });
       }
@@ -117,7 +187,7 @@ export class TasteAnalyzer {
       if (media.tags) {
         media.tags.forEach((tag) => {
           if (tag.isGeneralSpoiler || tag.isMediaSpoiler) return;
-          const existing = tagData.get(tag.name) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, avgRank: 0 };
+          const existing = tagData.get(tag.name) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, avgRank: 0, engagementWeight: 0 };
           const newCount = existing.count + 1;
           tagData.set(tag.name, {
             count: newCount,
@@ -125,6 +195,7 @@ export class TasteAnalyzer {
             progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
             avgRank: ((existing.avgRank * existing.count) + (tag.rank || 50)) / newCount,
+            engagementWeight: existing.engagementWeight + entryWeight,
           });
         });
       }
@@ -133,44 +204,48 @@ export class TasteAnalyzer {
         media.studios.edges.forEach((studioEdge) => {
           if (studioEdge.isMain && studioEdge.node.isAnimationStudio) {
             const studioName = studioEdge.node.name;
-            const existing = sourceData.get(studioName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
+            const existing = sourceData.get(studioName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
             sourceData.set(studioName, {
               count: existing.count + 1,
               totalScore: existing.totalScore + score,
               progressUnits: existing.progressUnits + progressWatched,
               scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
+              engagementWeight: existing.engagementWeight + entryWeight,
             });
           }
         });
       } else if (type === 'MANGA' && media.staff?.edges) {
         media.staff.edges.forEach((staffEdge) => {
           const staffName = staffEdge.node.name.full;
-          const existing = sourceData.get(staffName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
+          const existing = sourceData.get(staffName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
           sourceData.set(staffName, {
             count: existing.count + 1,
             totalScore: existing.totalScore + score,
             progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
+            engagementWeight: existing.engagementWeight + entryWeight,
           });
         });
       }
 
       if (media.startDate?.year) {
         const year = media.startDate.year;
-        const existing = yearData.get(year) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
+        const existing = yearData.get(year) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
         yearData.set(year, {
           count: existing.count + 1,
           totalScore: existing.totalScore + score,
           progressUnits: existing.progressUnits + progressWatched,
           scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
+          engagementWeight: existing.engagementWeight + entryWeight,
         });
       }
 
       if (media.format) {
         const format = media.format;
-        const existing = formatData.get(format) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0 };
+        const existing = formatData.get(format) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
         formatData.set(format, {
           count: existing.count + 1,
+          engagementWeight: existing.engagementWeight + entryWeight,
           totalScore: existing.totalScore + score,
           progressUnits: existing.progressUnits + progressWatched,
           scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
@@ -194,17 +269,20 @@ export class TasteAnalyzer {
     // Get completionist correction weights
     const { completionEvidenceWeight, scoreWeightMultiplier } = this.getCompletionistWeights(completionRate);
 
-    // Dirichlet smoothing for genres with completionist correction
+    // Dirichlet smoothing for genres with completionist correction + engagement weighting
+    // Note: totalEngagementWeight is used in genreData/tagData calculations below
     const genreAffinity = Array.from(genreData.entries())
       .map(([genre, data]) => {
-        const totalGenreCount = Array.from(genreData.values()).reduce((sum, d) => sum + d.count, 0);
-        const volumeFactor = (data.count + this.DIRICHLET_ALPHA) / (totalGenreCount + genreData.size * this.DIRICHLET_ALPHA);
+        // Use engagement weight for volume factor instead of raw count
+        const totalGenreEngagement = Array.from(genreData.values()).reduce((sum, d) => sum + d.engagementWeight, 0);
+        const volumeFactor = (data.engagementWeight + this.DIRICHLET_ALPHA) / (totalGenreEngagement + genreData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
         const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
         const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
         const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 20 : 15)) * completionEvidenceWeight; // Downweighted for completionists
         const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.35) + (countFactor * 0.15) + 0.10));
-        const confidence = Math.min(1, (data.count / 8) * (data.scoredCount / Math.max(1, data.count)));
+        // Use new confidence formula: 1 - exp(-count / k)
+        const confidence = calculateConfidence(data.count, data.scoredCount, this.GENRE_CONFIDENCE_K);
         return { genre, affinity, count: data.count, avgScore: shrunkScore, confidence };
       })
       .sort((a, b) => b.affinity - a.affinity)
@@ -212,14 +290,16 @@ export class TasteAnalyzer {
 
     const tagAffinity = Array.from(tagData.entries())
       .map(([tag, data]) => {
-        const totalTagCount = Array.from(tagData.values()).reduce((sum, d) => sum + d.count, 0);
-        const volumeFactor = (data.count + this.DIRICHLET_ALPHA) / (totalTagCount + tagData.size * this.DIRICHLET_ALPHA);
+        // Use engagement weight for volume factor instead of raw count
+        const totalTagEngagement = Array.from(tagData.values()).reduce((sum, d) => sum + d.engagementWeight, 0);
+        const volumeFactor = (data.engagementWeight + this.DIRICHLET_ALPHA) / (totalTagEngagement + tagData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
         const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
         const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
         const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 25 : 20)) * completionEvidenceWeight; // Downweighted for completionists
         const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.3) + (countFactor * 0.2) + 0.10));
-        const confidence = Math.min(1, (data.count / 6) * (data.scoredCount / Math.max(1, data.count)));
+        // Use new confidence formula: 1 - exp(-count / k)
+        const confidence = calculateConfidence(data.count, data.scoredCount, this.TAG_CONFIDENCE_K);
         return { tag, affinity, count: data.count, avgScore: shrunkScore, avgRank: data.avgRank, confidence };
       })
       .sort((a, b) => b.affinity - a.affinity)
@@ -687,18 +767,16 @@ export class TasteAnalyzer {
   }
 
   private static calculateDiversityIndex(
-    genreData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>,
-    tagData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>
+    genreData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight?: number }>,
+    tagData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number; engagementWeight?: number }>
   ): number {
-    // Build fractional mass allocation for genres
+    // Build ENGAGEMENT-WEIGHTED mass allocation for genres (not raw count)
     const genreMass = new Map<string, number>();
     let totalGenreMass = 0;
     
     genreData.forEach((data, genre) => {
-      // Distribute mass evenly across genres per title
-      // Each title contributes 1/N mass where N = number of genres it has
-      // We approximate this by dividing by average genres per title (≈3)
-      const mass = data.count / 3.0; // Fractional allocation
+      // Use engagement weight if available, otherwise fall back to count
+      const mass = (data.engagementWeight || data.count) / 3.0;
       genreMass.set(genre, mass);
       totalGenreMass += mass;
     });
@@ -707,29 +785,34 @@ export class TasteAnalyzer {
     let genreEntropy = 0;
     const genreThreshold = 0.02; // 2% threshold for K_used
     let genreKUsed = 0;
+    let genreTopProportion = 0; // Track top genre's proportion for dominance penalty
     
     if (totalGenreMass > 0) {
+      const proportions: number[] = [];
       genreMass.forEach((mass) => {
         const p = mass / totalGenreMass;
+        proportions.push(p);
         if (p > 0) {
           genreEntropy -= p * Math.log(p);
           if (p >= genreThreshold) genreKUsed++;
         }
       });
+      // Get top proportion for dominance check
+      genreTopProportion = Math.max(...proportions);
     }
 
-    // Build fractional mass allocation for tags (top 20 for less saturation)
+    // Build ENGAGEMENT-WEIGHTED mass allocation for tags (top 30-50, capped)
     const sortedTags = Array.from(tagData.entries())
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 20); // Reduced from 50 to 20
+      .sort((a, b) => (b[1].engagementWeight || b[1].count) - (a[1].engagementWeight || a[1].count))
+      .slice(0, 30); // Top 30 tags for diversity calc
     
     const tagMass = new Map<string, number>();
     let totalTagMass = 0;
     
-    sortedTags.forEach(([tag, data]) => {
-      // Fractional allocation - average tags per title ≈ 8
-      const mass = data.count / 8.0;
-      tagMass.set(tag, mass);
+    sortedTags.forEach(([, data]) => {
+      // Use engagement weight if available
+      const mass = (data.engagementWeight || data.count) / 8.0;
+      tagMass.set(data.avgRank.toString(), mass); // Use avgRank as key for uniqueness
       totalTagMass += mass;
     });
 
@@ -737,15 +820,19 @@ export class TasteAnalyzer {
     let tagEntropy = 0;
     const tagThreshold = 0.02; // 2% threshold for K_used
     let tagKUsed = 0;
+    let tagTopProportion = 0;
     
     if (totalTagMass > 0) {
+      const proportions: number[] = [];
       tagMass.forEach((mass) => {
         const p = mass / totalTagMass;
+        proportions.push(p);
         if (p > 0) {
           tagEntropy -= p * Math.log(p);
           if (p >= tagThreshold) tagKUsed++;
         }
       });
+      tagTopProportion = Math.max(...proportions);
     }
 
     // Proper normalization using log(K_used)
@@ -755,8 +842,20 @@ export class TasteAnalyzer {
     const normGenre = genreKUsed > 1 ? Math.min(1, genreEntropy / genreMaxEntropy) : 0;
     const normTag = tagKUsed > 1 ? Math.min(1, tagEntropy / tagMaxEntropy) : 0;
     
-    // Weighted average: 40% Genre, 60% Tag
-    return (normGenre * 0.4) + (normTag * 0.6);
+    // Base diversity: Weighted average: 40% Genre, 60% Tag
+    const baseDiversity = (normGenre * 0.4) + (normTag * 0.6);
+    
+    // DOMINANCE PENALTY: If one category dominates, reduce diversity
+    // dominancePenalty = clamp((pTop1 - 0.15) / 0.35, 0, 1)
+    // If top genre/tag is >15%, start penalizing; if >50%, max penalty
+    const genreDominance = Math.max(0, Math.min(1, (genreTopProportion - 0.15) / 0.35));
+    const tagDominance = Math.max(0, Math.min(1, (tagTopProportion - 0.15) / 0.35));
+    const avgDominance = (genreDominance + tagDominance) / 2;
+    
+    // Final diversity with penalty: diversityFinal = entropyNorm * (1 - 0.25 * dominancePenalty)
+    const diversityFinal = baseDiversity * (1 - 0.25 * avgDominance);
+    
+    return Math.max(0, Math.min(1, diversityFinal));
   }
 
   // Helper to calculate effective number of categories for display
