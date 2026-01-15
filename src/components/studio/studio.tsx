@@ -704,18 +704,19 @@ export function Studio() {
                   }}
                 >
                   <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-                    <StudioPoster 
-                      ref={posterRef} 
-                      profile={{
-                        ...posterProfile,
-                        settings: {
-                          ...posterProfile.settings,
-                          theme: settings.theme,
-                        }
-                      }}
-                      width={currentAspect.width}
-                      height={currentAspect.height}
-                    />
+                    <div ref={posterRef}>
+                      <StudioPoster 
+                        profile={{
+                          ...posterProfile,
+                          settings: {
+                            ...posterProfile.settings,
+                            theme: settings.theme,
+                          }
+                        }}
+                        width={currentAspect.width}
+                        height={currentAspect.height}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
