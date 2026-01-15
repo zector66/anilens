@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { MediaProvider } from '@/contexts/media-context';
 import { UIProvider } from '@/contexts/ui-context';
+import { ContentFilterProvider } from '@/components/content-filter-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { KeyboardShortcutsModal } from '@/components/ui/keyboard-shortcuts';
 import { SettingsPanel } from '@/components/ui/settings-panel';
@@ -38,15 +39,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
-        <MediaProvider>
-          <UIProvider>
-            <ToastProvider>
-              {children}
-              <KeyboardShortcutsModal />
-              <SettingsPanel />
-            </ToastProvider>
-          </UIProvider>
-        </MediaProvider>
+        <ContentFilterProvider>
+          <MediaProvider>
+            <UIProvider>
+              <ToastProvider>
+                {children}
+                <KeyboardShortcutsModal />
+                <SettingsPanel />
+              </ToastProvider>
+            </UIProvider>
+          </MediaProvider>
+        </ContentFilterProvider>
       </SettingsProvider>
     </QueryClientProvider>
   );

@@ -1,4 +1,5 @@
 import { GameQuestion, GameSession, MediaListEntry, Media } from '@/types/anilist';
+import { shouldFilterMedia, ContentFilterSettings, DEFAULT_CONTENT_FILTER } from './content-filter';
 
 // Track recently used anime IDs to avoid repetition across sessions
 const RECENT_ANIME_KEY = 'recent-game-anime';
@@ -72,12 +73,22 @@ function prioritizeUnused(entries: MediaListEntry[], recentIds: number[]): Media
 }
 
 export class GameEngine {
-  // Filter entries based on difficulty setting
-  static filterEntriesByDifficulty(entries: MediaListEntry[], difficulty: 'easy' | 'medium' | 'hard' | 'mixed'): MediaListEntry[] {
-    if (difficulty === 'mixed') return entries;
+  // Filter entries based on difficulty setting and content filter
+  static filterEntriesByDifficulty(
+    entries: MediaListEntry[], 
+    difficulty: 'easy' | 'medium' | 'hard' | 'mixed',
+    contentFilter: ContentFilterSettings = DEFAULT_CONTENT_FILTER
+  ): MediaListEntry[] {
+    // CRITICAL: Filter out adult content first (safety requirement)
+    const safeEntries = entries.filter(entry => {
+      if (!entry.media) return false;
+      return !shouldFilterMedia(entry.media, contentFilter);
+    });
+    
+    if (difficulty === 'mixed') return safeEntries;
     
     const now = new Date();
-    const sortedEntries = [...entries].sort((a, b) => {
+    const sortedEntries = [...safeEntries].sort((a, b) => {
       // Calculate "obscurity" score based on popularity and recency
       const aPopularity = a.media?.popularity || 0;
       const bPopularity = b.media?.popularity || 0;
