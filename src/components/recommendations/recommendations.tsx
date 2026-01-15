@@ -287,22 +287,43 @@ export function Recommendations({ userId }: RecommendationsProps) {
   // Cast to extended media type for accessing computed properties
   const extendedMedia = (recommendedMedia || []) as ExtendedMedia[];
 
+  // Debug: Log the first media item to see what we're getting
+  if (extendedMedia.length > 0) {
+    console.log('[Recommendations] Sample media item:', {
+      id: extendedMedia[0].id,
+      title: extendedMedia[0].title,
+      coverImage: extendedMedia[0].coverImage,
+      hasCoverImage: !!extendedMedia[0].coverImage,
+      coverImageKeys: extendedMedia[0].coverImage ? Object.keys(extendedMedia[0].coverImage) : []
+    });
+  }
+
   // Process recommendations - they now come with match scores from the API
   const processedRecommendations = extendedMedia
-    .map(media => ({
-      id: media.id,
-      title: getPreferredTitle(media.title),
-      coverImage: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '',
-      genres: media.genres || [],
-      format: media.format || '',
-      score: media.meanScore || 0,
-      popularity: media.popularity || 0,
-      reason: media._matchReason || 'Matches your taste profile',
-      reasons: media._reasons || [],
-      matchScore: media._matchScore || 70,
-      category: media._category || 'safe' as const
-    }))
-    .filter(rec => rec.coverImage); // Filter out any recommendations without cover images
+    .map(media => {
+      const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '';
+      return {
+        id: media.id,
+        title: getPreferredTitle(media.title),
+        coverImage,
+        genres: media.genres || [],
+        format: media.format || '',
+        score: media.meanScore || 0,
+        popularity: media.popularity || 0,
+        reason: media._matchReason || 'Matches your taste profile',
+        reasons: media._reasons || [],
+        matchScore: media._matchScore || 70,
+        category: media._category || 'safe' as const
+      };
+    })
+    .filter(rec => {
+      if (!rec.coverImage) {
+        console.log('[Recommendations] Filtered out media without cover:', rec.id, rec.title);
+      }
+      return rec.coverImage;
+    }); // Filter out any recommendations without cover images
+
+  console.log('[Recommendations] Total processed:', processedRecommendations.length, 'out of', extendedMedia.length);
 
   const topGenres = tasteProfile.genreAffinity.slice(0, 5);
   const topTags = tasteProfile.tagAffinity.slice(0, 5);
