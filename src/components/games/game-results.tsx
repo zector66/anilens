@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { GameSession } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star, Loader2 } from 'lucide-react';
+import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star, Loader2, Heart } from 'lucide-react';
 import { useGameStats } from '@/hooks/use-game-stats';
 import { RankBadge, MMRChange } from './rank-badge';
 
@@ -257,6 +257,25 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
               <p className="text-gray-500 text-sm italic">Keep playing to earn achievements!</p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Support Card */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Heart className="w-5 h-5 text-pink-400" />
+            <div>
+              <p className="text-sm font-medium text-white">Enjoying AniLens?</p>
+              <p className="text-xs text-gray-400">Support hosting costs ❤️</p>
+            </div>
+          </div>
+          <a
+            href="/support"
+            className="px-4 py-2 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-400 text-sm font-medium transition-colors border border-pink-500/30"
+          >
+            Support
+          </a>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Download, Image as ImageIcon, FileImage } from "lucide-react";
+import { X, Download, Image as ImageIcon, FileImage, Heart } from "lucide-react";
 import { StudioProject, ExportConfig, EXPORT_PRESETS, ExportPreset } from "@/types/studio";
 
 interface StudioExportModalProps {
@@ -195,23 +195,35 @@ export function StudioExportModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              onExport();
-              onClose();
-            }}
-            className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+        <div className="px-6 py-4 border-t border-gray-800 space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">Generated with AniLens</span>
+            <a
+              href="/support"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 transition-colors border border-pink-500/20"
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span className="font-medium">Support</span>
+            </a>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                onExport();
+                onClose();
+              }}
+              className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
         </div>
       </div>
     </div>
