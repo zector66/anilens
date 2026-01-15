@@ -85,7 +85,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
         </div>
 
         {/* Content Grid */}
-        <div className="relative h-full grid grid-cols-12 gap-4 p-6">
+        <div className="relative h-full grid grid-cols-12 gap-3 p-5">
           
           {/* LEFT RAIL - Identity & Activity (cols 1-3) */}
           <div className="col-span-3 flex flex-col gap-4">
@@ -124,9 +124,9 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             </GlassPanel>
 
             {/* Activity Stats */}
-            <GlassPanel className="p-4 flex-1">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</h3>
-              <div className="space-y-3">
+            <GlassPanel className="p-3 flex-1">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Activity</h3>
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Titles</span>
                   <span className="text-white font-bold text-lg">{activityStats.totalTitles}</span>
@@ -155,7 +155,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             </GlassPanel>
 
             {/* Taste Class Pills */}
-            <GlassPanel className="p-4">
+            <GlassPanel className="p-3">
               <div className="grid grid-cols-2 gap-2">
                 {indices.slice(0, 4).map((stat, i) => (
                   <div key={i} className="text-center py-2">
@@ -176,15 +176,15 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
           <div className="col-span-6 flex flex-col gap-4">
             
             {/* Top 5 Covers Row */}
-            <GlassPanel className="p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <GlassPanel className="p-3">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Top {mode === 'ANIME' ? 'Anime' : 'Manga'}
               </h3>
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-2 justify-center">
                 {topMedia.slice(0, 5).map((media, i) => (
                   <div key={media.id} className="relative group">
                     <div 
-                      className="w-28 h-40 rounded-lg overflow-hidden transition-transform"
+                      className="w-24 h-36 rounded-lg overflow-hidden transition-transform"
                       style={{ 
                         boxShadow: i === 0 ? `0 0 0 2px ${theme.accent}` : 'none',
                         transform: i === 0 ? 'scale(1.05)' : 'scale(1)',
@@ -222,23 +222,23 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                 ))}
                 {/* Fill empty slots */}
                 {Array.from({ length: Math.max(0, 5 - topMedia.length) }).map((_, i) => (
-                  <div key={`empty-${i}`} className="w-28 h-40 rounded-lg bg-white/5 border border-white/10" />
+                  <div key={`empty-${i}`} className="w-24 h-36 rounded-lg bg-white/5 border border-white/10" />
                 ))}
               </div>
             </GlassPanel>
 
             {/* TOP STUDIOS - The Hero Block */}
-            <GlassPanel className="p-5 flex-1">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+            <GlassPanel className="p-3 flex-1">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Top {mode === 'ANIME' ? 'Studios' : 'Authors'}
               </h3>
               
               {/* Primary Studio Callout */}
               {topStudiosOrAuthors[0] && (
-                <div className="mb-5 pb-4 border-b border-white/10">
-                  <div className="flex items-center gap-4">
+                <div className="mb-3 pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-3">
                     <div 
-                      className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold"
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold"
                       style={{ 
                         background: `${theme.accent}22`,
                         color: theme.accent,
@@ -247,14 +247,14 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                     >
                       #1
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-bold text-white">{topStudiosOrAuthors[0].name}</h4>
-                      <p className="text-sm text-gray-400">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-bold text-white truncate">{topStudiosOrAuthors[0].name}</h4>
+                      <p className="text-xs text-gray-400">
                         {topStudiosOrAuthors[0].count} {mode.toLowerCase()} • {topStudiosOrAuthors[0].percentage}% of your list
                       </p>
                     </div>
                     <div 
-                      className="text-3xl font-bold"
+                      className="text-2xl font-bold"
                       style={{ color: theme.accent }}
                     >
                       {Math.round(topStudiosOrAuthors[0].strength * 100)}%
@@ -264,9 +264,9 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
               )}
 
               {/* Other Studios */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {topStudiosOrAuthors.slice(1, 5).map((studio, i) => (
-                  <div key={i} className="flex items-center gap-3">
+                  <div key={i} className="flex items-center gap-2">
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
                       style={{ 
@@ -276,8 +276,8 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                     >
                       {i + 2}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">{studio.name}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">{studio.name}</div>
                       <div className="text-xs text-gray-500">
                         {studio.count} titles • {studio.percentage}%
                       </div>
@@ -302,8 +302,8 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             </GlassPanel>
 
             {/* Tags Cloud */}
-            <GlassPanel className="p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Common Themes</h3>
+            <GlassPanel className="p-3">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Common Themes</h3>
               <div className="flex flex-wrap gap-2">
                 {topTags.slice(0, 12).map((tag, i) => (
                   <span
@@ -326,9 +326,9 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
           <div className="col-span-3 flex flex-col gap-4">
             
             {/* Genre Radar / Distribution */}
-            <GlassPanel className="p-4 flex-1">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Genre Distribution</h3>
-              <div className="space-y-3">
+            <GlassPanel className="p-3 flex-1">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Genre Distribution</h3>
+              <div className="space-y-2">
                 {topGenres.slice(0, 6).map((genre, i) => (
                   <div key={i}>
                     <div className="flex justify-between text-xs mb-1">
@@ -350,9 +350,9 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             </GlassPanel>
 
             {/* Extended Stats */}
-            <GlassPanel className="p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Taste Indices</h3>
-              <div className="space-y-3">
+            <GlassPanel className="p-3">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Taste Indices</h3>
+              <div className="space-y-2">
                 {indices.slice(0, 6).map((stat, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">{stat.label}</span>
@@ -379,7 +379,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             </GlassPanel>
 
             {/* Footer Info */}
-            <GlassPanel className="p-4">
+            <GlassPanel className="p-3">
               <div className="text-center">
                 <div 
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-2"
