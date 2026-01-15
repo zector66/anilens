@@ -72,16 +72,16 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
       className="group relative rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 transition-all"
       onMouseEnter={handleMouseEnter}
     >
-      <div className="relative overflow-hidden" style={{ aspectRatio: '3/4' }}>
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent z-10" />
+      <div className="relative overflow-hidden" style={{ aspectRatio: '3/4', width: '100%', height: 'auto' }}>
         <OptimizedImage
           src={rec.coverImage}
           alt={rec.title}
           fill
           priority={priority}
           sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-cover group-hover:scale-105 transition-transform duration-300 z-0"
         />
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent z-10 pointer-events-none" />
         <div className="absolute top-3 right-3 z-20">
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
             rec.category === 'safe' ? 'bg-green-500/80 text-white' :
