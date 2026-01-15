@@ -76,7 +76,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                 alt="Banner"
                 fill
                 className="object-cover"
-                unoptimized
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
             </div>
@@ -91,7 +90,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                   width={64}
                   height={64}
                   className="object-cover"
-                  unoptimized
                 />
               </div>
             )}
@@ -121,7 +119,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                     alt={data.topAnime.primary.title}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -141,7 +138,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                         alt={anime.title}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                     </div>
                   ))}
@@ -165,7 +161,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                     alt={data.topManga.primary.title}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -185,7 +180,6 @@ export function PosterRenderer({ data, config, onExport }: PosterRendererProps) 
                         alt={manga.title}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                     </div>
                   ))}

@@ -54,6 +54,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    // Aggressive caching to minimize image optimization usage
+    minimumCacheTTL: 31536000, // 1 year - cache images for a very long time
+    deviceSizes: [640, 750, 828, 1080, 1200], // Fewer device sizes = fewer optimizations
+    imageSizes: [16, 32, 48, 64, 96, 128, 256], // Fewer image sizes = fewer optimizations
+    formats: ['image/webp'], // Only WebP to reduce variants
   },
 };
 

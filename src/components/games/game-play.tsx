@@ -473,7 +473,6 @@ function QuestionCard({
                     alt={getPreferredTitle(question.media.title)}
                     fill
                     className="rounded-xl object-cover border-2 border-white/20"
-                    unoptimized
                   />
                 </div>
               )}
@@ -500,7 +499,6 @@ function QuestionCard({
                           alt={name}
                           fill
                           className="rounded-full object-cover border-2 border-purple-500/30"
-                          unoptimized
                         />
                       </div>
                     )}
@@ -534,7 +532,6 @@ function QuestionCard({
                           alt={title}
                           fill
                           className="rounded-xl object-cover border-2 border-white/20"
-                          unoptimized
                         />
                       </div>
                     )}
@@ -565,7 +562,6 @@ function QuestionCard({
                           alt={title}
                           fill
                           className="rounded-lg object-cover border border-white/20"
-                          unoptimized
                         />
                       </div>
                     )}
@@ -722,7 +718,6 @@ function QuestionCard({
                         width={40}
                         height={56}
                         className="w-full h-full object-cover"
-                        unoptimized
                       />
                     </div>
                   )}
@@ -748,7 +743,6 @@ function QuestionCard({
                               width={32}
                               height={32}
                               className="w-full h-full object-cover"
-                              unoptimized
                             />
                           ) : (
                             <div className="w-full h-full bg-gray-600 flex items-center justify-center text-xs text-white">
