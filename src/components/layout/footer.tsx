@@ -43,16 +43,6 @@ export function Footer() {
                   Contact
                 </Link>
               </li>
-              <li>
-                <a 
-                  href="https://github.com/zector66/anilens" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-purple-400 transition-colors"
-                >
-                  GitHub
-                </a>
-              </li>
             </ul>
           </div>
         </div>
