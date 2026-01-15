@@ -143,14 +143,6 @@ function OptimizedImageInner({
       style={!fill ? { width, height } : undefined}
       onClick={onClick}
     >
-      {/* Placeholder background */}
-      <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          isLoaded ? 'opacity-0' : 'opacity-100'
-        }`}
-        style={{ backgroundColor: placeholderColor }}
-      />
-
       {/* Actual image - only render when in view */}
       {isInView ? (
         <Image
@@ -159,21 +151,17 @@ function OptimizedImageInner({
           width={fill ? undefined : width}
           height={fill ? undefined : height}
           fill={fill}
-          className={`transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={className}
           sizes={sizes}
           quality={quality}
           priority={priority}
-          placeholder={placeholder}
-          blurDataURL={generatedBlurURL}
           onLoad={handleLoad}
           onError={handleError}
           loading={priority || eager ? 'eager' : 'lazy'}
           unoptimized
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 bg-gray-800">
           Waiting for viewport...
         </div>
       )}
