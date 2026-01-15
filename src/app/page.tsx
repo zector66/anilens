@@ -9,6 +9,7 @@ import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHub } from '@/components/games/community-hub';
 import { StudioComingSoon } from '@/components/studio/studio-coming-soon';
+import { TodayPanel } from '@/components/today/today-panel';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -19,18 +20,19 @@ import {
   Share2,
   LogOut,
   Settings,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
 import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
 import { useUI } from '@/contexts/ui-context';
 
-type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
+type TabType = 'today' | 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
 export default function Home() {
   const { isAuthenticated, user, logout, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('studio');
+  const [activeTab, setActiveTab] = useState<TabType>('today');
   const [showImageNotice, setShowImageNotice] = useState(true);
 
   if (loading && !isAuthenticated) {
@@ -244,6 +246,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const isDay = weatherData?.isDay ?? (effectiveTheme === 'light');
   
   const tabs = [
+    { id: 'today' as const, label: 'Today', icon: Calendar },
     { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
     { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
     { id: 'games' as const, label: 'Games', icon: Gamepad2 },
@@ -253,6 +256,8 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'today':
+        return <TodayPanel />;
       case 'studio':
         return <StudioComingSoon />;
       case 'taste':
@@ -264,7 +269,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       case 'recommendations':
         return <Recommendations userId={user?.id} />;
       default:
-        return <TasteProfile />;
+        return <TodayPanel />;
     }
   };
 
