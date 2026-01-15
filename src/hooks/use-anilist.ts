@@ -2,6 +2,15 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { anilistClient } from '@/lib/anilist-client';
+import { TasteAnalyzer } from '@/lib/taste-analyzer';
+import { 
+  loadTasteProfileCache, 
+  saveTasteProfileCache, 
+  generateListHash, 
+  analyzeDataCompleteness,
+  DataCompletenessFlags
+} from '@/lib/taste-profile-cache';
+import { TasteProfile, MediaListEntry } from '@/types/anilist';
 
 export function useAnimeList(userId: number) {
   return useQuery({
@@ -181,5 +190,94 @@ export function useInvalidateUserStats() {
   
   return () => {
     queryClient.invalidateQueries({ queryKey: ['userStats'] });
+  };
+}
+
+/**
+ * Hook for cached taste profile analysis
+ * Uses Supabase persistent cache with listHash invalidation
+ */
+export interface CachedTasteAnalysisResult {
+  profile: TasteProfile | null;
+  dataCompleteness: DataCompletenessFlags | null;
+  isFromCache: boolean;
+  listHash: string;
+}
+
+export function useCachedTasteProfile(
+  userId: number,
+  mediaList: MediaListEntry[] | undefined,
+  type: 'ANIME' | 'MANGA' = 'ANIME',
+  timeWindow: 'all' | '12months' | '90days' = 'all'
+) {
+  return useQuery({
+    queryKey: ['tasteProfile', userId, type, timeWindow, mediaList?.length || 0],
+    queryFn: async (): Promise<CachedTasteAnalysisResult> => {
+      if (!mediaList || mediaList.length === 0) {
+        return { 
+          profile: null, 
+          dataCompleteness: null, 
+          isFromCache: false, 
+          listHash: '' 
+        };
+      }
+
+      // Generate list hash for cache key
+      const listHash = generateListHash(mediaList, type);
+      
+      // Try to load from Supabase cache first
+      const cached = await loadTasteProfileCache(userId, type, timeWindow, listHash);
+      if (cached) {
+        console.log('[useCachedTasteProfile] Cache hit for', type);
+        return {
+          profile: cached.profile,
+          dataCompleteness: cached.dataCompleteness,
+          isFromCache: true,
+          listHash
+        };
+      }
+
+      // Cache miss - compute fresh profile
+      console.log('[useCachedTasteProfile] Cache miss, computing fresh profile for', type);
+      const profile = TasteAnalyzer.analyzeTaste(mediaList, type);
+      const dataCompleteness = analyzeDataCompleteness(mediaList, type);
+
+      // Save to cache asynchronously (don't block return)
+      saveTasteProfileCache(
+        userId,
+        type,
+        timeWindow,
+        ['COMPLETED', 'CURRENT', 'DROPPED', 'PAUSED', 'REPEATING'],
+        listHash,
+        profile,
+        dataCompleteness
+      ).catch(err => console.error('[useCachedTasteProfile] Failed to save cache:', err));
+
+      return {
+        profile,
+        dataCompleteness,
+        isFromCache: false,
+        listHash
+      };
+    },
+    enabled: !!userId && !!mediaList && mediaList.length > 0,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+export function useInvalidateTasteProfile() {
+  const queryClient = useQueryClient();
+  
+  return (userId?: number, type?: 'ANIME' | 'MANGA') => {
+    if (userId && type) {
+      queryClient.invalidateQueries({ queryKey: ['tasteProfile', userId, type] });
+    } else if (userId) {
+      queryClient.invalidateQueries({ queryKey: ['tasteProfile', userId] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['tasteProfile'] });
+    }
   };
 }
