@@ -6,6 +6,8 @@ import { StudioPosterProfile } from '@/types/studio';
 interface StudioPosterProps {
   profile: StudioPosterProfile;
   className?: string;
+  width?: number;
+  height?: number;
 }
 
 const GlassPanel: React.FC<{ 
@@ -27,7 +29,7 @@ const GlassPanel: React.FC<{
 );
 
 export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
-  function StudioPoster({ profile, className = '' }, ref) {
+  function StudioPoster({ profile, className = '', width = 1600, height = 900 }, ref) {
     const { 
       user, mode, summaryLine, indices, topMedia, 
       topGenres, topTags, topStudiosOrAuthors, 
@@ -42,8 +44,8 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
         ref={ref}
         className={`relative overflow-hidden ${className}`}
         style={{ 
-          width: '1600px', 
-          height: '900px',
+          width: `${width}px`, 
+          height: `${height}px`,
           fontFamily: 'system-ui, -apple-system, sans-serif',
           background: '#050508',
         }}
