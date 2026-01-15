@@ -230,6 +230,82 @@ export const DEFAULT_WIDGET_SIZES: Record<WidgetType, { width: number; height: n
 };
 
 // Built-in templates
+// ============================================
+// STUDIO POSTER PROFILE (Wrapped-style poster)
+// ============================================
+
+export type TimeWindow = 'ALL_TIME' | '12M' | '90D';
+export type WeightingStyle = 'preference' | 'exposure' | 'balanced';
+export type PosterStylePreset = 'minimal' | 'neon' | 'clean-dark';
+
+export interface StudioPosterSettings {
+  timeWindow: TimeWindow;
+  statuses: ('COMPLETED' | 'CURRENT' | 'DROPPED' | 'PAUSED' | 'REPEATING')[];
+  weightingStyle: WeightingStyle;
+  excludeFormats: string[];
+  theme: {
+    mode: 'dark' | 'light';
+    accent: string;
+    stylePreset: PosterStylePreset;
+  };
+}
+
+export interface IndexStat {
+  label: string;
+  value: number;
+  displayValue: string;
+  descriptor: string;
+  color: string;
+}
+
+export interface StudioPosterProfile {
+  // User info
+  user: {
+    id: number;
+    name: string;
+    avatar: string;
+    banner: string | null;
+    fallbackGradient?: string;
+  };
+  
+  // Mode
+  mode: 'ANIME' | 'MANGA';
+  
+  // Settings used
+  settings: StudioPosterSettings;
+  
+  // The summary line ("Your lane")
+  summaryLine: string;
+  
+  // Core indices (6 max for poster)
+  indices: IndexStat[];
+  
+  // Top content
+  topGenres: Array<{ name: string; strength: number }>;
+  topTags: Array<{ name: string; strength: number }>;
+  topStudiosOrAuthors: Array<{ name: string; strength: number; era?: string }>;
+  
+  // Metadata
+  metadata: {
+    totalEntries: number;
+    timeRange: string;
+    generatedAt: string;
+    version: string;
+  };
+}
+
+export const DEFAULT_POSTER_SETTINGS: StudioPosterSettings = {
+  timeWindow: 'ALL_TIME',
+  statuses: ['COMPLETED'],
+  weightingStyle: 'balanced',
+  excludeFormats: [],
+  theme: {
+    mode: 'dark',
+    accent: '#8b5cf6',
+    stylePreset: 'clean-dark',
+  },
+};
+
 export const BUILT_IN_TEMPLATES: Omit<StudioProjectTemplate, "widgets">[] = [
   {
     id: "profile-overview",
