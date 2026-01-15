@@ -6,6 +6,7 @@ import {
   updateFallbackStage, 
   finalizeFallbackLog
 } from './recommendation-fallback';
+import { shouldFilterMedia, ContentFilterSettings, DEFAULT_CONTENT_FILTER } from './content-filter';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
@@ -821,6 +822,7 @@ export class AniListClient {
       anchorToFavorites?: boolean;
       favoritesInfluence?: number; // 0-30%
       explorationLevel?: number;
+      contentFilter?: ContentFilterSettings;
     } = {}
   ): Promise<Media[]> {
     const { 
@@ -836,7 +838,8 @@ export class AniListClient {
       favoritesProfile = null,
       anchorToFavorites = true,
       favoritesInfluence = 15,
-      explorationLevel = 50
+      explorationLevel = 50,
+      contentFilter = DEFAULT_CONTENT_FILTER
     } = options;
 
     // Special modes that override categorization
@@ -1016,7 +1019,11 @@ export class AniListClient {
       });
 
       let results = response.Page.media.filter(media => !watchedIds.has(media.id));
-      logger.debug(`[AniListClient] Stage 1 results: ${results.length}`);
+      
+      // CRITICAL: Filter out adult content immediately (safety requirement)
+      results = results.filter(media => !shouldFilterMedia(media, contentFilter));
+      
+      logger.debug(`[AniListClient] Stage 1 results: ${results.length} (after content filter)`);
       updateFallbackStage(fallbackLog, 1, results.length);
 
       // 2. Fallback Stage 2: Drop tags, lower score threshold
@@ -1034,7 +1041,8 @@ export class AniListClient {
           formats: formats.length > 0 ? formats : undefined,
         });
 
-        const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        let fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        fallbackResults = fallbackResults.filter(media => !shouldFilterMedia(media, contentFilter));
         logger.debug(`[AniListClient] Stage 2 results: ${fallbackResults.length}`);
         updateFallbackStage(fallbackLog, 2, fallbackResults.length, 'Dropped tag requirement');
         
@@ -1062,7 +1070,8 @@ export class AniListClient {
           formats: undefined, // Drop formats
         });
 
-        const fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        let fallbackResults = fallbackResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        fallbackResults = fallbackResults.filter(media => !shouldFilterMedia(media, contentFilter));
         logger.debug(`[AniListClient] Stage 3 results: ${fallbackResults.length}`);
         updateFallbackStage(fallbackLog, 3, fallbackResults.length, 'Dropped format requirement');
         
@@ -1089,7 +1098,8 @@ export class AniListClient {
           formats: undefined,
         });
         
-        const lastResortResults = lastResortResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        let lastResortResults = lastResortResponse.Page.media.filter(media => !watchedIds.has(media.id));
+        lastResortResults = lastResortResults.filter(media => !shouldFilterMedia(media, contentFilter));
         logger.debug(`[AniListClient] Stage 4 results: ${lastResortResults.length}`);
         updateFallbackStage(fallbackLog, 4, lastResortResults.length, 'Global trending fallback');
         
