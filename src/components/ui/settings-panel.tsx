@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Settings, Sun, Moon, Monitor, Volume2, VolumeX, Sparkles, Keyboard } from 'lucide-react';
 import { useUI } from '@/contexts/ui-context';
+import { ContentFilterPanel } from './content-filter-panel';
 
 const accentColors = [
   { id: 'purple', color: '#a855f7', name: 'Purple' },
@@ -133,7 +134,7 @@ export function SettingsPanel() {
                 setIsOpen(false);
                 setShowShortcuts(true);
               }}
-              className="w-full flex items-center justify-between p-3 rounded-lg border bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 transition-all"
+              className="w-full flex items-center justify-between p-3 rounded-lg border bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 transition-all mb-4"
             >
               <span className="flex items-center gap-2">
                 <Keyboard className="w-4 h-4" />
@@ -141,6 +142,12 @@ export function SettingsPanel() {
               </span>
               <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs font-mono">?</kbd>
             </button>
+
+            {/* Divider */}
+            <div className="border-t border-white/10 my-4" />
+
+            {/* Content Filter Section */}
+            <ContentFilterPanel />
           </div>
         </>
       )}
