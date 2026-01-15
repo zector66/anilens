@@ -35,82 +35,93 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
   if (variant === 'hero') {
     return (
       <div className="w-full max-w-md mx-auto space-y-4">
-        {/* Primary: OAuth Login for Rankings */}
-        <button
-          onClick={loginWithAniList}
-          disabled={isLoggingIn}
-          className="group relative w-full inline-flex items-center justify-center gap-3 px-8 py-4 bg-linear-to-r from-purple-500 to-blue-500 rounded-xl font-semibold text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-        >
-          {isLoggingIn ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <LogIn className="w-5 h-5" />
-              Login with AniList
-            </>
+        {/* Primary: Try Before Login - Zero Auth */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="text-center mb-3">
+            <p className="text-sm font-medium text-white mb-1">Try it now — no login required</p>
+            <p className="text-xs text-gray-500">Enter any AniList username to explore</p>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="AniList username"
+              className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 transition-all text-base"
+              disabled={isLoggingIn}
+            />
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </div>
           )}
-          <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-        
-        <p className="text-center text-xs text-gray-500">
-          Login to compete in rankings and save your scores
-        </p>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-linear-to-r from-purple-500 to-blue-500 rounded-xl text-white font-semibold shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+            >
+              {isLoggingIn ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Eye className="w-5 h-5" />
+                  Explore
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('Josh');
+                setTimeout(() => {
+                  const form = document.querySelector('form');
+                  if (form) {
+                    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                  }
+                }, 100);
+              }}
+              className="px-6 py-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 font-medium transition-all"
+            >
+              Try with Josh
+            </button>
+          </div>
+        </form>
 
-        {/* Secondary: View-only mode */}
+        {/* Secondary: Full Login for Rankings */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <button 
-              onClick={() => setShowViewOnly(!showViewOnly)}
-              className="bg-gray-900 px-3 text-gray-500 hover:text-gray-400 transition-colors"
-            >
-              or just view stats
-            </button>
+            <span className="bg-[#0a0a0f] px-3 text-gray-500">
+              Want to compete in rankings?
+            </span>
           </div>
         </div>
 
-        {showViewOnly && (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter any AniList username to view"
-                className="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-all text-sm"
-                disabled={isLoggingIn}
-              />
-            </div>
-            {error && (
-              <div className="flex items-center gap-2 text-red-400 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                {error}
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 text-sm font-medium transition-all"
-            >
-              {isLoggingIn ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Eye className="w-4 h-4" />
-                  View Stats (No Rankings)
-                </>
-              )}
-            </button>
-            <p className="text-center text-xs text-gray-600">
-              View-only mode: Games won&apos;t count toward rankings
-            </p>
-          </form>
-        )}
+        <button
+          onClick={loginWithAniList}
+          disabled={isLoggingIn}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 text-sm font-medium transition-all"
+        >
+          {isLoggingIn ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            <>
+              <LogIn className="w-4 h-4" />
+              Login with AniList
+            </>
+          )}
+        </button>
+        <p className="text-center text-xs text-gray-600">
+          Login to save scores and compete in global rankings
+        </p>
       </div>
     );
   }

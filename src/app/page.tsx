@@ -163,7 +163,7 @@ function LandingPage() {
               {
                 icon: TrendingUp,
                 title: 'Smart Recommendations',
-                description: 'AI-powered suggestions based on your unique taste profile and hidden preferences.',
+                description: 'Taste-powered recommendations based on your unique profile, genre affinity, and hidden preferences.',
                 gradient: 'from-pink-500 to-rose-500',
               },
               {
