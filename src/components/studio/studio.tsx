@@ -219,15 +219,38 @@ export function Studio() {
   }, []);
   
   const handleExport = useCallback(async () => {
-    if (!posterRef.current) return;
+    if (!posterRef.current) {
+      console.error('Export failed: posterRef is null');
+      addToast('Export failed: No poster to export', 'error');
+      return;
+    }
     
     setIsExporting(true);
     try {
+      console.log('[Export] Starting export...', posterRef.current);
+      
+      // Wait a bit for any pending renders
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const dataUrl = await toPng(posterRef.current, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: '#050508',
+        cacheBust: true,
+        skipFonts: false,
+        includeQueryParams: true,
+        filter: (node) => {
+          // Filter out any problematic nodes
+          if (node instanceof HTMLElement) {
+            const tagName = node.tagName?.toLowerCase();
+            // Skip script and style tags
+            if (tagName === 'script' || tagName === 'style') return false;
+          }
+          return true;
+        },
       });
+      
+      console.log('[Export] Image generated successfully');
       
       const link = document.createElement('a');
       link.download = `${user?.name || 'anilens'}-${mode.toLowerCase()}-poster-${aspectRatio}.png`;
@@ -235,8 +258,13 @@ export function Studio() {
       link.click();
       addToast('Poster exported successfully!', 'success');
     } catch (error) {
-      console.error('Export failed:', error);
-      addToast('Export failed. Please try again.', 'error');
+      console.error('[Export] Export failed:', error);
+      console.error('[Export] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        posterRefCurrent: posterRef.current,
+      });
+      addToast(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     } finally {
       setIsExporting(false);
     }
@@ -253,13 +281,29 @@ export function Studio() {
   }, [mode, posterProfile?.summaryLine, addToast]);
   
   const handleCopyImageToClipboard = useCallback(async () => {
-    if (!posterRef.current) return;
+    if (!posterRef.current) {
+      addToast('No poster to copy', 'error');
+      return;
+    }
     
     try {
+      // Wait a bit for any pending renders
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const dataUrl = await toPng(posterRef.current, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: '#050508',
+        cacheBust: true,
+        skipFonts: false,
+        includeQueryParams: true,
+        filter: (node) => {
+          if (node instanceof HTMLElement) {
+            const tagName = node.tagName?.toLowerCase();
+            if (tagName === 'script' || tagName === 'style') return false;
+          }
+          return true;
+        },
       });
       
       const blob = await (await fetch(dataUrl)).blob();
@@ -267,8 +311,9 @@ export function Studio() {
         new ClipboardItem({ 'image/png': blob })
       ]);
       addToast('Image copied to clipboard!', 'success');
-    } catch {
-      addToast('Failed to copy image. Try downloading instead.', 'error');
+    } catch (error) {
+      console.error('[Copy] Copy to clipboard failed:', error);
+      addToast(`Failed to copy image: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
   }, [addToast]);
   
