@@ -11,11 +11,25 @@ export async function POST(request: NextRequest) {
   const adminSecret = process.env.ADMIN_SECRET;
   const providedSecret = request.headers.get('x-admin-secret');
 
+  // Debug logging (will appear in Vercel logs)
+  console.log('[DB Init] Environment:', process.env.NODE_ENV);
+  console.log('[DB Init] Has admin secret:', !!adminSecret);
+  console.log('[DB Init] Has provided secret:', !!providedSecret);
+  console.log('[DB Init] Secrets match:', adminSecret === providedSecret);
+
   if (!isDev) {
     // In production, require admin secret
     if (!adminSecret || providedSecret !== adminSecret) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: This endpoint is protected' },
+        { 
+          success: false, 
+          error: 'Unauthorized: This endpoint is protected',
+          debug: {
+            hasEnvSecret: !!adminSecret,
+            hasProvidedSecret: !!providedSecret,
+            env: process.env.NODE_ENV
+          }
+        },
         { status: 403 }
       );
     }
