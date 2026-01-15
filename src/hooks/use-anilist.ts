@@ -11,8 +11,11 @@ export function useAnimeList(userId: number) {
       return anilistClient.getAnimeList(userId);
     },
     enabled: !!userId && userId > 0,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
+    staleTime: 15 * 60 * 1000, // 15 minutes - lists don't change often
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    retry: 2,
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Use cached data if available
   });
 }
 
@@ -21,8 +24,11 @@ export function useMangaList(userId: number) {
     queryKey: ['mangaList', userId],
     queryFn: () => anilistClient.getMangaList(userId),
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 30 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -31,7 +37,11 @@ export function useFavorites(userId: number) {
     queryKey: ['favorites', userId],
     queryFn: () => anilistClient.getUserFavorites(userId),
     enabled: !!userId && userId > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutes - favorites change rarely
+    staleTime: 30 * 60 * 1000, // 30 minutes - favorites change rarely
+    gcTime: 60 * 60 * 1000, // 1 hour in cache
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -40,7 +50,11 @@ export function useUserStats(userId: number) {
     queryKey: ['userStats', userId],
     queryFn: () => anilistClient.getUserStats(userId),
     enabled: !!userId,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 20 * 60 * 1000, // 20 minutes
+    gcTime: 40 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -49,7 +63,10 @@ export function useMediaSearch(search: string, type: 'ANIME' | 'MANGA' = 'ANIME'
     queryKey: ['mediaSearch', search, type],
     queryFn: () => anilistClient.searchMedia(search, type),
     enabled: search.length > 2,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -58,7 +75,11 @@ export function useMediaDetails(mediaId: number) {
     queryKey: ['mediaDetails', mediaId],
     queryFn: () => anilistClient.getMediaDetails(mediaId),
     enabled: !!mediaId,
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - media details rarely change
+    gcTime: 60 * 60 * 1000, // 1 hour
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -140,7 +161,10 @@ export function useRecommendations(
       return results.filter(media => !watchedIds.has(media.id)).slice(0, 12);
     },
     enabled: genreAffinity.length > 0 && watchedIds.size > 0,
-    staleTime: 3 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes - recommendations can be reused
+    gcTime: 20 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
   });
 }
 

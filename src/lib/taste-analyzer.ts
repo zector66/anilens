@@ -1,4 +1,5 @@
 import { Media, MediaListEntry, TasteProfile } from '@/types/anilist';
+import { tasteAnalyzerCache } from './taste-analyzer-cache';
 
 // Favorites profile vectors for blending
 export interface FavoritesProfile {
@@ -48,6 +49,15 @@ export class TasteAnalyzer {
   }
 
   static analyzeTaste(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): TasteProfile {
+    // Check cache first
+    const cached = tasteAnalyzerCache.get(mediaList, type);
+    if (cached) {
+      console.log('[TasteAnalyzer] Cache hit for', type);
+      return cached;
+    }
+    
+    console.log('[TasteAnalyzer] Cache miss, analyzing', mediaList.length, 'entries');
+    
     const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
     const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number }>();
     const sourceData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>();
@@ -294,7 +304,7 @@ export class TasteAnalyzer {
     const contradictions = this.detectContradictions(analyzedList, genreAffinity, tagAffinity, { completionRate, nicheIndex, mainstreamIndex, experimentalIndex }, scores, type);
     const fingerprint = this.generateFingerprint(emotionalProfile, structuralPreferences, riskProfile, genreAffinity, nicheIndex, diversityIndex);
 
-    return {
+    const profile: TasteProfile = {
       genreAffinity,
       tagAffinity,
       studioBias,
@@ -316,6 +326,11 @@ export class TasteAnalyzer {
       contradictions,
       fingerprint,
     };
+    
+    // Store in cache before returning
+    tasteAnalyzerCache.set(mediaList, type, profile);
+    
+    return profile;
   }
 
   private static calculateFormatWeights(formatData: Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>): Record<string, number> {

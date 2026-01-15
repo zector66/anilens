@@ -13,16 +13,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        // Keep data fresh for 5 minutes before refetching
-        staleTime: 5 * 60 * 1000,
-        // Keep unused data in cache for 30 minutes
-        gcTime: 30 * 60 * 1000,
-        // Don't refetch on window focus by default (AniList data doesn't change often)
+        // Keep data fresh for 10 minutes before refetching
+        staleTime: 10 * 60 * 1000,
+        // Keep unused data in cache for 1 hour
+        gcTime: 60 * 60 * 1000,
+        // Don't refetch on window focus (AniList data doesn't change often)
         refetchOnWindowFocus: false,
-        // Retry failed requests once
-        retry: 1,
+        // Don't refetch on mount if data is fresh
+        refetchOnMount: false,
+        // Don't refetch on reconnect
+        refetchOnReconnect: false,
+        // Retry failed requests twice
+        retry: 2,
+        // Exponential backoff for retries
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
         // Use structural sharing for better performance
         structuralSharing: true,
+        // Network mode - online only (don't queue requests)
+        networkMode: 'online',
       },
     },
   }));
