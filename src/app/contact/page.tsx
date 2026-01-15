@@ -32,23 +32,7 @@ export default function ContactPage() {
               <h2 className="text-xl font-semibold mb-4">Get in Touch</h2>
               <div className="grid gap-4">
                 <a
-                  href="mailto:contact@anilens.com"
-                  className="flex items-start gap-4 p-4 rounded-lg border border-white/10 hover:border-purple-500/50 transition-colors group"
-                >
-                  <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
-                    <Mail className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">Email</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Send us an email for general inquiries, bug reports, or data deletion requests
-                    </p>
-                    <p className="text-sm text-purple-400 mt-2">contact@anilens.com</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://discord.gg/anilens"
+                  href="https://anilist.co/user/criminalize"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-start gap-4 p-4 rounded-lg border border-white/10 hover:border-purple-500/50 transition-colors group"
@@ -57,85 +41,61 @@ export default function ContactPage() {
                     <MessageSquare className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">Discord Community</h3>
+                    <h3 className="font-semibold mb-1">AniList</h3>
                     <p className="text-sm text-muted-foreground">
-                      Join our Discord server to chat with other users, get help, and share feedback
+                      Message me on AniList for questions, feedback, or support
                     </p>
-                    <p className="text-sm text-purple-400 mt-2">discord.gg/anilens</p>
+                    <p className="text-sm text-purple-400 mt-2">@criminalize</p>
                   </div>
                 </a>
 
                 <a
-                  href="https://github.com/zector66/anilens"
+                  href="https://ko-fi.com/anilens"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-start gap-4 p-4 rounded-lg border border-white/10 hover:border-purple-500/50 transition-colors group"
+                  className="flex items-start gap-4 p-4 rounded-lg border border-white/10 hover:border-pink-500/50 transition-colors group"
                 >
-                  <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
-                    <Github className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">GitHub</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Report bugs, request features, or contribute to the project
-                    </p>
-                    <p className="text-sm text-purple-400 mt-2">github.com/zector66/anilens</p>
-                  </div>
-                </a>
-
-                <Link
-                  href="/support"
-                  className="flex items-start gap-4 p-4 rounded-lg border border-white/10 hover:border-purple-500/50 transition-colors group"
-                >
-                  <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
-                    <Heart className="w-5 h-5 text-purple-400" />
+                  <div className="p-2 rounded-lg bg-pink-500/10 group-hover:bg-pink-500/20 transition-colors">
+                    <Heart className="w-5 h-5 text-pink-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Support AniLens</h3>
                     <p className="text-sm text-muted-foreground">
                       Help keep AniLens running by supporting hosting and development costs
                     </p>
-                    <p className="text-sm text-purple-400 mt-2">View support options →</p>
+                    <p className="text-sm text-pink-400 mt-2">ko-fi.com/anilens</p>
                   </div>
-                </Link>
+                </a>
               </div>
             </section>
 
             <section className="pt-4 border-t border-white/10">
-              <h2 className="text-xl font-semibold mb-3">Common Requests</h2>
+              <h2 className="text-xl font-semibold mb-3">What to Include</h2>
               <div className="space-y-3 text-sm">
                 <div>
                   <h3 className="font-medium mb-1">Bug Reports</h3>
                   <p className="text-muted-foreground">
-                    Please include your browser, device, and steps to reproduce the issue. Screenshots help!
+                    Include your browser, device, and steps to reproduce the issue. Screenshots help!
                   </p>
                 </div>
                 <div>
                   <h3 className="font-medium mb-1">Feature Requests</h3>
                   <p className="text-muted-foreground">
-                    We love hearing your ideas! Share them on Discord or GitHub for community discussion.
+                    Share your ideas and suggestions for improving AniLens
                   </p>
                 </div>
                 <div>
                   <h3 className="font-medium mb-1">Data Deletion</h3>
                   <p className="text-muted-foreground">
-                    Email us with your AniList username and we&apos;ll process your request within 30 days.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-medium mb-1">Partnership Inquiries</h3>
-                  <p className="text-muted-foreground">
-                    For collaboration or partnership opportunities, please reach out via email.
+                    Provide your AniList username and I&apos;ll process your request within 30 days
                   </p>
                 </div>
               </div>
             </section>
 
             <section className="pt-4 border-t border-white/10">
-              <h2 className="text-xl font-semibold mb-3">Response Time</h2>
               <p className="text-sm text-muted-foreground">
-                AniLens is run by a small team of volunteers. We typically respond within 2-3 business days, 
-                but please be patient during busy periods. For urgent issues, Discord is usually the fastest way to get help.
+                AniLens is a solo project. I typically respond within a few days, but please be patient during busy periods.
               </p>
             </section>
           </CardContent>
