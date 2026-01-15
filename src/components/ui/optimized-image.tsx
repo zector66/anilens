@@ -145,21 +145,25 @@ function OptimizedImageInner({
     >
       {/* Actual image - only render when in view */}
       {isInView ? (
-        <Image
-          src={src}
-          alt={alt}
-          width={fill ? undefined : width}
-          height={fill ? undefined : height}
-          fill={fill}
-          className={className}
-          sizes={sizes}
-          quality={quality}
-          priority={priority}
-          onLoad={handleLoad}
-          onError={handleError}
-          loading={priority || eager ? 'eager' : 'lazy'}
-          unoptimized
-        />
+        fill ? (
+          <img
+            src={src}
+            alt={alt}
+            className={`absolute inset-0 w-full h-full ${className}`}
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        ) : (
+          <img
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            className={className}
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        )
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 bg-gray-800">
           Waiting for viewport...
