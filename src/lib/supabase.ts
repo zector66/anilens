@@ -258,53 +258,32 @@ export async function updateRoom(
   return !error;
 }
 
-// Update player state in room with retry logic to avoid race conditions
+// Update player state in room using atomic RPC function (prevents race conditions)
 export async function updatePlayerState(
   roomId: string,
   playerId: string,
-  updates: Partial<RoomPlayer>,
-  maxRetries = 3
+  updates: Partial<RoomPlayer>
 ): Promise<boolean> {
   if (!supabase) return false;
 
-  let retries = 0;
-  while (retries < maxRetries) {
-    try {
-      // 1. Get the latest room state
-      const { data: dbRoom, error: findError } = await supabase
-        .from('multiplayer_rooms')
-        .select('*')
-        .eq('id', roomId)
-        .single();
+  try {
+    // Use atomic RPC function to prevent race conditions
+    const { data, error } = await supabase.rpc('update_player_state_atomic', {
+      p_room_id: roomId,
+      p_player_id: playerId,
+      p_updates: updates
+    });
 
-      if (findError || !dbRoom) return false;
-
-      const currentRoom = dbRowToRoom(dbRoom);
-      if (!currentRoom) return false;
-
-      // 2. Update the specific player
-      const updatedPlayers = currentRoom.players.map((p: RoomPlayer) =>
-        p.id === playerId ? { ...p, ...updates } : p
-      );
-
-      // 3. Write back the entire players array
-      const { error: updateError } = await supabase
-        .from('multiplayer_rooms')
-        .update({ players: updatedPlayers })
-        .eq('id', roomId);
-
-      if (!updateError) return true;
-      
-      // If we failed, wait a bit and retry
-      retries++;
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 200 * retries));
-    } catch (e) {
-      console.error('Error updating player state:', e);
-      retries++;
+    if (error) {
+      console.error('Error updating player state:', error);
+      return false;
     }
-  }
 
-  return false;
+    return data === true;
+  } catch (e) {
+    console.error('Error calling update_player_state_atomic:', e);
+    return false;
+  }
 }
 
 // Update room state and broadcast to all
