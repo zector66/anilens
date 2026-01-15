@@ -66,11 +66,15 @@ function OptimizedImageInner({
 
   // Intersection Observer for lazy loading (disabled for eager loading)
   useEffect(() => {
-    if (priority || isInView || eager) return;
+    if (priority || isInView || eager) {
+      console.log('[OptimizedImage] Skipping observer - priority:', priority, 'isInView:', isInView, 'eager:', eager, 'src:', src);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          console.log('[OptimizedImage] Image entered viewport:', src);
           setIsInView(true);
           observer.disconnect();
         }
@@ -83,10 +87,11 @@ function OptimizedImageInner({
 
     if (imgRef.current) {
       observer.observe(imgRef.current);
+      console.log('[OptimizedImage] Observer attached for:', src);
     }
 
     return () => observer.disconnect();
-  }, [priority, isInView, eager]);
+  }, [priority, isInView, eager, src]);
 
   const handleLoad = () => {
     console.log('[OptimizedImage] Image loaded successfully:', src);
@@ -121,6 +126,16 @@ function OptimizedImageInner({
     );
   }
 
+  console.log('[OptimizedImage] Render state:', {
+    src: src.substring(0, 50) + '...',
+    isInView,
+    isLoaded,
+    hasError,
+    priority,
+    eager,
+    fill
+  });
+
   return (
     <div
       ref={imgRef}
@@ -137,7 +152,7 @@ function OptimizedImageInner({
       />
 
       {/* Actual image - only render when in view */}
-      {isInView && (
+      {isInView ? (
         <Image
           src={src}
           alt={alt}
@@ -156,6 +171,10 @@ function OptimizedImageInner({
           onError={handleError}
           loading={priority || eager ? 'eager' : 'lazy'}
         />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+          Waiting for viewport...
+        </div>
       )}
     </div>
   );
