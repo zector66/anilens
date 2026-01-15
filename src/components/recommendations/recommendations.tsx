@@ -5,12 +5,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
 import { useMedia } from '@/contexts/media-context';
+import { useModelSettings } from '@/hooks/use-model-settings';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { usePrefetchMedia } from '@/hooks/use-prefetch';
 import { GridSkeleton } from '@/components/ui/lazy-component';
+import { ModelSettingsPanel } from '@/components/settings/model-settings-panel';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -26,7 +28,8 @@ import {
   Tag,
   BarChart3,
   Info,
-  Flame
+  Flame,
+  Settings
 } from 'lucide-react';
 
 interface RecommendationsProps {
@@ -157,6 +160,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const { user } = useAuth();
   const { getPreferredTitle } = useSettings();
   const { activeType, setActiveType, getSeriesTerm, getWatchReadTerm, getStudioAuthorTerm } = useMedia();
+  const { settings: modelSettings, updateSettings: updateModelSettings, resetSettings: resetModelSettings } = useModelSettings();
+  const [showModelSettings, setShowModelSettings] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'experimental' | 'hidden-gem' | 'opposite'>('all');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
@@ -165,7 +170,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const [minScore, setMinScore] = useState(60);
   const [explorationLevel, setExplorationLevel] = useState(50); // 0 = comfort, 100 = full exploration
   const [anchorToFavorites, setAnchorToFavorites] = useState(true);
-  const [favoritesInfluence, setFavoritesInfluence] = useState(15); // 0-30%
+  const [favoritesInfluence, setFavoritesInfluence] = useState(modelSettings.favoriteInfluence); // Use model settings
 
   const effectiveUserId = userId || user?.id || 0;
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
@@ -375,14 +380,23 @@ export function Recommendations({ userId }: RecommendationsProps) {
           <h2 className="text-2xl font-bold text-white mb-2">Personalized Recommendations</h2>
           <p className="text-gray-400">Based on your {getSeriesTerm()} DNA and {allEntries.length} {activeType === 'ANIME' ? 'titles' : 'entries'} discovered</p>
         </div>
-        <button 
-          onClick={() => refetchRecs()}
-          disabled={isRefetching}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 rounded-lg text-white font-medium transition-colors"
-        >
-          <Shuffle className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
-          {isRefetching ? 'Regenerating...' : 'Regenerate'}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowModelSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 font-medium transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Model Settings
+          </button>
+          <button 
+            onClick={() => refetchRecs()}
+            disabled={isRefetching}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 rounded-lg text-white font-medium transition-colors"
+          >
+            <Shuffle className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            {isRefetching ? 'Regenerating...' : 'Regenerate'}
+          </button>
+        </div>
       </div>
 
       {/* Taste Summary */}
@@ -712,6 +726,16 @@ export function Recommendations({ userId }: RecommendationsProps) {
           Generate More
         </button>
       </div>
+
+      {/* Model Settings Modal */}
+      {showModelSettings && (
+        <ModelSettingsPanel
+          settings={modelSettings}
+          updateSettings={updateModelSettings}
+          resetSettings={resetModelSettings}
+          onClose={() => setShowModelSettings(false)}
+        />
+      )}
     </div>
   );
 }
