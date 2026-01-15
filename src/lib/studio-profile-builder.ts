@@ -1,5 +1,6 @@
 import { TasteProfile, MediaListEntry } from '@/types/anilist';
 import { StudioPosterProfile, StudioPosterSettings, IndexStat, DEFAULT_POSTER_SETTINGS, TopMediaItem } from '@/types/studio';
+import { shouldFilterMedia, ContentFilterSettings, DEFAULT_CONTENT_FILTER } from './content-filter';
 
 interface UserInfo {
   id: number;
@@ -250,10 +251,19 @@ export function generateFallbackGradient(entries: MediaListEntry[]): string {
 
 /**
  * Gets top media sorted by score/impact
+ * CRITICAL: Filters out adult content for studio cards
  */
-function getTopMedia(entries: MediaListEntry[], count: number = 5): TopMediaItem[] {
+function getTopMedia(
+  entries: MediaListEntry[], 
+  count: number = 5,
+  contentFilter: ContentFilterSettings = DEFAULT_CONTENT_FILTER
+): TopMediaItem[] {
   return entries
-    .filter(e => e.media?.coverImage?.large && e.score && e.score > 0)
+    .filter(e => {
+      if (!e.media?.coverImage?.large || !e.score || e.score <= 0) return false;
+      // CRITICAL: Filter adult content from top titles display
+      return !shouldFilterMedia(e.media, contentFilter);
+    })
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, count)
     .map(e => ({
@@ -321,7 +331,8 @@ export function buildStudioPosterProfile(
   user: UserInfo,
   entries: MediaListEntry[],
   mode: 'ANIME' | 'MANGA',
-  settings: StudioPosterSettings = DEFAULT_POSTER_SETTINGS
+  settings: StudioPosterSettings = DEFAULT_POSTER_SETTINGS,
+  contentFilter: ContentFilterSettings = DEFAULT_CONTENT_FILTER
 ): StudioPosterProfile {
   // Apply filters
   let filteredEntries = filterByTimeWindow(entries, settings.timeWindow);
@@ -334,8 +345,8 @@ export function buildStudioPosterProfile(
   // Build indices
   const indices = buildIndices(tasteProfile);
   
-  // Get top media with covers
-  const topMedia = getTopMedia(filteredEntries, 5);
+  // Get top media with covers (with content filtering)
+  const topMedia = getTopMedia(filteredEntries, 5, contentFilter);
   
   // Top genres (5)
   const topGenres = tasteProfile.genreAffinity.slice(0, 5).map(g => ({
