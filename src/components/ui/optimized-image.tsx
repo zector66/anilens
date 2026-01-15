@@ -89,11 +89,13 @@ function OptimizedImageInner({
   }, [priority, isInView, eager]);
 
   const handleLoad = () => {
+    console.log('[OptimizedImage] Image loaded successfully:', src);
     setIsLoaded(true);
     onLoad?.();
   };
 
   const handleError = () => {
+    console.error('[OptimizedImage] Image failed to load:', src);
     setHasError(true);
   };
 
