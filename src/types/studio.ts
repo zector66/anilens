@@ -258,6 +258,14 @@ export interface IndexStat {
   color: string;
 }
 
+export interface TopMediaItem {
+  id: number;
+  title: string;
+  cover: string;
+  score?: number;
+  color?: string;
+}
+
 export interface StudioPosterProfile {
   // User info
   user: {
@@ -280,10 +288,23 @@ export interface StudioPosterProfile {
   // Core indices (6 max for poster)
   indices: IndexStat[];
   
+  // Top media (covers for poster)
+  topMedia: TopMediaItem[];
+  
   // Top content
   topGenres: Array<{ name: string; strength: number }>;
   topTags: Array<{ name: string; strength: number }>;
-  topStudiosOrAuthors: Array<{ name: string; strength: number; era?: string }>;
+  topStudiosOrAuthors: Array<{ name: string; strength: number; count?: number; percentage?: number; era?: string }>;
+  
+  // Activity stats
+  activityStats: {
+    totalTitles: number;
+    episodesWatched?: number;
+    chaptersRead?: number;
+    daysActive?: number;
+    meanScore: number;
+    completionRate: number;
+  };
   
   // Metadata
   metadata: {
@@ -291,6 +312,7 @@ export interface StudioPosterProfile {
     timeRange: string;
     generatedAt: string;
     version: string;
+    statusesIncluded: string[];
   };
 }
 

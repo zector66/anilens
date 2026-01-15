@@ -1,5 +1,5 @@
 import { TasteProfile, MediaListEntry } from '@/types/anilist';
-import { StudioPosterProfile, StudioPosterSettings, IndexStat, DEFAULT_POSTER_SETTINGS } from '@/types/studio';
+import { StudioPosterProfile, StudioPosterSettings, IndexStat, DEFAULT_POSTER_SETTINGS, TopMediaItem } from '@/types/studio';
 
 interface UserInfo {
   id: number;
@@ -241,6 +241,59 @@ export function generateFallbackGradient(entries: MediaListEntry[]): string {
 }
 
 /**
+ * Gets top media sorted by score/impact
+ */
+function getTopMedia(entries: MediaListEntry[], count: number = 5): TopMediaItem[] {
+  return entries
+    .filter(e => e.media?.coverImage?.large && e.score && e.score > 0)
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, count)
+    .map(e => ({
+      id: e.media!.id,
+      title: e.media!.title?.english || e.media!.title?.romaji || 'Unknown',
+      cover: e.media!.coverImage!.large!,
+      score: e.score,
+      color: e.media!.coverImage?.color || undefined,
+    }));
+}
+
+/**
+ * Calculates activity stats from entries
+ */
+function calculateActivityStats(
+  entries: MediaListEntry[],
+  mode: 'ANIME' | 'MANGA',
+  tasteProfile: TasteProfile
+) {
+  const totalTitles = entries.length;
+  
+  let episodesWatched = 0;
+  let chaptersRead = 0;
+  
+  for (const entry of entries) {
+    if (mode === 'ANIME') {
+      episodesWatched += entry.progress || 0;
+    } else {
+      chaptersRead += entry.progress || 0;
+    }
+  }
+  
+  const scoredEntries = entries.filter(e => e.score && e.score > 0);
+  const meanScore = scoredEntries.length > 0
+    ? scoredEntries.reduce((sum, e) => sum + (e.score || 0), 0) / scoredEntries.length
+    : 0;
+  
+  return {
+    totalTitles,
+    episodesWatched: mode === 'ANIME' ? episodesWatched : undefined,
+    chaptersRead: mode === 'MANGA' ? chaptersRead : undefined,
+    daysActive: undefined, // Could compute from date range
+    meanScore,
+    completionRate: tasteProfile.behavioralMetrics.completionRate,
+  };
+}
+
+/**
  * Builds the complete StudioPosterProfile from TasteProfile and user info
  */
 export function buildStudioPosterProfile(
@@ -261,6 +314,9 @@ export function buildStudioPosterProfile(
   // Build indices
   const indices = buildIndices(tasteProfile);
   
+  // Get top media with covers
+  const topMedia = getTopMedia(filteredEntries, 5);
+  
   // Top genres (5)
   const topGenres = tasteProfile.genreAffinity.slice(0, 5).map(g => ({
     name: g.genre,
@@ -273,12 +329,23 @@ export function buildStudioPosterProfile(
     strength: t.affinity,
   }));
   
-  // Top studios/authors (5)
-  const topStudiosOrAuthors = tasteProfile.studioBias.slice(0, 5).map(s => ({
-    name: s.studio,
-    strength: s.bias,
-    era: undefined, // Could compute era from entries if needed
-  }));
+  // Top studios/authors with counts and percentages
+  const totalCount = filteredEntries.length;
+  const topStudiosOrAuthors = tasteProfile.studioBias.slice(0, 5).map(s => {
+    const studioEntries = filteredEntries.filter(e => 
+      e.media?.studios?.edges?.some(edge => edge.node?.name === s.studio)
+    );
+    return {
+      name: s.studio,
+      strength: s.bias,
+      count: studioEntries.length,
+      percentage: totalCount > 0 ? Math.round((studioEntries.length / totalCount) * 100) : 0,
+      era: undefined,
+    };
+  });
+  
+  // Activity stats
+  const activityStats = calculateActivityStats(filteredEntries, mode, tasteProfile);
   
   // Fallback gradient if no banner
   const fallbackGradient = !user.bannerImage 
@@ -297,14 +364,17 @@ export function buildStudioPosterProfile(
     settings,
     summaryLine,
     indices,
+    topMedia,
     topGenres,
     topTags,
     topStudiosOrAuthors,
+    activityStats,
     metadata: {
       totalEntries: filteredEntries.length,
       timeRange: getTimeRangeLabel(settings.timeWindow),
       generatedAt: new Date().toISOString(),
       version: 'v1',
+      statusesIncluded: settings.statuses,
     },
   };
 }

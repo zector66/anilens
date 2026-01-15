@@ -7,7 +7,7 @@ import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { TasteAnalyzer } from '@/lib/taste-analyzer';
 import { buildStudioPosterProfile, filterByTimeWindow, filterByStatus, filterByFormat } from '@/lib/studio-profile-builder';
 import { StudioPoster } from './studio-poster';
-import { StudioPosterSettings, DEFAULT_POSTER_SETTINGS, TimeWindow, WeightingStyle, PosterStylePreset } from '@/types/studio';
+import { StudioPosterSettings, DEFAULT_POSTER_SETTINGS, TimeWindow, PosterStylePreset } from '@/types/studio';
 import { 
   Download, 
   Share2, 
@@ -16,7 +16,6 @@ import {
   Clock,
   Filter,
   Palette,
-  ChevronDown,
   Check,
   Sparkles
 } from 'lucide-react';
@@ -83,7 +82,7 @@ export function Studio() {
         id: user.id,
         name: user.name,
         avatar: user.avatar,
-        bannerImage: (user as any).bannerImage,
+        bannerImage: (user as { bannerImage?: string }).bannerImage,
       },
       filteredEntries,
       mode,
@@ -136,7 +135,7 @@ export function Studio() {
       const newStatuses = statuses.includes(status)
         ? statuses.filter(s => s !== status)
         : [...statuses, status];
-      return { ...prev, statuses: newStatuses as StudioPosterSettings['statuses'] };
+      return { ...prev, statuses: newStatuses as typeof prev.statuses };
     });
   }, []);
   
@@ -247,16 +246,16 @@ export function Studio() {
                   <label key={status} className="flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={settings.statuses.includes(status as any)}
+                      checked={(settings.statuses as string[]).includes(status)}
                       onChange={() => toggleStatus(status)}
                       className="sr-only"
                     />
                     <div className={`w-4 h-4 rounded border-2 mr-3 flex items-center justify-center ${
-                      settings.statuses.includes(status as any)
+                      (settings.statuses as string[]).includes(status)
                         ? 'border-purple-500 bg-purple-500'
                         : 'border-gray-600'
                     }`}>
-                      {settings.statuses.includes(status as any) && (
+                      {(settings.statuses as string[]).includes(status) && (
                         <Check className="w-2.5 h-2.5 text-white" />
                       )}
                     </div>
@@ -374,10 +373,10 @@ export function Studio() {
       </div>
       
       {/* Preview Panel */}
-      <div className="flex-1 flex flex-col items-center">
-        <div className="mb-4 flex items-center justify-between w-full max-w-[600px]">
+      <div className="flex-1 flex flex-col items-center overflow-hidden">
+        <div className="mb-4 flex items-center justify-between w-full px-4">
           <h3 className="text-sm font-medium text-gray-400">
-            Live Preview • {filteredEntries.length} titles
+            Live Preview • {filteredEntries.length} titles • 1600×900
           </h3>
           <button
             onClick={() => setShowControls(!showControls)}
@@ -388,11 +387,22 @@ export function Studio() {
         </div>
         
         {posterProfile ? (
-          <div className="bg-gray-900/30 border border-gray-800 rounded-2xl p-4 overflow-hidden">
-            <StudioPoster ref={posterRef} profile={posterProfile} />
+          <div className="relative w-full flex-1 flex items-start justify-center overflow-auto p-4">
+            {/* Scaled preview container */}
+            <div 
+              className="origin-top-left"
+              style={{ 
+                transform: 'scale(0.55)',
+                transformOrigin: 'top center',
+              }}
+            >
+              <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                <StudioPoster ref={posterRef} profile={posterProfile} />
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="bg-gray-900/30 border border-gray-800 rounded-2xl p-8 text-center">
+          <div className="bg-gray-900/30 border border-gray-800 rounded-2xl p-8 text-center mx-4">
             <p className="text-gray-400">
               {filteredEntries.length === 0
                 ? 'No entries match your current filters'
@@ -402,9 +412,9 @@ export function Studio() {
         )}
         
         {/* Tips */}
-        <div className="mt-6 max-w-[600px] text-center">
-          <p className="text-sm text-gray-500">
-            Tip: Toggle time windows to see how your taste has evolved over time!
+        <div className="py-4 px-4 text-center border-t border-gray-800/50 w-full mt-auto">
+          <p className="text-xs text-gray-500">
+            Poster exports at full 1600×900 resolution (2x for high-DPI displays)
           </p>
         </div>
       </div>
