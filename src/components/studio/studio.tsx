@@ -133,19 +133,35 @@ function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () =
   );
 }
 
+const STORAGE_KEY = 'anilens-studio-settings';
+
 export function Studio() {
   const { user } = useAuth();
   const posterRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   
-  const [mode, setMode] = useState<MediaMode>('ANIME');
-  const [settings, setSettings] = useState<StudioPosterSettings>(DEFAULT_POSTER_SETTINGS);
+  // Load saved settings from localStorage
+  const loadSavedSettings = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  
+  const savedSettings = loadSavedSettings();
+  
+  const [mode, setMode] = useState<MediaMode>(savedSettings?.mode || 'ANIME');
+  const [settings, setSettings] = useState<StudioPosterSettings>(savedSettings?.settings || DEFAULT_POSTER_SETTINGS);
   const [isExporting, setIsExporting] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('wide');
-  const [zoomIndex, setZoomIndex] = useState(2);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(savedSettings?.aspectRatio || 'wide');
+  const [zoomIndex, setZoomIndex] = useState(savedSettings?.zoomIndex || 2);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const { data: animeList, isLoading: animeLoading } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: mangaLoading } = useMangaList(user?.id || 0);
@@ -280,11 +296,11 @@ export function Studio() {
   }, []);
   
   const handleZoomIn = useCallback(() => {
-    setZoomIndex(prev => Math.min(prev + 1, ZOOM_LEVELS.length - 1));
+    setZoomIndex((prev: number) => Math.min(prev + 1, ZOOM_LEVELS.length - 1));
   }, []);
   
   const handleZoomOut = useCallback(() => {
-    setZoomIndex(prev => Math.max(prev - 1, 0));
+    setZoomIndex((prev: number) => Math.max(prev - 1, 0));
   }, []);
   
   const handleFitToView = useCallback(() => {
@@ -296,9 +312,74 @@ export function Studio() {
     setZoomIndex(closestIndex);
   }, [currentAspect.width]);
   
+  // Save settings to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        mode,
+        settings,
+        aspectRatio,
+        zoomIndex,
+      }));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [mode, settings, aspectRatio, zoomIndex]);
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      // Cmd/Ctrl + E to export
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        if (posterProfile && !isExporting) handleExport();
+      }
+      
+      // Cmd/Ctrl + K to copy share text
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (posterProfile) handleCopyShareText();
+      }
+      
+      // + or = to zoom in
+      if ((e.key === '+' || e.key === '=') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleZoomIn();
+      }
+      
+      // - to zoom out
+      if (e.key === '-' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleZoomOut();
+      }
+      
+      // 0 to fit to view
+      if (e.key === '0' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleFitToView();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [posterProfile, isExporting, handleExport, handleCopyShareText, handleZoomIn, handleZoomOut, handleFitToView]);
+  
   useEffect(() => {
     handleFitToView();
-  }, [aspectRatio]);
+  }, [aspectRatio, handleFitToView]);
+  
+  // Show generating state briefly when profile changes
+  useEffect(() => {
+    if (posterProfile) {
+      setIsGenerating(true);
+      const timer = setTimeout(() => setIsGenerating(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [posterProfile]);
   
   if (!user) {
     return (
@@ -561,32 +642,40 @@ export function Studio() {
           </div>
           
           {/* Zoom Controls */}
-          <div className="flex items-center gap-1 bg-gray-800/50 rounded-lg p-1">
-            <button
-              onClick={handleZoomOut}
-              disabled={zoomIndex === 0}
-              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-xs text-gray-400 w-12 text-center font-mono">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={handleZoomIn}
-              disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <div className="w-px h-4 bg-gray-700 mx-1" />
-            <button
-              onClick={handleFitToView}
-              className="p-1.5 text-gray-400 hover:text-white rounded"
-              title="Fit to view"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-1 text-xs text-gray-500 mr-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">⌘E</kbd>
+              <span>Export</span>
+            </div>
+            <div className="flex items-center gap-1 bg-gray-800/50 rounded-lg p-1">
+              <button
+                onClick={handleZoomOut}
+                disabled={zoomIndex === 0}
+                className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded transition-colors"
+                title="Zoom out (-)"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs text-gray-400 w-12 text-center font-mono">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+                className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded transition-colors"
+                title="Zoom in (+)"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-gray-700 mx-1" />
+              <button
+                onClick={handleFitToView}
+                className="p-1.5 text-gray-400 hover:text-white rounded transition-colors"
+                title="Fit to view (0)"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
         
@@ -594,28 +683,42 @@ export function Studio() {
         <div className="flex-1 overflow-auto p-6">
           {posterProfile ? (
             <div className="flex items-start justify-center min-h-full">
-              <div 
-                className={`transition-all duration-200 ${isTransitioning ? 'opacity-80' : 'opacity-100'}`}
-                style={{ 
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'top center',
-                }}
-              >
-                <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-                  <StudioPoster 
-                    ref={posterRef} 
-                    profile={{
-                      ...posterProfile,
-                      settings: {
-                        ...posterProfile.settings,
-                        theme: settings.theme,
-                      }
-                    }}
-                    width={currentAspect.width}
-                    height={currentAspect.height}
-                  />
+              {isGenerating ? (
+                <div 
+                  className="rounded-2xl overflow-hidden bg-gray-900/50 animate-pulse"
+                  style={{ 
+                    width: currentAspect.width * zoom,
+                    height: currentAspect.height * zoom,
+                  }}
+                >
+                  <div className="w-full h-full flex items-center justify-center">
+                    <RefreshCw className="w-8 h-8 text-gray-600 animate-spin" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div 
+                  className={`transition-all duration-200 ${isTransitioning ? 'opacity-80' : 'opacity-100'}`}
+                  style={{ 
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'top center',
+                  }}
+                >
+                  <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                    <StudioPoster 
+                      ref={posterRef} 
+                      profile={{
+                        ...posterProfile,
+                        settings: {
+                          ...posterProfile.settings,
+                          theme: settings.theme,
+                        }
+                      }}
+                      width={currentAspect.width}
+                      height={currentAspect.height}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
