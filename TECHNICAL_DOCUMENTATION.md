@@ -721,7 +721,61 @@ CREATE TABLE multiplayer_sessions (
 
 ## Recent Improvements
 
-### Session: January 15, 2026
+### Session: January 15, 2026 (Part 2)
+
+#### Comprehensive Accuracy Improvements (Commit: `78dd7ae`)
+
+**1. Engagement Weighting System** (`src/lib/engagement-weights.ts`)
+- New formula: `w = baseStatusWeight * scoreSignalWeight * progressWeight`
+- Status weights: Completed (1.0), Current (0.7), Dropped (0.25), Planning (0)
+- Score signal: `1 + clamp(zScore, -1.25, 1.25) * 0.25`
+- Prevents "exposure inflation" from completionists
+
+**2. Fixed Confidence Scores**
+- New formula: `confidence = 1 - exp(-count / k)`
+- k=8 for genres, k=6 for tags, k=5 for studios
+- Stops small sample sizes from looking authoritative
+- UI can show 🟢 Strong / 🟡 Tentative / 🔴 Low confidence
+
+**3. Fixed Diversity Index**
+- Uses engagement-weighted entropy (not raw count)
+- Added dominance penalty: `diversityFinal = entropyNorm * (1 - 0.25 * dominancePenalty)`
+- Prevents 100% diversity if one category dominates
+- Formula: `dominancePenalty = clamp((pTop1 - 0.15) / 0.35, 0, 1)`
+
+**4. Time-Window + Status Filtering**
+- New `analyzeWithOptions()` method
+- Supports: 'all', '12months', '90days'
+- Status filtering: completed-only, include current, etc.
+
+**5. Data Completeness Flags** (`src/lib/taste-profile-cache.ts`)
+- Tracks: entries with scores, tags, studios, dates
+- Generates warnings: "50% titles unscored", "30% missing tags"
+- `isReliable` flag for minimum quality threshold
+
+**6. Supabase Persistent Caching**
+- Table: `taste_profile_cache`
+- Cache key: `userId + type + timeWindow + listHash`
+- `listHash` = sum of ids + scores + progress + status chars
+- Survives refreshes and works across devices
+
+**7. Recommendation Staged Fallback** (`src/lib/recommendation-fallback.ts`)
+- 4-stage progressive relaxation per mode
+- Debug logging: which stage was used, what was relaxed
+- UI-friendly banners: "Showing broader results — strict experimental criteria had limited matches"
+- Never returns empty
+
+**8. Thin vs Thick AniList Queries** (`src/lib/anilist-queries.ts`)
+- THIN: 15 fields (for analysis) — no covers/banners
+- THICK: 50 fields (for display) — full details
+- COVERS: 5 fields (for cards) — just images
+- IDS: 2 fields (for dedup) — mediaId + status
+
+**SQL Migration Created:**
+- `supabase/migrations/20260115_taste_profile_cache.sql`
+- Includes indexes, RLS policies, auto-update triggers
+
+### Session: January 15, 2026 (Part 1)
 
 #### Performance Optimizations (Commit: `878eb43`)
 - Increased React Query cache times across the board
