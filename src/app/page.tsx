@@ -243,11 +243,11 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const isDay = weatherData?.isDay ?? (effectiveTheme === 'light');
   
   const tabs = [
-    { id: 'studio' as const, label: 'Studio', icon: Sparkles, description: 'Create posters' },
-    { id: 'taste' as const, label: 'Taste', icon: BarChart3, description: 'Your profile' },
-    { id: 'games' as const, label: 'Games', icon: Gamepad2, description: 'Play & compete' },
-    { id: 'community' as const, label: 'Community', icon: Users, description: 'Leaderboards' },
-    { id: 'recommendations' as const, label: 'Discover', icon: TrendingUp, description: 'Find new titles' },
+    { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
+    { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
+    { id: 'games' as const, label: 'Games', icon: Gamepad2 },
+    { id: 'community' as const, label: 'Community', icon: Users },
+    { id: 'recommendations' as const, label: 'Recommendations', icon: TrendingUp },
   ];
 
   const handleTabChange = (tab: TabType) => {
@@ -339,31 +339,21 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Navigation Tabs */}
-      <div className="border-b border-white/10 bg-[#0a0a0f]/50 backdrop-blur-sm">
+      <div className="border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6">
-          <nav className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
+          <nav className="flex gap-1 overflow-x-auto py-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`group relative flex flex-col items-start gap-1 px-5 py-3 rounded-xl font-medium transition-all duration-200 whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-purple-500/20 text-white shadow-lg shadow-purple-500/10'
+                    ? 'bg-white/10 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <tab.icon className={`w-4 h-4 transition-transform duration-200 ${
-                    activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'
-                  }`} />
-                  <span className="font-semibold">{tab.label}</span>
-                </div>
-                <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">
-                  {tab.description}
-                </span>
-                {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" />
-                )}
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
               </button>
             ))}
           </nav>
