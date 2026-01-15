@@ -65,59 +65,72 @@ interface RecommendationCardProps {
 
 const RecommendationCard = memo(function RecommendationCard({ rec, activeType, priority = false }: RecommendationCardProps) {
   const { prefetchMedia } = usePrefetchMedia();
+  const [isHovered, setIsHovered] = useState(false);
   
   const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
     prefetchMedia(rec.id);
   }, [rec.id, prefetchMedia]);
+  
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
 
   return (
     <div 
-      className="group relative rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 transition-all"
+      className="group relative rounded-2xl bg-white/5 border border-white/10 overflow-hidden hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 hover:-translate-y-1"
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="relative overflow-hidden" style={{ paddingBottom: '133.33%' }}>
-        {/* Direct img tag - bypassing OptimizedImage for debugging */}
         <img
           src={rec.coverImage}
           alt={rec.title}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out"
+          style={{ transform: isHovered ? 'scale(1.1)' : 'scale(1)' }}
           loading={priority ? 'eager' : 'lazy'}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 pointer-events-none" />
-        <div className="absolute top-3 right-3 z-20">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            rec.category === 'safe' ? 'bg-green-500/80 text-white' :
-            rec.category === 'hidden-gem' ? 'bg-yellow-500/80 text-black' :
-            rec.category === 'opposite' ? 'bg-red-500/80 text-white' :
-            'bg-purple-500/80 text-white'
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none" />
+        
+        {/* Category Badge */}
+        <div className="absolute top-3 right-3 z-20 transition-transform duration-200" style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-lg ${
+            rec.category === 'safe' ? 'bg-green-500/90 text-white ring-1 ring-green-400/50' :
+            rec.category === 'hidden-gem' ? 'bg-yellow-500/90 text-black ring-1 ring-yellow-400/50' :
+            rec.category === 'opposite' ? 'bg-red-500/90 text-white ring-1 ring-red-400/50' :
+            'bg-purple-500/90 text-white ring-1 ring-purple-400/50'
           }`}>
-            {rec.category === 'safe' ? 'Safe Pick' : 
-             rec.category === 'hidden-gem' ? 'Hidden Gem' : 
-             rec.category === 'opposite' ? 'Opposite Day' :
-             'Experimental'}
+            {rec.category === 'safe' ? '✓ Safe Pick' : 
+             rec.category === 'hidden-gem' ? '💎 Hidden Gem' : 
+             rec.category === 'opposite' ? '🔄 Opposite' :
+             '⚡ Experimental'}
           </span>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-lg font-semibold text-white line-clamp-1">{rec.title}</h3>
+        
+        {/* Content Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 z-20 transition-all duration-300" style={{ transform: isHovered ? 'translateY(-4px)' : 'translateY(0)' }}>
+          <div className="flex items-start gap-2 mb-2">
+            <h3 className="text-lg font-bold text-white line-clamp-2 flex-1 leading-tight">{rec.title}</h3>
             {rec.format && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/20 text-gray-200">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/25 text-white backdrop-blur-sm shrink-0">
                 {rec.format}
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-300 mb-2 line-clamp-2">{rec.reason}</p>
+          
+          <p className="text-sm text-gray-200 mb-3 line-clamp-2 leading-relaxed">{rec.reason}</p>
+          
           {rec.reasons.length > 1 && (
-            <div className="flex flex-wrap gap-1 mb-2">
+            <div className="flex flex-wrap gap-1.5 mb-3">
               {rec.reasons.slice(1, 3).map((r, i) => (
                 <span 
                   key={i} 
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    r.type === 'format' ? (r.weight > 0 ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300') :
-                    r.type === 'genre' ? 'bg-purple-500/30 text-purple-300' :
-                    r.type === 'tag' ? 'bg-blue-500/30 text-blue-300' :
-                    r.type === 'staff' ? 'bg-yellow-500/30 text-yellow-300' :
-                    'bg-gray-500/30 text-gray-300'
+                  className={`px-2 py-1 rounded-md text-[10px] font-semibold backdrop-blur-sm transition-transform duration-200 hover:scale-105 ${
+                    r.type === 'format' ? (r.weight > 0 ? 'bg-green-500/40 text-green-200 ring-1 ring-green-400/30' : 'bg-red-500/40 text-red-200 ring-1 ring-red-400/30') :
+                    r.type === 'genre' ? 'bg-purple-500/40 text-purple-200 ring-1 ring-purple-400/30' :
+                    r.type === 'tag' ? 'bg-blue-500/40 text-blue-200 ring-1 ring-blue-400/30' :
+                    r.type === 'staff' ? 'bg-yellow-500/40 text-yellow-200 ring-1 ring-yellow-400/30' :
+                    'bg-gray-500/40 text-gray-200 ring-1 ring-gray-400/30'
                   }`}
                 >
                   {r.text.length > 30 ? r.text.substring(0, 30) + '...' : r.text}
@@ -125,32 +138,40 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-yellow-400">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="text-sm font-medium">{rec.score}%</span>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-yellow-400">
+              <Star className="w-4 h-4 fill-current drop-shadow-lg" />
+              <span className="text-sm font-bold">{rec.score}%</span>
             </div>
-            <span className="text-gray-500">•</span>
-            <div className="flex items-center gap-1 text-purple-400">
-              <TrendingUp className="w-4 h-4" />
-              <span className="text-sm font-medium">{rec.matchScore}% match</span>
+            <span className="text-gray-400">•</span>
+            <div className="flex items-center gap-1.5 text-purple-400">
+              <TrendingUp className="w-4 h-4 drop-shadow-lg" />
+              <span className="text-sm font-bold">{rec.matchScore}% match</span>
             </div>
           </div>
         </div>
       </div>
-      <div className="p-4 flex gap-2">
+      
+      {/* Action Buttons */}
+      <div className="p-4 flex gap-2 bg-black/20 backdrop-blur-sm">
         <a 
           href={`https://anilist.co/${activeType.toLowerCase()}/${rec.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white text-sm font-medium transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-500 hover:bg-purple-600 rounded-xl text-white text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02]"
         >
           <Play className="w-4 h-4" />
           View Details
         </a>
-        <button className="flex items-center justify-center px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
+        <a
+          href={`https://anilist.co/${activeType.toLowerCase()}/${rec.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center px-3 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all duration-200 hover:scale-105"
+        >
           <ExternalLink className="w-4 h-4" />
-        </button>
+        </a>
       </div>
     </div>
   );
