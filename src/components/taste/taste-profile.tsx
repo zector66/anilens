@@ -81,6 +81,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const error = activeTab === 'ANIME' ? animeError : mangaError;
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
+  
+  // Check if we have cached data - don't show loading screen if data exists
+  const hasData = currentList !== undefined;
 
   // Opponent Data Fetching
   const { 
@@ -194,7 +197,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     }
   };
 
-  if (isLoading || isAnalyzing) {
+  // Only show loading screen if we don't have cached data
+  // This prevents flash of loading screen when switching tabs
+  if ((isLoading || isAnalyzing) && !hasData) {
     return (
       <AnalysisLoadingScreen
         user={user}
