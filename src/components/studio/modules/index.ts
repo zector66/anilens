@@ -10,3 +10,11 @@ export {
   ArchetypeModule,
   PercentilesModule 
 } from './stats-modules';
+export {
+  EraTimelineModule,
+  FormatDistributionModule,
+  EmotionalProfileModule,
+  RiskProfileModule,
+  TasteShiftModule,
+  PercentileFlexModule,
+} from './advanced-modules';

@@ -14,6 +14,10 @@ import {
   StudiosModule,
   IndicesModule,
   ArchetypeModule,
+  EraTimelineModule,
+  FormatDistributionModule,
+  EmotionalProfileModule,
+  RiskProfileModule,
 } from './modules';
 
 interface StudioPosterV2Props {
@@ -201,6 +205,70 @@ export const StudioPosterV2 = forwardRef<HTMLDivElement, StudioPosterV2Props>(
                 &ldquo;{fingerprint.short}&rdquo;
               </p>
             </div>
+          );
+        case 'era-timeline':
+          // Use eraPreference from profile if available
+          const eras = (profile as any).eraPreference || [
+            { era: '80s', preference: 0.1, count: 5 },
+            { era: '90s', preference: 0.25, count: 15 },
+            { era: '00s', preference: 0.4, count: 45 },
+            { era: '10s', preference: 0.7, count: 80 },
+            { era: '20s', preference: 1.0, count: 120 },
+          ];
+          return (
+            <EraTimelineModule
+              key={moduleId}
+              eras={eras}
+              accentColor={accentColor}
+            />
+          );
+        case 'format-dist':
+          const formats = (profile as any).formatDistribution || [
+            { format: 'TV', count: 150, percentage: 60 },
+            { format: 'MOVIE', count: 40, percentage: 16 },
+            { format: 'OVA', count: 25, percentage: 10 },
+            { format: 'ONA', count: 20, percentage: 8 },
+            { format: 'SPECIAL', count: 15, percentage: 6 },
+          ];
+          return (
+            <FormatDistributionModule
+              key={moduleId}
+              formats={formats}
+              accentColor={accentColor}
+            />
+          );
+        case 'emotional':
+          const emotionalProfile = (profile as any).emotionalProfile || {
+            escapism: 0.6,
+            bleakness: 0.4,
+            idealism: 0.7,
+            intensity: 0.5,
+            sentimentality: 0.65,
+          };
+          return (
+            <EmotionalProfileModule
+              key={moduleId}
+              profile={emotionalProfile}
+              accentColor={accentColor}
+            />
+          );
+        case 'risk-profile':
+          const riskData = (profile as any).riskProfile || {
+            preferredTier: '20k-100k',
+            riskTolerance: 0.5,
+            curve: [
+              { bucket: '<5k', engagement: 0.2 },
+              { bucket: '5k-20k', engagement: 0.4 },
+              { bucket: '20k-100k', engagement: 0.8 },
+              { bucket: '100k+', engagement: 0.6 },
+            ],
+          };
+          return (
+            <RiskProfileModule
+              key={moduleId}
+              riskData={riskData}
+              accentColor={accentColor}
+            />
           );
         default:
           return null;
