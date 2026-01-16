@@ -66,20 +66,50 @@ const ACCENT_COLORS: Record<AccentColor, string> = {
   indigo: '#6366f1',
 };
 
+// Helper to safely read localStorage (only on client)
+function getStoredValue<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return defaultValue;
+    // Handle boolean strings
+    if (stored === 'true') return true as T;
+    if (stored === 'false') return false as T;
+    return stored as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 export function UIProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
-  const [accentColor, setAccentColorState] = useState<AccentColor>('purple');
-  const [reducedMotion, setReducedMotionState] = useState(false);
-  const [soundEnabled, setSoundEnabledState] = useState(true);
+  // Initialize state from localStorage IMMEDIATELY to prevent flash of defaults
+  const [theme, setThemeState] = useState<Theme>(() => 
+    getStoredValue('ui-theme', 'dark') as Theme
+  );
+  const [accentColor, setAccentColorState] = useState<AccentColor>(() => 
+    getStoredValue('ui-accent', 'purple') as AccentColor
+  );
+  const [reducedMotion, setReducedMotionState] = useState(() => 
+    getStoredValue('ui-reduced-motion', false)
+  );
+  const [soundEnabled, setSoundEnabledState] = useState(() => 
+    getStoredValue('ui-sound', true)
+  );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [effectiveTheme, setEffectiveTheme] = useState<'dark' | 'light'>('dark');
   
-  // Weather state
-  const [weatherEnabled, setWeatherEnabledState] = useState(false);
+  // Weather state - also load from localStorage immediately
+  const [weatherEnabled, setWeatherEnabledState] = useState(() => 
+    getStoredValue('ui-weather-enabled', false)
+  );
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherIntensity, setWeatherIntensityState] = useState<'light' | 'medium' | 'heavy'>('medium');
-  const [weatherOverride, setWeatherOverrideState] = useState<WeatherCondition | null>(null);
+  const [weatherIntensity, setWeatherIntensityState] = useState<'light' | 'medium' | 'heavy'>(() => 
+    getStoredValue('ui-weather-intensity', 'medium') as 'light' | 'medium' | 'heavy'
+  );
+  const [weatherOverride, setWeatherOverrideState] = useState<WeatherCondition | null>(() => 
+    getStoredValue('ui-weather-override', null) as WeatherCondition | null
+  );
 
   // Fetch weather data
   const refreshWeather = useCallback(async () => {
@@ -96,36 +126,29 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   }, [weatherEnabled]);
 
-  // Load preferences from localStorage and apply immediately
+  // Apply initial CSS on mount (state is already loaded from localStorage via useState initializers)
   useEffect(() => {
     const root = document.documentElement;
     
-    const savedTheme = localStorage.getItem('ui-theme') as Theme | null;
-    const savedAccent = localStorage.getItem('ui-accent') as AccentColor | null;
-    const savedMotion = localStorage.getItem('ui-reduced-motion');
-    const savedSound = localStorage.getItem('ui-sound');
-    const savedWeather = localStorage.getItem('ui-weather-enabled');
-    const savedWeatherIntensity = localStorage.getItem('ui-weather-intensity') as 'light' | 'medium' | 'heavy' | null;
-    const savedWeatherOverride = localStorage.getItem('ui-weather-override') as WeatherCondition | null;
-
-    if (savedTheme) setThemeState(savedTheme);
-    if (savedAccent) {
-      setAccentColorState(savedAccent);
-      // Apply accent color immediately on load
-      root.style.setProperty('--accent-color', ACCENT_COLORS[savedAccent]);
-      root.setAttribute('data-accent', savedAccent);
-    }
-    if (savedMotion) setReducedMotionState(savedMotion === 'true');
-    if (savedSound !== null) setSoundEnabledState(savedSound !== 'false');
-    if (savedWeather === 'true') setWeatherEnabledState(true);
-    if (savedWeatherIntensity) setWeatherIntensityState(savedWeatherIntensity);
-    if (savedWeatherOverride) setWeatherOverrideState(savedWeatherOverride);
-
-    // Check system preference for reduced motion
+    // Apply accent color CSS immediately
+    root.style.setProperty('--accent-color', ACCENT_COLORS[accentColor]);
+    root.setAttribute('data-accent', accentColor);
+    
+    // Apply reduced motion if system prefers it
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setReducedMotionState(true);
     }
-  }, []);
+    
+    console.log('[UIProvider] Initialized with settings:', {
+      theme,
+      accentColor,
+      reducedMotion,
+      soundEnabled,
+      weatherEnabled,
+      weatherIntensity,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle theme changes
   useEffect(() => {

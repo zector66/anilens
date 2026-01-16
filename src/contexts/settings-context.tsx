@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 export type TitleLanguage = 'romaji' | 'english' | 'native';
 
@@ -18,24 +18,30 @@ interface StoredSettings {
   titleLanguage: TitleLanguage;
 }
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [titleLanguage, setTitleLanguageState] = useState<TitleLanguage>('romaji');
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const settings: StoredSettings = JSON.parse(stored);
-        if (settings.titleLanguage) {
-          setTitleLanguageState(settings.titleLanguage);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load settings:', e);
+// Helper to load settings from localStorage immediately
+function getStoredSettings(): StoredSettings {
+  if (typeof window === 'undefined') return { titleLanguage: 'romaji' };
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
     }
-    setIsHydrated(true);
+  } catch (e) {
+    console.error('Failed to load settings:', e);
+  }
+  return { titleLanguage: 'romaji' };
+}
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  // Initialize from localStorage IMMEDIATELY to prevent flash of defaults
+  const [titleLanguage, setTitleLanguageState] = useState<TitleLanguage>(() => 
+    getStoredSettings().titleLanguage
+  );
+
+  // Log on mount for debugging
+  useEffect(() => {
+    console.log('[SettingsProvider] Initialized with titleLanguage:', titleLanguage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save settings to localStorage when changed
@@ -50,7 +56,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   // Helper to get preferred title based on language setting
-  const getPreferredTitle = (titles: { romaji?: string; english?: string; native?: string; userPreferred?: string }): string => {
+  const getPreferredTitle = useCallback((titles: { romaji?: string; english?: string; native?: string; userPreferred?: string }): string => {
     switch (titleLanguage) {
       case 'english':
         return titles.english || titles.romaji || titles.native || titles.userPreferred || 'Unknown';
@@ -60,12 +66,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       default:
         return titles.romaji || titles.english || titles.native || titles.userPreferred || 'Unknown';
     }
-  };
-
-  // Prevent hydration mismatch
-  if (!isHydrated) {
-    return <>{children}</>;
-  }
+  }, [titleLanguage]);
 
   return (
     <SettingsContext.Provider value={{ titleLanguage, setTitleLanguage, getPreferredTitle }}>

@@ -5,9 +5,12 @@
  * 
  * Global context for adult content filtering.
  * Syncs with localStorage immediately, Supabase when user is logged in.
+ * 
+ * IMPORTANT: This provider uses authManager directly to get userId,
+ * so it's self-sufficient and doesn't need props from parent.
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   ContentFilterSettings,
   DEFAULT_CONTENT_FILTER,
@@ -16,6 +19,7 @@ import {
   loadContentFilterFromSupabase,
   saveContentFilterToSupabase,
 } from '@/lib/content-filter';
+import { authManager } from '@/lib/auth';
 
 interface ContentFilterContextType {
   settings: ContentFilterSettings;
@@ -56,38 +60,65 @@ export function useContentFilterSafe(): ContentFilterContextType {
 
 interface ContentFilterProviderProps {
   children: React.ReactNode;
-  userId?: number | null;
 }
 
-export function ContentFilterProvider({ children, userId }: ContentFilterProviderProps) {
-  const [settings, setSettings] = useState<ContentFilterSettings>(DEFAULT_CONTENT_FILTER);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+export function ContentFilterProvider({ children }: ContentFilterProviderProps) {
+  // Load localStorage IMMEDIATELY before any state initialization
+  const initialSettings = useRef<ContentFilterSettings | null>(null);
+  if (typeof window !== 'undefined' && initialSettings.current === null) {
+    initialSettings.current = getContentFilterFromStorage();
+  }
+  
+  const [settings, setSettings] = useState<ContentFilterSettings>(
+    initialSettings.current || DEFAULT_CONTENT_FILTER
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+  const hasLoadedFromStorage = useRef(false);
+  const hasLoadedFromSupabase = useRef(false);
 
-  // Load settings on mount
+  // Subscribe to auth changes to get userId
   useEffect(() => {
-    const loadSettings = async () => {
+    const unsubscribe = authManager.subscribe((authState) => {
+      const newUserId = authState.user?.id || null;
+      setUserId(newUserId);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Load settings from localStorage on mount (only once)
+  useEffect(() => {
+    if (hasLoadedFromStorage.current) return;
+    hasLoadedFromStorage.current = true;
+    
+    const localSettings = getContentFilterFromStorage();
+    console.log('[ContentFilter] Loaded from localStorage:', localSettings);
+    setSettings(localSettings);
+  }, []);
+
+  // Load from Supabase when userId becomes available
+  useEffect(() => {
+    if (!userId || userId <= 0 || hasLoadedFromSupabase.current) return;
+    
+    const loadFromSupabase = async () => {
       setIsLoading(true);
-      
-      // First, load from localStorage (immediate)
-      const localSettings = getContentFilterFromStorage();
-      setSettings(localSettings);
-      setIsInitialized(true);
-      
-      // Then, try to load from Supabase if user is logged in
-      if (userId && userId > 0) {
+      try {
         const supabaseSettings = await loadContentFilterFromSupabase(userId);
         if (supabaseSettings) {
+          console.log('[ContentFilter] Loaded from Supabase:', supabaseSettings);
           setSettings(supabaseSettings);
           // Sync to localStorage
           saveContentFilterToStorage(supabaseSettings);
+          hasLoadedFromSupabase.current = true;
         }
+      } catch (err) {
+        console.error('[ContentFilter] Failed to load from Supabase:', err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
-    loadSettings();
+    loadFromSupabase();
   }, [userId]);
 
   // Update settings
@@ -128,7 +159,7 @@ export function ContentFilterProvider({ children, userId }: ContentFilterProvide
     toggleAdultFilter,
     toggleEcchiFilter,
     toggleBlurMode,
-    isLoading: isLoading && !isInitialized,
+    isLoading,
     isSafeMode: settings.hideAdult,
   };
 
