@@ -54,6 +54,7 @@ import {
 import { ArchetypeGlossary, GlossaryButton } from './archetype-glossary';
 import { anilistClient } from '@/lib/anilist-client';
 import { useQuery } from '@tanstack/react-query';
+import { AnalysisLoadingScreen } from '@/components/ui/analysis-loading-screen';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -193,14 +194,13 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isAnalyzing) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
-          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-        <p className="text-gray-400">Analyzing your {activeTab.toLowerCase()} taste...</p>
-      </div>
+      <AnalysisLoadingScreen
+        user={user}
+        animeCount={animeList ? normalizeMediaList(animeList).length : undefined}
+        mangaCount={mangaList ? normalizeMediaList(mangaList).length : undefined}
+      />
     );
   }
 

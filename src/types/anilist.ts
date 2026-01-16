@@ -5,15 +5,17 @@ export interface AniListUser {
     large: string;
     medium: string;
   };
-  options: {
+  bannerImage?: string;
+  options?: {
     titleLanguage: string;
     displayAdultContent: boolean;
   };
-  statistics: {
+  statistics?: {
     anime: {
       count: number;
       episodesWatched: number;
       meanScore: number;
+      minutesWatched?: number;
     };
     manga: {
       count: number;
