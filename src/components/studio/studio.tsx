@@ -8,9 +8,12 @@ import { TasteAnalyzer } from '@/lib/taste-analyzer';
 import { buildStudioPosterProfile, filterByTimeWindow, filterByStatus, filterByFormat } from '@/lib/studio-profile-builder';
 import { StudioPoster } from './studio-poster';
 import { StudioPosterV2 } from './studio-poster-v2';
+import { SnapshotPanel } from './snapshot-panel';
 import { StudioPosterSettings, DEFAULT_POSTER_SETTINGS, TimeWindow, PosterStylePreset } from '@/types/studio';
 import { LayoutPreset, LAYOUT_PRESETS } from '@/types/studio-v2';
+import { SnapshotComparison } from '@/types/snapshot';
 import { generateAniListPost, generateFingerprint } from '@/lib/fingerprint-generator';
+import { useSnapshots } from '@/hooks/use-snapshots';
 import { 
   Download, 
   Share2, 
@@ -169,6 +172,17 @@ export function Studio() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>(savedSettings?.layoutPreset || 'wrapped');
   const [useV2Poster, setUseV2Poster] = useState(true);
+  const [snapshotComparison, setSnapshotComparison] = useState<SnapshotComparison | null>(null);
+  
+  // Snapshot management
+  const { 
+    snapshots, 
+    saveSnapshot, 
+    deleteSnapshot, 
+    updateSnapshotLabel, 
+    compareSnapshots,
+    canSaveSnapshot 
+  } = useSnapshots(user?.id?.toString());
   
   const { data: animeList, isLoading: animeLoading } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: mangaLoading } = useMangaList(user?.id || 0);
@@ -348,6 +362,30 @@ export function Studio() {
       addToast('Failed to copy post', 'error');
     }
   }, [posterProfile, tasteProfile, mode, addToast]);
+  
+  // Snapshot handlers
+  const handleSaveSnapshot = useCallback((label?: string) => {
+    if (!posterProfile || !tasteProfile) {
+      addToast('No profile data to save', 'error');
+      return;
+    }
+    const snapshot = saveSnapshot(posterProfile, tasteProfile, label);
+    if (snapshot) {
+      addToast(`Snapshot saved: ${snapshot.label}`, 'success');
+    } else {
+      addToast('Failed to save snapshot (max 10 reached)', 'error');
+    }
+  }, [posterProfile, tasteProfile, saveSnapshot, addToast]);
+
+  const handleCompareSnapshots = useCallback((olderId: string, newerId: string) => {
+    const comparison = compareSnapshots(olderId, newerId);
+    setSnapshotComparison(comparison);
+  }, [compareSnapshots]);
+
+  const handleDeleteSnapshot = useCallback((id: string) => {
+    deleteSnapshot(id);
+    addToast('Snapshot deleted', 'info');
+  }, [deleteSnapshot, addToast]);
   
   const handleCopyImageToClipboard = useCallback(async () => {
     if (!posterRef.current) {
@@ -739,6 +777,20 @@ export function Studio() {
                 </div>
               </div>
             </CollapsibleSection>
+          </div>
+          
+          {/* Snapshot Panel */}
+          <div className="px-4 py-3 border-t border-gray-800/50">
+            <SnapshotPanel
+              snapshots={snapshots}
+              canSave={canSaveSnapshot && !!posterProfile}
+              onSave={handleSaveSnapshot}
+              onDelete={handleDeleteSnapshot}
+              onUpdateLabel={updateSnapshotLabel}
+              onCompare={handleCompareSnapshots}
+              comparison={snapshotComparison}
+              onClearComparison={() => setSnapshotComparison(null)}
+            />
           </div>
           
           {/* Actions */}
