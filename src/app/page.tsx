@@ -15,7 +15,6 @@ import {
   Users, 
   TrendingUp, 
   Zap,
-  Heart,
   Share2,
   LogOut,
   Settings,
@@ -187,23 +186,6 @@ function LandingPage() {
         </div>
       </section>
 
-
-      {/* CTA Section */}
-      <section className="relative z-10 py-24">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <div className="p-12 rounded-3xl bg-linear-to-br from-purple-500/20 to-blue-500/20 border border-white/10">
-            <Heart className="w-12 h-12 text-pink-400 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold text-white mb-4">Ready to Discover Your DNA?</h2>
-            <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-              Join fans who have uncovered their true taste. It only takes a minute to get started.
-            </p>
-            <LoginButton variant="hero" />
-            <p className="mt-4 text-xs text-gray-500">
-              🔒 OAuth login via AniList • We never store your password
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10 py-8">

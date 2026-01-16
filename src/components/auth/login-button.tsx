@@ -12,7 +12,6 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
   const { isAuthenticated, login, loginWithAniList, isLoggingIn } = useAuth();
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [showViewOnly, setShowViewOnly] = useState(false);
 
   if (isAuthenticated) {
     return null;
@@ -75,7 +74,7 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
             <button
               type="button"
               onClick={() => {
-                setUsername('Josh');
+                setUsername('Girl');
                 setTimeout(() => {
                   const form = document.querySelector('form');
                   if (form) {
@@ -85,7 +84,7 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
               }}
               className="px-6 py-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 font-medium transition-all"
             >
-              Try with Josh
+              Try with Girl
             </button>
           </div>
         </form>
