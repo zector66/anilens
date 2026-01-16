@@ -233,31 +233,62 @@ export function Studio() {
     }
     
     setIsExporting(true);
-    try {
-      console.log('[Export] Starting export...', posterRef.current);
-      
-      // Wait a bit for any pending renders
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const dataUrl = await toPng(posterRef.current, {
+    
+    // Export with fallback - try HQ first, then fallback to lower quality
+    const exportWithFallback = async (pixelRatio: number, useSafeMode: boolean): Promise<string> => {
+      const options = {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio,
         backgroundColor: '#050508',
         cacheBust: true,
-        skipFonts: false,
+        skipFonts: useSafeMode, // Skip fonts in safe mode
         includeQueryParams: true,
-        filter: (node) => {
-          // Filter out any problematic nodes
+        filter: (node: Element) => {
           if (node instanceof HTMLElement) {
             const tagName = node.tagName?.toLowerCase();
-            // Skip script and style tags
             if (tagName === 'script' || tagName === 'style') return false;
+            // In safe mode, skip elements with complex filters
+            if (useSafeMode) {
+              const style = window.getComputedStyle(node);
+              if (style.filter && style.filter !== 'none' && style.filter.includes('blur')) {
+                return false;
+              }
+            }
           }
           return true;
         },
-      });
+      };
+      return toPng(posterRef.current!, options);
+    };
+    
+    try {
+      console.log('[Export] Starting export...');
       
-      console.log('[Export] Image generated successfully');
+      // Wait for renders to complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      let dataUrl: string;
+      
+      try {
+        // Try HQ export first (2x)
+        dataUrl = await exportWithFallback(2, false);
+        console.log('[Export] HQ export successful');
+      } catch (hqError) {
+        console.warn('[Export] HQ export failed, trying safe mode...', hqError);
+        addToast('Trying safe export mode...', 'info');
+        
+        try {
+          // Fallback to safe mode with lower resolution
+          dataUrl = await exportWithFallback(1.5, true);
+          console.log('[Export] Safe mode export successful');
+        } catch (safeError) {
+          console.warn('[Export] Safe mode failed, trying minimal...', safeError);
+          
+          // Final fallback - minimal settings
+          dataUrl = await exportWithFallback(1, true);
+          console.log('[Export] Minimal export successful');
+        }
+      }
       
       const link = document.createElement('a');
       link.download = `${user?.name || 'anilens'}-${mode.toLowerCase()}-poster-${aspectRatio}.png`;
@@ -265,13 +296,8 @@ export function Studio() {
       link.click();
       addToast('Poster exported successfully!', 'success');
     } catch (error) {
-      console.error('[Export] Export failed:', error);
-      console.error('[Export] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        posterRefCurrent: posterRef.current,
-      });
-      addToast(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      console.error('[Export] All export attempts failed:', error);
+      addToast(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}. Try a different layout preset.`, 'error');
     } finally {
       setIsExporting(false);
     }
