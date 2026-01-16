@@ -7,7 +7,10 @@ import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { TasteAnalyzer } from '@/lib/taste-analyzer';
 import { buildStudioPosterProfile, filterByTimeWindow, filterByStatus, filterByFormat } from '@/lib/studio-profile-builder';
 import { StudioPoster } from './studio-poster';
+import { StudioPosterV2 } from './studio-poster-v2';
 import { StudioPosterSettings, DEFAULT_POSTER_SETTINGS, TimeWindow, PosterStylePreset } from '@/types/studio';
+import { LayoutPreset, LAYOUT_PRESETS } from '@/types/studio-v2';
+import { generateAniListPost, generateFingerprint } from '@/lib/fingerprint-generator';
 import { 
   Download, 
   Share2, 
@@ -25,7 +28,9 @@ import {
   Copy,
   Image,
   X,
-  CheckCircle2
+  CheckCircle2,
+  Layout,
+  MessageSquare
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
@@ -162,6 +167,8 @@ export function Studio() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>(savedSettings?.layoutPreset || 'wrapped');
+  const [useV2Poster, setUseV2Poster] = useState(true);
   
   const { data: animeList, isLoading: animeLoading } = useAnimeList(user?.id || 0);
   const { data: mangaList, isLoading: mangaLoading } = useMangaList(user?.id || 0);
@@ -279,6 +286,42 @@ export function Studio() {
       addToast('Failed to copy text', 'error');
     }
   }, [mode, posterProfile?.summaryLine, addToast]);
+  
+  // Generate AniList Post text
+  const handleCopyAniListPost = useCallback(async () => {
+    if (!posterProfile || !tasteProfile) {
+      addToast('No profile data available', 'error');
+      return;
+    }
+    
+    const fingerprint = generateFingerprint({
+      profile: tasteProfile,
+      totalEntries: posterProfile.activityStats.totalTitles,
+      completionRate: posterProfile.activityStats.completionRate,
+      meanScore: posterProfile.activityStats.meanScore,
+      topStudio: posterProfile.topStudiosOrAuthors[0]?.name,
+      topGenre: posterProfile.topGenres[0]?.name,
+      mode,
+    });
+    
+    const post = generateAniListPost({
+      profile: tasteProfile,
+      totalEntries: posterProfile.activityStats.totalTitles,
+      completionRate: posterProfile.activityStats.completionRate,
+      meanScore: posterProfile.activityStats.meanScore,
+      topStudio: posterProfile.topStudiosOrAuthors[0]?.name,
+      topGenre: posterProfile.topGenres[0]?.name,
+      mode,
+      fingerprint: fingerprint.short,
+    });
+    
+    try {
+      await navigator.clipboard.writeText(post.long);
+      addToast('AniList post copied! Paste it on your profile 📋', 'success');
+    } catch {
+      addToast('Failed to copy post', 'error');
+    }
+  }, [posterProfile, tasteProfile, mode, addToast]);
   
   const handleCopyImageToClipboard = useCallback(async () => {
     if (!posterRef.current) {
@@ -602,6 +645,33 @@ export function Studio() {
               </div>
             </CollapsibleSection>
             
+            {/* Layout Preset */}
+            <CollapsibleSection title="Layout Preset" icon={Layout} defaultOpen={true}>
+              <div className="space-y-2">
+                {Object.values(LAYOUT_PRESETS).map(preset => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setLayoutPreset(preset.id)}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
+                      layoutPreset === preset.id
+                        ? 'bg-purple-500/20 ring-1 ring-purple-500/50'
+                        : 'bg-gray-800/30 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <div className={`text-sm font-medium ${layoutPreset === preset.id ? 'text-white' : 'text-gray-300'}`}>
+                        {preset.name}
+                      </div>
+                      <div className="text-xs text-gray-500">{preset.description}</div>
+                    </div>
+                    {layoutPreset === preset.id && (
+                      <Check className="w-4 h-4 text-purple-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </CollapsibleSection>
+            
             {/* Theme */}
             <CollapsibleSection title="Theme" icon={Palette} defaultOpen={true}>
               <div className="space-y-4">
@@ -623,6 +693,23 @@ export function Studio() {
                       />
                     ))}
                   </div>
+                </div>
+                
+                {/* V2 Poster Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-gray-400">Use New Layout System</label>
+                  <button
+                    onClick={() => setUseV2Poster(!useV2Poster)}
+                    className={`w-10 h-6 rounded-full transition-all duration-200 ${
+                      useV2Poster ? 'bg-purple-500' : 'bg-gray-700'
+                    }`}
+                  >
+                    <div 
+                      className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ml-1 ${
+                        useV2Poster ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </CollapsibleSection>
@@ -665,6 +752,16 @@ export function Studio() {
                 Share Text
               </button>
             </div>
+            
+            {/* Copy AniList Post */}
+            <button
+              onClick={handleCopyAniListPost}
+              disabled={!posterProfile}
+              className="w-full px-4 py-2.5 rounded-xl bg-blue-600/80 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Copy AniList Post
+            </button>
           </div>
         </div>
       </div>
@@ -750,17 +847,32 @@ export function Studio() {
                 >
                   <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
                     <div ref={posterRef}>
-                      <StudioPoster 
-                        profile={{
-                          ...posterProfile,
-                          settings: {
-                            ...posterProfile.settings,
-                            theme: settings.theme,
-                          }
-                        }}
-                        width={currentAspect.width}
-                        height={currentAspect.height}
-                      />
+                      {useV2Poster ? (
+                        <StudioPosterV2 
+                          profile={{
+                            ...posterProfile,
+                            settings: {
+                              ...posterProfile.settings,
+                              theme: settings.theme,
+                            }
+                          }}
+                          layoutPreset={layoutPreset}
+                          width={currentAspect.width}
+                          height={currentAspect.height}
+                        />
+                      ) : (
+                        <StudioPoster 
+                          profile={{
+                            ...posterProfile,
+                            settings: {
+                              ...posterProfile.settings,
+                              theme: settings.theme,
+                            }
+                          }}
+                          width={currentAspect.width}
+                          height={currentAspect.height}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
