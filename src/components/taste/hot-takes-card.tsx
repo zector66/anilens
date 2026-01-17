@@ -11,7 +11,7 @@ interface HotTakesCardProps {
 }
 
 export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardProps) {
-  const { contrarianIndex, contrarianLabel, hottestTakes, coldestTakes, stats, procrastination } = profile;
+  const { contrarianIndex, signedContrarianIndex, contrarianLabel, tendencyLabel, overratedTakes, underratedTakes, stats, procrastination } = profile;
 
   const indexColor = useMemo(() => {
     if (contrarianIndex >= 65) return '#ef4444'; // Red for hot
@@ -87,34 +87,54 @@ export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardP
         </div>
       </div>
 
-      {/* Hottest Takes */}
-      {hottestTakes.length > 0 && (
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-5 h-5 text-orange-400" />
-            <h3 className="text-base font-semibold text-white">Your Hottest Takes</h3>
+      {/* Tendency Label */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-medium text-gray-300">Rating Tendency:</span>
           </div>
-          <div className="space-y-3">
-            {hottestTakes.map((take) => (
-              <TakeRow key={take.mediaId} take={take} type="hot" />
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white">{tendencyLabel}</span>
+            <span className="text-xs text-gray-500">({signedContrarianIndex > 0 ? '+' : ''}{signedContrarianIndex})</span>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Coldest Takes */}
-      {coldestTakes.length > 0 && (
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Snowflake className="w-5 h-5 text-blue-400" />
-            <h3 className="text-base font-semibold text-white">Your Cold Takes</h3>
-            <span className="text-xs text-gray-500">(You agree with everyone)</span>
-          </div>
-          <div className="space-y-3">
-            {coldestTakes.slice(0, 3).map((take) => (
-              <TakeRow key={take.mediaId} take={take} type="cold" />
-            ))}
-          </div>
+      {/* Split: Overrated vs Underrated */}
+      {(overratedTakes.length > 0 || underratedTakes.length > 0) && (
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Overrated Column */}
+          {overratedTakes.length > 0 && (
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown className="w-5 h-5 text-red-400" />
+                <h3 className="text-base font-semibold text-white">You Think Are Overrated</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">You rated these lower than the global average</p>
+              <div className="space-y-3">
+                {overratedTakes.map((take) => (
+                  <TakeRow key={take.mediaId} take={take} type="overrated" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Underrated Column */}
+          {underratedTakes.length > 0 && (
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-green-400" />
+                <h3 className="text-base font-semibold text-white">You Think Are Underrated</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">You rated these higher than the global average</p>
+              <div className="space-y-3">
+                {underratedTakes.map((take) => (
+                  <TakeRow key={take.mediaId} take={take} type="underrated" />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -153,9 +173,10 @@ export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardP
   );
 }
 
-function TakeRow({ take, type }: { take: HotTake; type: 'hot' | 'cold' }) {
-  const isHot = type === 'hot';
-  const deltaColor = take.delta > 0 ? 'text-green-400' : take.delta < 0 ? 'text-red-400' : 'text-gray-400';
+function TakeRow({ take, type }: { take: HotTake; type: 'overrated' | 'underrated' }) {
+  const isOverrated = type === 'overrated';
+  const deltaColor = isOverrated ? 'text-red-400' : 'text-green-400';
+  const bgColor = isOverrated ? 'bg-red-500/20' : 'bg-green-500/20';
   
   return (
     <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
@@ -185,25 +206,15 @@ function TakeRow({ take, type }: { take: HotTake; type: 'hot' | 'cold' }) {
       </div>
 
       {/* Delta Badge */}
-      <div 
-        className={`px-2 py-1 rounded-full text-xs font-bold ${
-          isHot 
-            ? take.delta > 0 
-              ? 'bg-green-500/20 text-green-400' 
-              : 'bg-red-500/20 text-red-400'
-            : 'bg-blue-500/20 text-blue-400'
-        }`}
-      >
+      <div className={`px-2 py-1 rounded-full text-xs font-bold ${bgColor} ${deltaColor}`}>
         {take.delta > 0 ? '+' : ''}{take.delta}
       </div>
 
-      {/* Intensity (for hot takes) */}
-      {isHot && (
-        <div className="flex items-center gap-1">
-          <Flame className="w-3 h-3 text-orange-400" />
-          <span className="text-xs text-orange-400 font-medium">{take.intensity}</span>
-        </div>
-      )}
+      {/* Hotness Score */}
+      <div className="flex items-center gap-1">
+        <Flame className="w-3 h-3 text-orange-400" />
+        <span className="text-xs text-orange-400 font-medium">{take.hotness}</span>
+      </div>
     </div>
   );
 }
