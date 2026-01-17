@@ -149,7 +149,7 @@ function OptimizedImageInner({
           <img
             src={src}
             alt={alt}
-            className={`absolute inset-0 w-full h-full ${className}`}
+            className={`absolute inset-0 w-full h-full object-cover`}
             onLoad={handleLoad}
             onError={handleError}
           />

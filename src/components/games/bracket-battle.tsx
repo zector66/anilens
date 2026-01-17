@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { MediaListEntry } from '@/types/anilist';
 import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
-import { OptimizedImage } from '@/components/ui/optimized-image';
 import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
 
 interface BracketBattleProps {
@@ -382,12 +381,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
           {items.slice(0, 16).map((item) => (
             <div key={item.id} className="relative aspect-3/4 rounded-lg overflow-hidden border border-white/20">
               {item.image ? (
-                <OptimizedImage
+                <img
                   src={item.image}
                   alt={item.title}
-                  fill
-                  eager
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-purple-500/20 flex items-center justify-center">
@@ -434,12 +431,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         
         <div className="relative w-48 h-72 mx-auto mb-6 rounded-xl overflow-hidden border-4 border-yellow-500">
           {winner.image ? (
-            <OptimizedImage
+            <img
               src={winner.image}
               alt={winner.title}
-              fill
-              eager
-              className="object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
             <div className="w-full h-full bg-yellow-500/20 flex items-center justify-center">
@@ -496,12 +491,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         >
           <div className="relative aspect-2/3 rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
             {currentMatch[0].image ? (
-              <OptimizedImage
+              <img
                 src={currentMatch[0].image}
                 alt={currentMatch[0].title}
-                fill
-                eager
-                className="object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full bg-purple-500/20 flex items-center justify-center">
@@ -565,12 +558,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         >
           <div className="relative aspect-2/3 rounded-xl overflow-hidden border-2 border-white/20 group-hover:border-purple-500 transition-colors">
             {currentMatch[1].image ? (
-              <OptimizedImage
+              <img
                 src={currentMatch[1].image}
                 alt={currentMatch[1].title}
-                fill
-                eager
-                className="object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full bg-purple-500/20 flex items-center justify-center">
