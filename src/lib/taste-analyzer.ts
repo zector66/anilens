@@ -569,44 +569,77 @@ export class TasteAnalyzer {
       'Bittersweet', 'Melancholy', 'Existential', 'Death', 'Loss of a Loved One', 'Nihilism', 'Suffering'
     ];
     
+    // Wholesome/healing tags that REDUCE emotional damage
+    const wholesomeTags = [
+      'Iyashikei', 'Slice of Life', 'Comedy', 'Feel-Good', 'Cute Girls Doing Cute Things',
+      'Wholesome', 'Heartwarming', 'Family Life', 'Found Family', 'Friendship',
+      'Gag Humor', 'Relaxing', 'Healing', 'Everyday Life', 'School Life',
+      'Music', 'Idol', 'Sports', 'Cooking', 'Farming', 'Pets'
+    ];
+    
     if (mediaList.length === 0) return 0;
     
     const userScoreStats = this.calculateUserScoreStats(mediaList);
-    let totalScore = 0;
-    let totalWeight = 0;
+    let damageScore = 0;
+    let damageWeight = 0;
+    let healingScore = 0;
+    let healingWeight = 0;
     
     mediaList.forEach(entry => {
       const score = entry.score || 0;
       if (score === 0) return; // Skip unrated entries
       
-      const matches = (entry.media?.tags || []).filter(t => 
+      const damageMatches = (entry.media?.tags || []).filter(t => 
         emotionalTags.some(et => t.name.includes(et))
       );
       
-      if (matches.length > 0) {
-        // Calculate preference based on z-score, not completion
-        const zScore = this.getScoreZScore(score, userScoreStats);
-        
-        // Only count positive preferences (above their mean)
-        if (zScore > 0) {
-          // Weight by tag relevance (higher rank = more relevant)
-          const tagRelevance = matches.reduce((sum, tag) => sum + (100 - (tag.rank || 50)), 0) / (matches.length * 100);
-          
-          // Light completion weight, but preference is primary
-          const total = type === 'ANIME' ? (entry.media?.episodes || 1) : (entry.media?.chapters || 1);
-          const completionWeight = entry.status === 'COMPLETED' ? 1.0 : Math.min(1, (entry.progress || 0) / total) * 0.3;
-          
-          const finalWeight = (zScore * 0.7) + (tagRelevance * 0.2) + (completionWeight * 0.1);
-          totalScore += finalWeight;
-          totalWeight += 1;
-        }
+      const wholesomeMatches = (entry.media?.tags || []).filter(t => 
+        wholesomeTags.some(wt => t.name.includes(wt))
+      );
+      
+      // Also check genres for wholesome content
+      const wholesomeGenres = ['Comedy', 'Slice of Life', 'Music', 'Sports'];
+      const genreWholesomeCount = (entry.media?.genres || []).filter(g => 
+        wholesomeGenres.includes(g)
+      ).length;
+      
+      const zScore = this.getScoreZScore(score, userScoreStats);
+      
+      // Count damage (dark content they rate highly)
+      if (damageMatches.length > 0 && zScore > 0) {
+        const tagRelevance = damageMatches.reduce((sum, tag) => sum + (100 - (tag.rank || 50)), 0) / (damageMatches.length * 100);
+        const total = type === 'ANIME' ? (entry.media?.episodes || 1) : (entry.media?.chapters || 1);
+        const completionWeight = entry.status === 'COMPLETED' ? 1.0 : Math.min(1, (entry.progress || 0) / total) * 0.3;
+        const finalWeight = (zScore * 0.7) + (tagRelevance * 0.2) + (completionWeight * 0.1);
+        damageScore += finalWeight;
+        damageWeight += 1;
+      }
+      
+      // Count healing (wholesome content they rate highly)
+      if ((wholesomeMatches.length > 0 || genreWholesomeCount > 0) && zScore > 0) {
+        const matchCount = wholesomeMatches.length + genreWholesomeCount;
+        const tagRelevance = matchCount > 0 ? 0.7 : 0.3; // Simplified relevance
+        const total = type === 'ANIME' ? (entry.media?.episodes || 1) : (entry.media?.chapters || 1);
+        const completionWeight = entry.status === 'COMPLETED' ? 1.0 : Math.min(1, (entry.progress || 0) / total) * 0.3;
+        const finalWeight = (zScore * 0.6) + (tagRelevance * 0.25) + (completionWeight * 0.15);
+        healingScore += finalWeight;
+        healingWeight += 1;
       }
     });
     
-    if (totalWeight === 0) return 0;
+    if (damageWeight === 0) return 0;
     
-    // Normalize to 0-10 scale
-    const baseIndex = (totalScore / totalWeight) * 10;
+    // Calculate base damage index
+    const baseDamageIndex = (damageScore / damageWeight) * 10;
+    
+    // Calculate healing reduction (wholesome content reduces damage)
+    // If they watch and rate wholesome stuff highly, they're balancing out
+    const healingReduction = healingWeight > 0 
+      ? (healingScore / healingWeight) * (healingWeight / (healingWeight + damageWeight)) * 4
+      : 0;
+    
+    // Apply healing reduction
+    let adjustedIndex = baseDamageIndex - healingReduction;
     
     // Apply guard: if average score on emotional content is below user's mean, reduce index
     const emotionalEntries = mediaList.filter(entry => {
@@ -624,11 +657,11 @@ export class TasteAnalyzer {
       
       // If they rate emotional content below their average, reduce the index
       if (scoreDiff < 0) {
-        return Math.max(0, baseIndex + (scoreDiff / userScoreStats.std) * 2);
+        adjustedIndex = adjustedIndex + (scoreDiff / userScoreStats.std) * 2;
       }
     }
     
-    return Math.min(10, baseIndex);
+    return Math.max(0, Math.min(10, adjustedIndex));
   }
 
   private static calculateChaosLevel(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
