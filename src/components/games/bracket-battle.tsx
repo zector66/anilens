@@ -472,10 +472,17 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         matchHistory={matchHistory}
         entries={entries}
         onPlayAgain={() => {
+          // Reset everything to generate a completely new bracket
           setShowResults(false);
           setWinner(null);
           setMatchHistory([]);
-          setIsReady(true);
+          setItems([]);
+          setCurrentRound(null);
+          setMatchIndex(0);
+          setRoundNumber(1);
+          setIsReady(false);
+          setIsInitializing(true);
+          // This will trigger the useEffect to reinitialize with new shuffled items
         }}
         onBack={onBack}
       />
