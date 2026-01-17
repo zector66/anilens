@@ -16,7 +16,8 @@ export interface HotTake {
   delta: number;           // userScore - globalScore
   popularity: number;      // AniList popularity metric
   hotness: number;         // How "hot" this take is (weighted by confidence)
-  direction: 'overrated' | 'underrated' | 'consensus'; // User's stance vs global
+  direction: 'overrated' | 'underrated' | 'overhated' | 'consensus'; // User's stance vs global
+  consensusBucket: 'widely-liked' | 'generally-liked' | 'mixed' | 'disliked'; // Community consensus
 }
 
 export interface HotTakesProfile {
@@ -28,10 +29,12 @@ export interface HotTakesProfile {
   contrarianLabel: string;
   /** Tendency label (harsh critic vs generous rater) */
   tendencyLabel: string;
-  /** Top 5 shows user thinks are overrated */
+  /** Shows user thinks are overrated (only if global ≥7.0) */
   overratedTakes: HotTake[];
-  /** Top 5 shows user thinks are underrated */
+  /** Shows user thinks are underrated (only if global ≤6.9) */
   underratedTakes: HotTake[];
+  /** Shows user overhated (global already low, user went lower) */
+  overhatedTakes: HotTake[];
   /** Stats breakdown */
   stats: {
     avgDelta: number;
@@ -111,6 +114,21 @@ function getTendencyLabel(signedIndex: number): string {
 }
 
 /**
+ * Get consensus bucket based on global score
+ * AniList scoring context:
+ * 7.6+ = widely liked
+ * 7.0-7.5 = generally liked
+ * 6.5-6.9 = mixed/meh
+ * <6.5 = generally disliked
+ */
+function getConsensusBucket(globalScore: number): 'widely-liked' | 'generally-liked' | 'mixed' | 'disliked' {
+  if (globalScore >= 7.6) return 'widely-liked';
+  if (globalScore >= 7.0) return 'generally-liked';
+  if (globalScore >= 6.5) return 'mixed';
+  return 'disliked';
+}
+
+/**
  * Analyze a user's hot takes from their media list
  */
 export function analyzeHotTakes(
@@ -135,6 +153,7 @@ export function analyzeHotTakes(
       tendencyLabel: 'Not Enough Data',
       overratedTakes: [],
       underratedTakes: [],
+      overhatedTakes: [],
       stats: {
         avgDelta: 0,
         totalScored: 0,
@@ -153,15 +172,23 @@ export function analyzeHotTakes(
     const delta = userScore - globalScore;
     const popularity = entry.media!.popularity!;
     const hotness = calculateHotness(delta, popularity);
+    const consensusBucket = getConsensusBucket(globalScore);
 
-    // Determine direction based on delta
-    let direction: 'overrated' | 'underrated' | 'consensus';
+    // Determine direction based on delta AND consensus bucket
+    let direction: 'overrated' | 'underrated' | 'overhated' | 'consensus';
+    
     if (Math.abs(delta) < 0.5) {
       direction = 'consensus';
     } else if (delta < 0) {
-      direction = 'overrated'; // User thinks it's overrated (scored lower)
+      // User scored lower than global
+      if (globalScore >= 7.0) {
+        direction = 'overrated'; // Only "overrated" if community likes it
+      } else {
+        direction = 'overhated'; // Community already dislikes it, you just hate it more
+      }
     } else {
-      direction = 'underrated'; // User thinks it's underrated (scored higher)
+      // User scored higher than global
+      direction = 'underrated'; // You think it deserves more love
     }
 
     return {
@@ -174,16 +201,24 @@ export function analyzeHotTakes(
       popularity,
       hotness: Math.round(hotness * 10) / 10,
       direction,
+      consensusBucket,
     };
   });
 
-  // Split into overrated and underrated
+  // Minimum delta threshold for meaningful takes
+  const MIN_DELTA = 2.5;
+  
+  // Split into overrated, underrated, and overhated
   const overrated = takes
-    .filter(t => t.direction === 'overrated' && Math.abs(t.delta) >= 1.0)
+    .filter(t => t.direction === 'overrated' && Math.abs(t.delta) >= MIN_DELTA)
     .sort((a, b) => b.hotness - a.hotness);
   
   const underrated = takes
-    .filter(t => t.direction === 'underrated' && Math.abs(t.delta) >= 1.0)
+    .filter(t => t.direction === 'underrated' && Math.abs(t.delta) >= MIN_DELTA)
+    .sort((a, b) => b.hotness - a.hotness);
+  
+  const overhated = takes
+    .filter(t => t.direction === 'overhated' && Math.abs(t.delta) >= MIN_DELTA)
     .sort((a, b) => b.hotness - a.hotness);
 
   // Calculate stats
@@ -218,8 +253,9 @@ export function analyzeHotTakes(
     signedContrarianIndex: Math.round(signedIndex * 100) / 100,
     contrarianLabel: getContrarianLabel(contrarianIndex),
     tendencyLabel,
-    overratedTakes: overrated.slice(0, 5),
-    underratedTakes: underrated.slice(0, 5),
+    overratedTakes: overrated,
+    underratedTakes: underrated,
+    overhatedTakes: overhated,
     stats: {
       avgDelta: Math.round(avgDelta * 100) / 100,
       totalScored: scoredEntries.length,

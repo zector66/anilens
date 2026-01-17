@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Flame, Snowflake, TrendingUp, TrendingDown, Minus, AlertTriangle, Clock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Flame, Snowflake, TrendingUp, TrendingDown, Minus, AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { HotTakesProfile, HotTake } from '@/lib/hot-takes-analyzer';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 
@@ -11,7 +11,11 @@ interface HotTakesCardProps {
 }
 
 export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardProps) {
-  const { contrarianIndex, signedContrarianIndex, contrarianLabel, tendencyLabel, overratedTakes, underratedTakes, stats, procrastination } = profile;
+  const { contrarianIndex, signedContrarianIndex, contrarianLabel, tendencyLabel, overratedTakes, underratedTakes, overhatedTakes, stats, procrastination } = profile;
+  
+  const [showAllOverrated, setShowAllOverrated] = useState(false);
+  const [showAllUnderrated, setShowAllUnderrated] = useState(false);
+  const [showAllOverhated, setShowAllOverhated] = useState(false);
 
   const indexColor = useMemo(() => {
     if (contrarianIndex >= 65) return '#ef4444'; // Red for hot
@@ -101,38 +105,99 @@ export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardP
         </div>
       </div>
 
-      {/* Split: Overrated vs Underrated */}
-      {(overratedTakes.length > 0 || underratedTakes.length > 0) && (
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Overrated Column */}
+      {/* Split: Overrated vs Underrated vs Overhated */}
+      {(overratedTakes.length > 0 || underratedTakes.length > 0 || overhatedTakes.length > 0) && (
+        <div className="space-y-4">
+          {/* Overrated Section */}
           {overratedTakes.length > 0 && (
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingDown className="w-5 h-5 text-red-400" />
-                <h3 className="text-base font-semibold text-white">You Think Are Overrated</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="w-5 h-5 text-red-400" />
+                  <h3 className="text-base font-semibold text-white">You Think Are Overrated</h3>
+                  <span className="text-xs text-gray-500">({overratedTakes.length})</span>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mb-3">You rated these lower than the global average</p>
+              <p className="text-xs text-gray-500 mb-3">Community loves these (≥7.0), but you rated them much lower</p>
               <div className="space-y-3">
-                {overratedTakes.map((take) => (
+                {(showAllOverrated ? overratedTakes : overratedTakes.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} type="overrated" />
                 ))}
               </div>
+              {overratedTakes.length > 5 && (
+                <button
+                  onClick={() => setShowAllOverrated(!showAllOverrated)}
+                  className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {showAllOverrated ? (
+                    <><ChevronUp className="w-4 h-4" /> Show Less</>
+                  ) : (
+                    <><ChevronDown className="w-4 h-4" /> Show All {overratedTakes.length}</>
+                  )}
+                </button>
+              )}
             </div>
           )}
 
-          {/* Underrated Column */}
+          {/* Underrated Section */}
           {underratedTakes.length > 0 && (
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-                <h3 className="text-base font-semibold text-white">You Think Are Underrated</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                  <h3 className="text-base font-semibold text-white">You Think Are Underrated</h3>
+                  <span className="text-xs text-gray-500">({underratedTakes.length})</span>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mb-3">You rated these higher than the global average</p>
+              <p className="text-xs text-gray-500 mb-3">You rated these much higher than the global average</p>
               <div className="space-y-3">
-                {underratedTakes.map((take) => (
+                {(showAllUnderrated ? underratedTakes : underratedTakes.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} type="underrated" />
                 ))}
               </div>
+              {underratedTakes.length > 5 && (
+                <button
+                  onClick={() => setShowAllUnderrated(!showAllUnderrated)}
+                  className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {showAllUnderrated ? (
+                    <><ChevronUp className="w-4 h-4" /> Show Less</>
+                  ) : (
+                    <><ChevronDown className="w-4 h-4" /> Show All {underratedTakes.length}</>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Overhated Section */}
+          {overhatedTakes.length > 0 && (
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-orange-400" />
+                  <h3 className="text-base font-semibold text-white">You Despised These</h3>
+                  <span className="text-xs text-gray-500">({overhatedTakes.length})</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">Community already dislikes these (below 7.0), but you went even lower</p>
+              <div className="space-y-3">
+                {(showAllOverhated ? overhatedTakes : overhatedTakes.slice(0, 5)).map((take) => (
+                  <TakeRow key={take.mediaId} take={take} type="overhated" />
+                ))}
+              </div>
+              {overhatedTakes.length > 5 && (
+                <button
+                  onClick={() => setShowAllOverhated(!showAllOverhated)}
+                  className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {showAllOverhated ? (
+                    <><ChevronUp className="w-4 h-4" /> Show Less</>
+                  ) : (
+                    <><ChevronDown className="w-4 h-4" /> Show All {overhatedTakes.length}</>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -173,10 +238,9 @@ export function HotTakesCard({ profile, accentColor = '#f97316' }: HotTakesCardP
   );
 }
 
-function TakeRow({ take, type }: { take: HotTake; type: 'overrated' | 'underrated' }) {
-  const isOverrated = type === 'overrated';
-  const deltaColor = isOverrated ? 'text-red-400' : 'text-green-400';
-  const bgColor = isOverrated ? 'bg-red-500/20' : 'bg-green-500/20';
+function TakeRow({ take, type }: { take: HotTake; type: 'overrated' | 'underrated' | 'overhated' }) {
+  const deltaColor = type === 'overrated' || type === 'overhated' ? 'text-red-400' : 'text-green-400';
+  const bgColor = type === 'overrated' || type === 'overhated' ? 'bg-red-500/20' : 'bg-green-500/20';
   
   return (
     <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
