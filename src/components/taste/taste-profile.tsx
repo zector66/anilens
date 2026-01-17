@@ -7,6 +7,7 @@ import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { useTasteProfile as useTasteProfileWorker } from '@/hooks/use-taste-worker';
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
+import { analyzeHotTakes, HotTakesProfile } from '@/lib/hot-takes-analyzer';
 import { 
   BarChart, 
   Bar, 
@@ -55,6 +56,7 @@ import { ArchetypeGlossary, GlossaryButton } from './archetype-glossary';
 import { anilistClient } from '@/lib/anilist-client';
 import { useQuery } from '@tanstack/react-query';
 import { AnalysisLoadingScreen } from '@/components/ui/analysis-loading-screen';
+import { HotTakesCard } from './hot-takes-card';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -197,14 +199,38 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     }
   };
 
+  // Calculate accurate entry counts (excluding Planning to match analyzed entries)
+  const animeEntryCount = useMemo(() => {
+    if (!animeList) return undefined;
+    return normalizeMediaList(animeList).length;
+  }, [animeList]);
+  
+  const mangaEntryCount = useMemo(() => {
+    if (!mangaList) return undefined;
+    return normalizeMediaList(mangaList).length;
+  }, [mangaList]);
+
+  // Get all entries including Planning for procrastination stats
+  const allEntriesWithPlanning = useMemo(() => {
+    return normalizeMediaList(currentList, { 
+      statuses: ['COMPLETED', 'CURRENT', 'REPEATING', 'PAUSED', 'DROPPED', 'PLANNING'] 
+    });
+  }, [currentList]);
+
+  // Hot Takes analysis
+  const hotTakesProfile = useMemo<HotTakesProfile | null>(() => {
+    if (analyzedEntries.length === 0) return null;
+    return analyzeHotTakes(analyzedEntries, allEntriesWithPlanning);
+  }, [analyzedEntries, allEntriesWithPlanning]);
+
   // Only show loading screen if we don't have cached data
   // This prevents flash of loading screen when switching tabs
   if ((isLoading || isAnalyzing) && !hasData) {
     return (
       <AnalysisLoadingScreen
         user={user}
-        animeCount={animeList ? normalizeMediaList(animeList).length : undefined}
-        mangaCount={mangaList ? normalizeMediaList(mangaList).length : undefined}
+        animeCount={animeEntryCount}
+        mangaCount={mangaEntryCount}
       />
     );
   }
@@ -928,6 +954,17 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
+
+      {/* Hot Takes & Contrarian Index */}
+      {hotTakesProfile && hotTakesProfile.stats.totalScored > 0 && (
+        <div className="p-6 rounded-xl bg-linear-to-br from-orange-500/10 via-red-500/10 to-pink-500/10 border border-orange-500/20">
+          <div className="flex items-center gap-2 mb-4">
+            <Flame className="w-5 h-5 text-orange-400" />
+            <h3 className="text-xl font-bold text-white">Hot Takes & Contrarian Index</h3>
+          </div>
+          <HotTakesCard profile={hotTakesProfile} />
+        </div>
       )}
 
       {/* Detailed Genre & Studio Cards */}
