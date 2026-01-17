@@ -34,6 +34,13 @@ export interface GameSettings {
   // Bracket personalization (new)
   bracketSeedMode?: 'random' | 'by-rating' | 'by-popularity';
   bracketStatusFilter?: 'completed-only' | 'completed-dropped' | 'all';
+  // Bracket format filters
+  bracketIncludeTV?: boolean;
+  bracketIncludeMovies?: boolean;
+  bracketIncludeOVA?: boolean;
+  bracketIncludeONA?: boolean;
+  bracketIncludeSpecials?: boolean;
+  bracketMinEpisodes?: number;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -76,6 +83,13 @@ export function GameSettingsModal({
     includeOVA: false,
     includeONA: false,
     includeSpecials: false,
+    // Bracket format filters (all enabled by default)
+    bracketIncludeTV: true,
+    bracketIncludeMovies: true,
+    bracketIncludeOVA: true,
+    bracketIncludeONA: true,
+    bracketIncludeSpecials: true,
+    bracketMinEpisodes: 1,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -341,6 +355,67 @@ export function GameSettingsModal({
                   ))}
                 </div>
               </div>
+
+              {/* Format Filters (Anime only) */}
+              {settings.bracketCategory === 'anime' && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-white font-medium">
+                    🎬 Format Filters
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'bracketIncludeTV', label: 'TV', icon: '📺' },
+                      { id: 'bracketIncludeMovies', label: 'Movies', icon: '🎬' },
+                      { id: 'bracketIncludeOVA', label: 'OVA', icon: '💿' },
+                      { id: 'bracketIncludeONA', label: 'ONA', icon: '🌐' },
+                      { id: 'bracketIncludeSpecials', label: 'Specials', icon: '⭐' },
+                    ].map((format) => (
+                      <button
+                        key={format.id}
+                        onClick={() => setSettings({ 
+                          ...settings, 
+                          [format.id]: !settings[format.id as keyof GameSettings] 
+                        })}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          settings[format.id as keyof GameSettings]
+                            ? 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                            : 'bg-white/5 border border-white/10 text-gray-500 hover:border-white/20'
+                        }`}
+                      >
+                        {format.icon} {format.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    💡 Filter which formats can appear in your bracket
+                  </p>
+                </div>
+              )}
+
+              {/* Minimum Episodes (Anime only) */}
+              {settings.bracketCategory === 'anime' && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-white font-medium">
+                    📊 Minimum Episodes: {settings.bracketMinEpisodes}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="24"
+                    value={settings.bracketMinEpisodes}
+                    onChange={(e) => setSettings({ ...settings, bracketMinEpisodes: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>1 ep</span>
+                    <span>12 eps</span>
+                    <span>24 eps</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    💡 Exclude shorts and one-episode specials
+                  </p>
+                </div>
+              )}
             </>
           )}
 

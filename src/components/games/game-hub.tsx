@@ -49,7 +49,20 @@ export function GameHub() {
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [specialGame, setSpecialGame] = useState<'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga' | null>(null);
-  const [bracketSettings, setBracketSettings] = useState<{ size: number; category: string }>({ size: 16, category: 'anime' });
+  const [bracketSettings, setBracketSettings] = useState<{ 
+    size: number; 
+    category: string;
+    seedMode?: 'random' | 'by-rating' | 'by-popularity';
+    statusFilter?: 'completed-only' | 'completed-dropped' | 'all';
+    formatFilters?: {
+      includeTV: boolean;
+      includeMovies: boolean;
+      includeOVA: boolean;
+      includeONA: boolean;
+      includeSpecials: boolean;
+    };
+    minEpisodes?: number;
+  }>({ size: 16, category: 'anime' });
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [multiplayerGameType, setMultiplayerGameType] = useState<string | null>(null);
   const [multiplayerRoom, setMultiplayerRoom] = useState<MultiplayerRoom | null>(null);
@@ -202,6 +215,16 @@ export function GameHub() {
         setBracketSettings({
           size: settings.bracketSize || 16,
           category: settings.bracketCategory || 'anime',
+          seedMode: settings.bracketSeedMode,
+          statusFilter: settings.bracketStatusFilter,
+          formatFilters: {
+            includeTV: settings.bracketIncludeTV ?? true,
+            includeMovies: settings.bracketIncludeMovies ?? true,
+            includeOVA: settings.bracketIncludeOVA ?? true,
+            includeONA: settings.bracketIncludeONA ?? true,
+            includeSpecials: settings.bracketIncludeSpecials ?? true,
+          },
+          minEpisodes: settings.bracketMinEpisodes ?? 1,
         });
         setSpecialGame('bracket-anime');
         setShowSettings(false);
@@ -212,6 +235,8 @@ export function GameHub() {
         setBracketSettings({
           size: settings.bracketSize || 16,
           category: settings.bracketCategory || 'manga',
+          seedMode: settings.bracketSeedMode,
+          statusFilter: settings.bracketStatusFilter,
         });
         setSpecialGame('bracket-manga');
         setShowSettings(false);
@@ -323,7 +348,34 @@ export function GameHub() {
     
     // Use the correct entry pool based on specialGame (not bracketSettings.category)
     // This ensures anime brackets only use anime entries and manga brackets only use manga entries
-    const bracketEntries = isAnimeBracket ? animeEntries : mangaEntries;
+    let bracketEntries = isAnimeBracket ? animeEntries : mangaEntries;
+    
+    // Apply format filters for anime brackets
+    if (isAnimeBracket && bracketSettings.formatFilters) {
+      const filters = bracketSettings.formatFilters;
+      bracketEntries = bracketEntries.filter(entry => {
+        const format = entry.media?.format;
+        if (!format) return false;
+        
+        // Check format against filters
+        if (format === 'TV' && filters.includeTV) return true;
+        if (format === 'MOVIE' && filters.includeMovies) return true;
+        if (format === 'OVA' && filters.includeOVA) return true;
+        if (format === 'ONA' && filters.includeONA) return true;
+        if (format === 'SPECIAL' && filters.includeSpecials) return true;
+        
+        return false;
+      });
+      
+      // Apply minimum episode filter
+      if (bracketSettings.minEpisodes && bracketSettings.minEpisodes > 1) {
+        bracketEntries = bracketEntries.filter(entry => {
+          const episodes = entry.media?.episodes;
+          return episodes && episodes >= (bracketSettings.minEpisodes || 1);
+        });
+      }
+    }
+    
     return (
       <BracketBattle
         entries={bracketEntries}
