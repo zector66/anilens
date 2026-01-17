@@ -386,6 +386,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
                   src={item.image}
                   alt={item.title}
                   fill
+                  eager
                   className="object-cover"
                 />
               ) : (
@@ -437,6 +438,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
               src={winner.image}
               alt={winner.title}
               fill
+              eager
               className="object-cover"
             />
           ) : (
@@ -498,6 +500,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
                 src={currentMatch[0].image}
                 alt={currentMatch[0].title}
                 fill
+                eager
                 className="object-cover"
               />
             ) : (
@@ -566,6 +569,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
                 src={currentMatch[1].image}
                 alt={currentMatch[1].title}
                 fill
+                eager
                 className="object-cover"
               />
             ) : (
