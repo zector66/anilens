@@ -15,33 +15,33 @@ export interface HotTake {
   globalScore: number;     // AniList average (1-10 scale)
   delta: number;           // userScore - globalScore
   popularity: number;      // AniList popularity metric
-  hotness: number;         // How "hot" this take is (weighted by confidence)
-  direction: 'overrated' | 'underrated' | 'overhated' | 'consensus'; // User's stance vs global
-  consensusBucket: 'widely-liked' | 'generally-liked' | 'mixed' | 'disliked'; // Community consensus
+  heat: number;            // Heat score (0-100) - how spicy this take is
+  heatLabel: 'nuclear' | 'spicy' | 'hot' | 'warm' | 'mild'; // Heat tier
+  direction: 'overrated' | 'underrated' | 'consensus'; // User's stance vs global
+  ratingBand: 'beloved' | 'well-liked' | 'mixed' | 'disliked' | 'bad'; // AniList rating band
+  ratingBandLabel: string; // Human-readable context
 }
 
 export interface HotTakesProfile {
-  /** Overall contrarian score (0-100) */
-  contrarianIndex: number;
-  /** Signed index: positive = rates higher, negative = rates lower, 0 = matches consensus */
-  signedContrarianIndex: number;
-  /** Label for the contrarian level */
-  contrarianLabel: string;
-  /** Tendency label (harsh critic vs generous rater) */
+  /** Hot Take Energy (0-100) - overall contrarian score */
+  hotTakeEnergy: number;
+  /** Label for the Hot Take Energy level */
+  hotTakeEnergyLabel: string;
+  /** Tendency: positive = generous rater, negative = harsh critic */
+  tendency: number;
+  /** Tendency label */
   tendencyLabel: string;
-  /** Shows user thinks are overrated (only if global ≥7.0) */
+  /** Top 5 Most Contrarian Picks (either direction, highest heat) */
+  mostContrarianPicks: HotTake[];
+  /** Shows user thinks are overrated (only if global ≥7.0, user rated lower) */
   overratedTakes: HotTake[];
-  /** Shows user thinks are underrated (only if global ≤6.9) */
+  /** Shows user thinks are underrated (user rated higher) */
   underratedTakes: HotTake[];
-  /** Shows user overhated (global already low, user went lower) */
-  overhatedTakes: HotTake[];
   /** Stats breakdown */
   stats: {
     avgDelta: number;
     totalScored: number;
-    overraters: number;    // Times user scored higher than avg
-    underraters: number;   // Times user scored lower than avg
-    perfectMatches: number; // Within 0.5 of average
+    qualifiedTakes: number; // Takes with heat >= 20
   };
   /** Planning procrastination stats */
   procrastination: {
@@ -54,40 +54,73 @@ export interface HotTakesProfile {
 }
 
 /**
- * Calculate popularity confidence (0-1)
- * Uses smooth exponential curve: 1 - exp(-popularity / 25000)
- * Popular shows (100k+) approach confidence of 1.0
- * Niche shows (1k) have confidence ~0.04
+ * Calculate popularity confidence using sigmoid curve (0-1)
+ * P = 1k → low confidence
+ * P = 10k → decent
+ * P = 100k+ → very high confidence
  */
 function calculatePopularityConfidence(popularity: number): number {
-  return 1 - Math.exp(-popularity / 25000);
+  // Sigmoid: 1 / (1 + exp(-(log10(P) - 4.2) * 2.2))
+  // This gives ~0.1 at 1k, ~0.5 at 15k, ~0.9 at 100k
+  const logP = Math.log10(Math.max(1, popularity));
+  return 1 / (1 + Math.exp(-(logP - 4.2) * 2.2));
 }
 
 /**
- * Calculate the "hotness" of a take
- * Formula: abs(delta) * confidence(popularity)
- * - Bigger disagreements = hotter
- * - Popularity acts as confidence multiplier (not the base signal)
- * - Disagreeing with 1M people is hotter than disagreeing with 100
+ * Calculate heat score for a take (0-100)
+ * Formula: 100 * disagreement * confidence * qualityGate
+ * 
+ * - disagreement: min(1, abs(Δ) / 5) - Δ of 5 points = max heat
+ * - confidence: sigmoid based on popularity
+ * - qualityGate: 1.0 if overrated AND global >= 7.0, else 0.35 for non-qualified overrated
  */
-function calculateHotness(delta: number, popularity: number): number {
-  const absDelta = Math.abs(delta);
+function calculateHeat(
+  delta: number, 
+  popularity: number, 
+  globalScore: number,
+  direction: 'overrated' | 'underrated' | 'consensus'
+): number {
+  // Step 1: Disagreement magnitude (0-1, capped at Δ=5)
+  const disagreement = Math.min(1, Math.abs(delta) / 5);
+  
+  // Step 2: Popularity confidence (sigmoid curve)
   const confidence = calculatePopularityConfidence(popularity);
-  // Raw hotness: disagreement weighted by confidence
-  const raw = absDelta * confidence * 20; // Scale to ~0-100 range
-  return Math.min(100, Math.max(0, raw));
+  
+  // Step 3: Quality gate for overrated
+  // Only full credit if it's "overrated" AND community actually likes it (>=7.0)
+  // Underrated always gets full credit (disagreeing upward is always valid)
+  let qualityGate = 1.0;
+  if (direction === 'overrated' && globalScore < 7.0) {
+    qualityGate = 0.35; // Heavily discounted - community already dislikes it
+  }
+  
+  // Step 4: Compute heat (0-100)
+  const heat = 100 * disagreement * confidence * qualityGate;
+  
+  return Math.round(heat * 10) / 10;
 }
 
 /**
- * Get contrarian label based on index
+ * Get heat label based on score
  */
-function getContrarianLabel(index: number): string {
-  if (index >= 80) return 'Chaos Agent';
-  if (index >= 65) return 'Hot Take Machine';
-  if (index >= 50) return 'Against the Grain';
-  if (index >= 35) return 'Independent Thinker';
-  if (index >= 20) return 'Mild Contrarian';
-  return 'Consensus Conformist';
+function getHeatLabel(heat: number): 'nuclear' | 'spicy' | 'hot' | 'warm' | 'mild' {
+  if (heat >= 80) return 'nuclear';
+  if (heat >= 60) return 'spicy';
+  if (heat >= 40) return 'hot';
+  if (heat >= 20) return 'warm';
+  return 'mild';
+}
+
+/**
+ * Get Hot Take Energy label based on score
+ */
+function getHotTakeEnergyLabel(energy: number): string {
+  if (energy >= 80) return 'Chaos Agent 🔥';
+  if (energy >= 65) return 'Hot Take Machine';
+  if (energy >= 50) return 'Against the Grain';
+  if (energy >= 35) return 'Independent Thinker';
+  if (energy >= 20) return 'Mild Contrarian';
+  return 'Consensus Enjoyer';
 }
 
 /**
@@ -114,18 +147,31 @@ function getTendencyLabel(signedIndex: number): string {
 }
 
 /**
- * Get consensus bucket based on global score
- * AniList scoring context:
- * 7.6+ = widely liked
- * 7.0-7.5 = generally liked
- * 6.5-6.9 = mixed/meh
- * <6.5 = generally disliked
+ * Get rating band based on global score (AniList context)
  */
-function getConsensusBucket(globalScore: number): 'widely-liked' | 'generally-liked' | 'mixed' | 'disliked' {
-  if (globalScore >= 7.6) return 'widely-liked';
-  if (globalScore >= 7.0) return 'generally-liked';
-  if (globalScore >= 6.5) return 'mixed';
-  return 'disliked';
+function getRatingBand(globalScore: number): 'beloved' | 'well-liked' | 'mixed' | 'disliked' | 'bad' {
+  if (globalScore >= 8.0) return 'beloved';
+  if (globalScore >= 7.4) return 'well-liked';
+  if (globalScore >= 6.9) return 'mixed';
+  if (globalScore >= 6.0) return 'disliked';
+  return 'bad';
+}
+
+/**
+ * Get human-readable context for the take based on rating band and direction
+ */
+function getRatingBandLabel(band: string, direction: string, globalScore: number): string {
+  if (direction === 'overrated') {
+    if (band === 'beloved') return `You disliked a beloved show (${globalScore})`;
+    if (band === 'well-liked') return `You didn't like a popular show (${globalScore})`;
+    return `You rated lower than average (${globalScore})`;
+  } else if (direction === 'underrated') {
+    if (band === 'bad') return `You loved a poorly-rated show (${globalScore})`;
+    if (band === 'disliked') return `You championed an underdog (${globalScore})`;
+    if (band === 'mixed') return `You saw value others missed (${globalScore})`;
+    return `You rated higher than average (${globalScore})`;
+  }
+  return `You matched the consensus (${globalScore})`;
 }
 
 /**
@@ -136,30 +182,29 @@ export function analyzeHotTakes(
   allEntriesIncludingPlanning?: MediaListEntry[]
 ): HotTakesProfile {
   // Filter to scored entries with quality data
-  // Require: valid user score, global score exists, minimum popularity threshold
-  const MIN_POPULARITY = 3000; // Filter out very niche shows to reduce noise
+  // Require: valid user score, global score exists, minimum popularity for confidence
+  const MIN_POPULARITY = 10000; // Higher threshold for stability
   
   const scoredEntries = entries.filter(e => 
-    e.score && e.score >= 1 && // Valid user score
+    e.score && e.score >= 1 && // Valid user score (Filter C)
     e.media?.meanScore && e.media.meanScore > 0 && // Global score exists
-    e.media?.popularity && e.media.popularity >= MIN_POPULARITY // Minimum popularity
+    e.media?.popularity && e.media.popularity >= MIN_POPULARITY && // Popularity threshold (Filter B)
+    (e.status === 'COMPLETED' || e.status === 'DROPPED') // Only completed/dropped (Filter D)
   );
 
   if (scoredEntries.length === 0) {
     return {
-      contrarianIndex: 50,
-      signedContrarianIndex: 0,
-      contrarianLabel: 'Not Enough Data',
+      hotTakeEnergy: 0,
+      hotTakeEnergyLabel: 'Not Enough Data',
+      tendency: 0,
       tendencyLabel: 'Not Enough Data',
+      mostContrarianPicks: [],
       overratedTakes: [],
       underratedTakes: [],
-      overhatedTakes: [],
       stats: {
         avgDelta: 0,
         totalScored: 0,
-        overraters: 0,
-        underraters: 0,
-        perfectMatches: 0,
+        qualifiedTakes: 0,
       },
       procrastination: calculateProcrastination(entries, allEntriesIncludingPlanning),
     };
@@ -171,25 +216,22 @@ export function analyzeHotTakes(
     const globalScore = (entry.media!.meanScore! / 10); // Convert from 0-100 to 0-10
     const delta = userScore - globalScore;
     const popularity = entry.media!.popularity!;
-    const hotness = calculateHotness(delta, popularity);
-    const consensusBucket = getConsensusBucket(globalScore);
-
-    // Determine direction based on delta AND consensus bucket
-    let direction: 'overrated' | 'underrated' | 'overhated' | 'consensus';
     
+    // Determine direction based on delta
+    let direction: 'overrated' | 'underrated' | 'consensus';
     if (Math.abs(delta) < 0.5) {
       direction = 'consensus';
     } else if (delta < 0) {
-      // User scored lower than global
-      if (globalScore >= 7.0) {
-        direction = 'overrated'; // Only "overrated" if community likes it
-      } else {
-        direction = 'overhated'; // Community already dislikes it, you just hate it more
-      }
+      direction = 'overrated'; // User scored lower = thinks it's overrated
     } else {
-      // User scored higher than global
-      direction = 'underrated'; // You think it deserves more love
+      direction = 'underrated'; // User scored higher = thinks it's underrated
     }
+    
+    // Calculate heat with new formula
+    const heat = calculateHeat(delta, popularity, globalScore, direction);
+    const heatLabel = getHeatLabel(heat);
+    const ratingBand = getRatingBand(globalScore);
+    const ratingBandLabel = getRatingBandLabel(ratingBand, direction, Math.round(globalScore * 10) / 10);
 
     return {
       mediaId: entry.media!.id!,
@@ -199,69 +241,72 @@ export function analyzeHotTakes(
       globalScore: Math.round(globalScore * 10) / 10,
       delta: Math.round(delta * 10) / 10,
       popularity,
-      hotness: Math.round(hotness * 10) / 10,
+      heat,
+      heatLabel,
       direction,
-      consensusBucket,
+      ratingBand,
+      ratingBandLabel,
     };
   });
 
-  // Minimum delta threshold for meaningful takes
-  const MIN_DELTA = 2.5;
+  // Minimum heat threshold for display (heat >= 20 = "warm" or better)
+  const HEAT_THRESHOLD = 20;
   
-  // Split into overrated, underrated, and overhated
+  // OVERRATED: User rated LOWER than global AND global >= 7.0 (quality floor - Filter A)
   const overrated = takes
-    .filter(t => t.direction === 'overrated' && Math.abs(t.delta) >= MIN_DELTA)
-    .sort((a, b) => b.hotness - a.hotness);
+    .filter(t => t.direction === 'overrated' && t.globalScore >= 7.0 && t.heat >= HEAT_THRESHOLD)
+    .sort((a, b) => b.heat - a.heat);
   
+  // UNDERRATED: User rated HIGHER than global (no quality floor needed)
   const underrated = takes
-    .filter(t => t.direction === 'underrated' && Math.abs(t.delta) >= MIN_DELTA)
-    .sort((a, b) => b.hotness - a.hotness);
+    .filter(t => t.direction === 'underrated' && t.heat >= HEAT_THRESHOLD)
+    .sort((a, b) => b.heat - a.heat);
   
-  const overhated = takes
-    .filter(t => t.direction === 'overhated' && Math.abs(t.delta) >= MIN_DELTA)
-    .sort((a, b) => b.hotness - a.hotness);
+  // MOST CONTRARIAN PICKS: Top 5 by absolute heat (either direction)
+  const mostContrarian = takes
+    .filter(t => t.direction !== 'consensus' && t.heat >= HEAT_THRESHOLD)
+    .sort((a, b) => b.heat - a.heat)
+    .slice(0, 5);
 
   // Calculate stats
   const deltas = takes.map(t => t.delta);
-  const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-  const overraters = takes.filter(t => t.delta > 0.5).length;
-  const underraters = takes.filter(t => t.delta < -0.5).length;
-  const perfectMatches = takes.filter(t => Math.abs(t.delta) <= 0.5).length;
+  const avgDelta = deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
+  const qualifiedTakes = takes.filter(t => t.heat >= HEAT_THRESHOLD).length;
 
-  // Calculate SIGNED contrarian index (shows tendency)
-  // Positive = rates higher than average, Negative = rates lower
-  const weightedDeltas = takes.map(t => {
-    const confidence = calculatePopularityConfidence(t.popularity);
-    return t.delta * confidence; // Keep sign for tendency
-  });
-  const signedIndex = weightedDeltas.reduce((a, b) => a + b, 0) / weightedDeltas.length;
+  // Calculate Hot Take Energy (user-wide score)
+  // Step 1: Get top 15 heat entries
+  const topHeats = takes
+    .filter(t => t.direction !== 'consensus')
+    .map(t => t.heat)
+    .sort((a, b) => b - a)
+    .slice(0, 15);
   
-  // Calculate ABSOLUTE contrarian index (shows how much they disagree)
-  const absWeightedDeltas = takes.map(t => {
-    const confidence = calculatePopularityConfidence(t.popularity);
-    return Math.abs(t.delta) * confidence;
-  });
-  const avgAbsWeightedDelta = absWeightedDeltas.reduce((a, b) => a + b, 0) / absWeightedDeltas.length;
-  // Normalize to 0-100 scale (typical range is 0-2)
-  const contrarianIndex = Math.min(100, Math.round(avgAbsWeightedDelta * 35));
+  // Step 2: Average the top heats
+  const avgHeat = topHeats.length > 0 ? topHeats.reduce((a, b) => a + b, 0) / topHeats.length : 0;
   
-  // Tendency label
-  const tendencyLabel = getTendencyLabel(signedIndex);
+  // Step 3: Volume weight (penalize low data)
+  const ratedCount = scoredEntries.length;
+  const volumeWeight = Math.min(1, ratedCount / 40);
+  
+  // Step 4: Final Hot Take Energy
+  const hotTakeEnergy = Math.round(avgHeat * volumeWeight);
+  
+  // Calculate tendency (positive = generous, negative = harsh)
+  const tendency = avgDelta;
+  const tendencyLabel = getTendencyLabel(tendency);
 
   return {
-    contrarianIndex,
-    signedContrarianIndex: Math.round(signedIndex * 100) / 100,
-    contrarianLabel: getContrarianLabel(contrarianIndex),
+    hotTakeEnergy,
+    hotTakeEnergyLabel: getHotTakeEnergyLabel(hotTakeEnergy),
+    tendency: Math.round(tendency * 100) / 100,
     tendencyLabel,
+    mostContrarianPicks: mostContrarian,
     overratedTakes: overrated,
     underratedTakes: underrated,
-    overhatedTakes: overhated,
     stats: {
       avgDelta: Math.round(avgDelta * 100) / 100,
       totalScored: scoredEntries.length,
-      overraters,
-      underraters,
-      perfectMatches,
+      qualifiedTakes,
     },
     procrastination: calculateProcrastination(entries, allEntriesIncludingPlanning),
   };
