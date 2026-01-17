@@ -28,9 +28,12 @@ export interface GameSettings {
   includeONA?: boolean;
   includeSpecials?: boolean;
   // Bracket specific
-  bracketSize?: 8 | 16 | 32 | 64;
+  bracketSize?: 8 | 16 | 32 | 64 | 128;
   bracketCategory?: 'anime' | 'manga' | 'characters' | 'openings' | 'endings';
   bracketGenre?: string;
+  // Bracket personalization (new)
+  bracketSeedMode?: 'random' | 'by-rating' | 'by-popularity';
+  bracketStatusFilter?: 'completed-only' | 'completed-dropped' | 'all';
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -65,6 +68,8 @@ export function GameSettingsModal({
     themeMode: 'mix',
     bracketSize: 16,
     bracketCategory: gameType === 'bracket-manga' ? 'manga' : 'anime',
+    bracketSeedMode: 'random',
+    bracketStatusFilter: 'completed-only',
     // P3-12: Default format filters (TV only by default)
     includeTV: true,
     includeMovies: false,
@@ -225,8 +230,8 @@ export function GameSettingsModal({
                 <label className="flex items-center gap-2 text-white font-medium">
                   🏆 Bracket Size
                 </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {([8, 16, 32, 64] as const).map((size) => (
+                <div className="grid grid-cols-5 gap-2">
+                  {([8, 16, 32, 64, 128] as const).map((size) => (
                     <button
                       key={size}
                       onClick={() => setSettings({ ...settings, bracketSize: size })}
@@ -245,7 +250,64 @@ export function GameSettingsModal({
                   {settings.bracketSize === 16 && '4 rounds to crown a champion'}
                   {settings.bracketSize === 32 && '5 rounds to crown a champion'}
                   {settings.bracketSize === 64 && '6 rounds to crown a champion'}
+                  {settings.bracketSize === 128 && '7 rounds to crown a champion (epic!)'}
                 </p>
+              </div>
+
+              {/* Seed Mode */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-white font-medium">
+                  🎲 Seed Mode
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'random', label: 'Random', icon: '🎲', desc: 'Chaos mode' },
+                    { id: 'by-rating', label: 'By Rating', icon: '⭐', desc: 'Your scores' },
+                    { id: 'by-popularity', label: 'By Popularity', icon: '📈', desc: 'Global rank' },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setSettings({ ...settings, bracketSeedMode: option.id as GameSettings['bracketSeedMode'] })}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${
+                        settings.bracketSeedMode === option.id
+                          ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-300'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-lg block">{option.icon}</span>
+                      <span className="text-xs font-medium block">{option.label}</span>
+                      <span className="text-[10px] opacity-60">{option.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-white font-medium">
+                  📋 Include Status
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'completed-only', label: 'Completed', icon: '✅', desc: 'Best for fairness' },
+                    { id: 'completed-dropped', label: '+ Dropped', icon: '🗑️', desc: 'Include dropped' },
+                    { id: 'all', label: 'All', icon: '📚', desc: 'Everything' },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setSettings({ ...settings, bracketStatusFilter: option.id as GameSettings['bracketStatusFilter'] })}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${
+                        settings.bracketStatusFilter === option.id
+                          ? 'bg-green-500/20 border-green-500/50 text-green-300'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-lg block">{option.icon}</span>
+                      <span className="text-xs font-medium block">{option.label}</span>
+                      <span className="text-[10px] opacity-60">{option.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Bracket Category */}
