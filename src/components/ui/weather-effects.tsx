@@ -262,12 +262,12 @@ function Aurora() {
   );
 }
 
-// Enhanced Cloud component with more detail
+// Enhanced Cloud component with more detail and smoother animation
 function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number; scale: number; delay: number; isDark?: boolean }) {
-  const cloudOpacity = isDark ? 0.08 : 0.12;
+  const cloudOpacity = isDark ? 0.06 : 0.10; // Reduced opacity for subtlety
   return (
     <div
-      className="absolute animate-float-cloud pointer-events-none"
+      className="absolute animate-float-cloud pointer-events-none transition-opacity duration-1000"
       style={{
         top: `${top}%`,
         left: `${left}%`,
@@ -275,11 +275,11 @@ function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number;
         animationDelay: `${delay}s`,
       }}
     >
-      <div className="relative">
-        <div className="w-20 h-8 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity})` }} />
-        <div className="absolute -top-4 left-4 w-12 h-12 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.9})` }} />
-        <div className="absolute -top-2 left-12 w-10 h-10 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.8})` }} />
-        <div className="absolute -top-1 left-20 w-8 h-8 rounded-full backdrop-blur-sm" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.7})` }} />
+      <div className="relative filter blur-[0.5px]">
+        <div className="w-20 h-8 rounded-full backdrop-blur-sm transition-all duration-500" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity})` }} />
+        <div className="absolute -top-4 left-4 w-12 h-12 rounded-full backdrop-blur-sm transition-all duration-500" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.9})` }} />
+        <div className="absolute -top-2 left-12 w-10 h-10 rounded-full backdrop-blur-sm transition-all duration-500" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.8})` }} />
+        <div className="absolute -top-1 left-20 w-8 h-8 rounded-full backdrop-blur-sm transition-all duration-500" style={{ backgroundColor: `rgba(255,255,255,${cloudOpacity * 0.7})` }} />
       </div>
     </div>
   );
@@ -422,7 +422,7 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
   );
 
   return (
-    <div className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${className}`}>
+    <div className={`fixed inset-0 overflow-hidden pointer-events-none -z-10 ${className}`}>
       {/* Night sky with stars and aurora */}
       {!isDay && (
         <>

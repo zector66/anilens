@@ -21,10 +21,13 @@ interface AnalysisLoadingScreenProps {
 
 const LOADING_STEPS: LoadingStep[] = [
   { id: 'fetch', label: 'Fetching your AniList data', status: 'pending' },
-  { id: 'genres', label: 'Processing genres', status: 'pending' },
+  { id: 'genres', label: 'Processing genres & formats', status: 'pending' },
   { id: 'tags', label: 'Analyzing tags & themes', status: 'pending' },
   { id: 'studios', label: 'Building studio profile', status: 'pending' },
+  { id: 'stats', label: 'Calculating statistics', status: 'pending' },
+  { id: 'emotional', label: 'Analyzing emotional patterns', status: 'pending' },
   { id: 'prepare', label: 'Preparing your experience', status: 'pending' },
+  { id: 'finalize', label: 'Finalizing profile', status: 'pending' },
 ];
 
 export function AnalysisLoadingScreen({
@@ -55,7 +58,7 @@ export function AnalysisLoadingScreen({
     }
 
     // Simulate progress with realistic timing
-    const timings = [800, 1200, 1000, 1500, 800]; // ms per step
+    const timings = [600, 800, 900, 1000, 700, 800, 600, 500]; // ms per step
     let currentIdx = 0;
     
     // Start first step immediately
@@ -94,7 +97,7 @@ export function AnalysisLoadingScreen({
     <div className="flex flex-col items-center justify-center py-12 px-4">
       {/* Banner + Avatar Section */}
       <div className="relative w-full max-w-md mb-8">
-        {/* Banner */}
+        {/* Banner with shimmer effect */}
         <div className="relative h-32 rounded-2xl overflow-hidden bg-linear-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20">
           {user?.bannerImage ? (
             <Image
@@ -109,6 +112,8 @@ export function AnalysisLoadingScreen({
           )}
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0f] via-transparent to-transparent" />
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
         </div>
 
         {/* Avatar */}
@@ -129,8 +134,9 @@ export function AnalysisLoadingScreen({
                 </div>
               )}
             </div>
-            {/* Pulsing ring */}
+            {/* Animated ring */}
             <div className="absolute -inset-1 rounded-2xl border-2 border-purple-500/50 animate-pulse" />
+            <div className="absolute -inset-2 rounded-2xl border border-purple-400/30 animate-ping" style={{ animationDuration: '2s' }} />
           </div>
         </div>
       </div>
@@ -223,10 +229,19 @@ export function AnalysisLoadingScreen({
         </p>
       </div>
 
-      {/* Fun Fact / Tip */}
-      <p className="text-center text-xs text-gray-500 mt-8 max-w-xs">
-        💡 Tip: Your taste profile updates automatically as you add more entries to AniList
-      </p>
+      {/* Dynamic Loading Tips */}
+      <div className="text-center text-xs text-gray-400 mt-8 max-w-sm space-y-2">
+        <p className="animate-fade-in">
+          {completedSteps < 2 && '🔍 Scanning your watch history...'}
+          {completedSteps >= 2 && completedSteps < 4 && '🎨 Identifying your unique preferences...'}
+          {completedSteps >= 4 && completedSteps < 6 && '📊 Crunching the numbers...'}
+          {completedSteps >= 6 && completedSteps < 7 && '✨ Almost there...'}
+          {completedSteps >= 7 && '🎉 Ready to reveal your taste!'}
+        </p>
+        <p className="text-gray-600 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+          💡 Your profile updates automatically as you watch more
+        </p>
+      </div>
     </div>
   );
 }
