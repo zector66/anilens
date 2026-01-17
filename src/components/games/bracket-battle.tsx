@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MediaListEntry } from '@/types/anilist';
 import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
 import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
+import { BracketResults } from './bracket-results';
 
 interface BracketBattleProps {
   entries: MediaListEntry[];
@@ -57,6 +58,9 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [isInitializing, setIsInitializing] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [allBracketResults, setAllBracketResults] = useState<Array<{ id: number; title: string; image: string; round: number }>>([]);
+  const [matchHistory, setMatchHistory] = useState<Array<{ winner: { id: number; title: string; image: string; round: number }; loser: { id: number; title: string; image: string; round: number }; round: number }>>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Debug state changes
@@ -253,6 +257,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     setMatchIndex(0);
     setRoundNumber(1);
     setWinner(null);
+    setShowResults(false);
+    setMatchHistory([]);
     setIsReady(false); // Set ready to false after starting
   };
 
@@ -269,6 +275,30 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     setIsAnimating(true);
 
     setTimeout(() => {
+      const currentMatch = currentRound.matches[matchIndex];
+      const winnerItem = item;
+      const loserItem = currentMatch[0].id === winnerItem.id ? currentMatch[1] : currentMatch[0];
+      
+      // Record match result with round info
+      const winnerWithRound = { 
+        id: winnerItem.id, 
+        title: winnerItem.title, 
+        image: winnerItem.image, 
+        round: roundNumber 
+      };
+      const loserWithRound = { 
+        id: loserItem.id, 
+        title: loserItem.title, 
+        image: loserItem.image, 
+        round: roundNumber 
+      };
+      
+      setMatchHistory(prev => [...prev, { 
+        winner: winnerWithRound, 
+        loser: loserWithRound, 
+        round: roundNumber 
+      }]);
+      
       const newWinners = [...currentRound.winners, item];
       
       if (matchIndex < currentRound.matches.length - 1) {
@@ -278,9 +308,9 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       } else {
         // Round complete
         if (newWinners.length === 1) {
-          // We have a winner!
+          // We have a winner! Show results screen
           setWinner(newWinners[0]);
-          onComplete(newWinners[0]);
+          setShowResults(true);
         } else {
           // Start next round
           const newMatches: [BattleItem, BattleItem][] = [];
@@ -419,38 +449,36 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     );
   }
 
-  if (winner) {
-    console.log('Rendering winner screen:', winner.title);
+  if (showResults && winner) {
+    console.log('Rendering results screen with analysis');
+    
+    // Convert BattleItems to BracketResults format
+    const bracketResults = items.map((item, index) => {
+      // Determine how far each item got
+      const wonMatches = matchHistory.filter(m => m.winner.id === item.id).length;
+      const isWinner = item.id === winner.id;
+      
+      return {
+        id: item.id,
+        title: item.title,
+        image: item.image,
+        round: isWinner ? roundNumber + 1 : wonMatches + 1,
+      };
+    });
+    
     return (
-      <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-6">
-          <Trophy className="w-10 h-10 text-yellow-400" />
-        </div>
-        <h2 className="text-3xl font-bold text-white mb-2">Champion!</h2>
-        <p className="text-gray-400 mb-6">Your {battleType} tournament winner is...</p>
-        
-        <div className="relative w-48 h-72 mx-auto mb-6 rounded-xl overflow-hidden border-4 border-yellow-500">
-          {winner.image ? (
-            <img
-              src={winner.image}
-              alt={winner.title}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-yellow-500/20 flex items-center justify-center">
-              <Trophy className="w-12 h-12 text-yellow-400" />
-            </div>
-          )}
-        </div>
-        <h3 className="text-2xl font-bold text-yellow-400 mb-8">{winner.title}</h3>
-        
-        <button
-          onClick={onBack}
-          className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
-        >
-          Back to Games
-        </button>
-      </div>
+      <BracketResults
+        bracketResults={bracketResults}
+        matchHistory={matchHistory}
+        entries={entries}
+        onPlayAgain={() => {
+          setShowResults(false);
+          setWinner(null);
+          setMatchHistory([]);
+          setIsReady(true);
+        }}
+        onBack={onBack}
+      />
     );
   }
 
