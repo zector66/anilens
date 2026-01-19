@@ -40,10 +40,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Enforce minimum bracket size
-    if (body.bracketSize < 16) {
+    // Enforce minimum bracket size (reduced to 8 for testing)
+    if (body.bracketSize < 8) {
       return NextResponse.json(
-        { error: "Bracket size must be at least 16" },
+        { error: "Bracket size must be at least 8" },
         { status: 400 }
       );
     }

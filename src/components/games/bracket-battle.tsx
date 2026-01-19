@@ -81,20 +81,28 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     const entityType = getEntityType();
     if (!entityType) return;
     
-    // Only submit for brackets with 16+ entries
-    if (items.length < 16) {
+    // Only submit for brackets with 8+ entries (reduced from 16 for testing)
+    if (items.length < 8) {
       console.log('Bracket too small for stats tracking:', items.length);
       return;
     }
 
     try {
+      console.log('Submitting bracket stats:', {
+        runId,
+        entityType,
+        bracketSize: items.length,
+        matchesCount: matchHistory.length,
+        championId,
+      });
+
       const matches = matchHistory.map(m => ({
         entityType,
         winnerId: m.winner.id,
         loserId: m.loser.id,
       }));
 
-      await submitBracketResults({
+      const result = await submitBracketResults({
         runId,
         bracketType: entityType,
         bracketSize: items.length,
@@ -103,9 +111,10 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       });
 
       setStatsSubmitted(true);
-      console.log('Bracket stats submitted successfully');
+      console.log('Bracket stats submitted successfully:', result);
     } catch (error) {
       console.error('Failed to submit bracket stats:', error);
+      // Maybe show a toast or notification here in the future
     }
   }, [statsSubmitted, runId, getEntityType, items.length, matchHistory]);
 
