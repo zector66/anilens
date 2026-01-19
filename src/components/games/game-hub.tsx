@@ -33,9 +33,11 @@ import {
 import { HangmanGame } from './hangman-game';
 import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
+import { BracketLeaderboard } from './bracket-leaderboard';
 import { MultiplayerRoom } from '@/lib/supabase';
 import { MultiplayerLobby } from './multiplayer-lobby';
 import { useMedia } from '@/contexts/media-context';
+import { Award } from 'lucide-react';
 
 export function GameHub() {
   const { user } = useAuth();
@@ -68,6 +70,7 @@ export function GameHub() {
   const [multiplayerRoom, setMultiplayerRoom] = useState<MultiplayerRoom | null>(null);
   // P1-9 FIX: Track last played game type for "Play Again" to return to settings
   const [lastPlayedGameType, setLastPlayedGameType] = useState<string | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const isLoading = activeType === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const currentList = activeType === 'ANIME' ? animeList : mangaList;
@@ -336,6 +339,15 @@ export function GameHub() {
           handleGameComplete(session);
         }}
         onBack={() => setSpecialGame(null)}
+      />
+    );
+  }
+
+  // Bracket Hall of Fame / Leaderboard
+  if (showLeaderboard) {
+    return (
+      <BracketLeaderboard
+        onBack={() => setShowLeaderboard(false)}
       />
     );
   }
@@ -780,11 +792,33 @@ export function GameHub() {
         </div>
       )}
 
+      {/* Hall of Fame Button */}
+      <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+              <Award className="w-6 h-6 text-yellow-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Bracket Hall of Fame</h3>
+              <p className="text-sm text-gray-400">See the most picked winners across all tournaments</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-medium transition-colors border border-yellow-500/30"
+          >
+            <Trophy className="w-4 h-4" />
+            View Legends
+          </button>
+        </div>
+      </div>
+
       {/* Community Features Teaser */}
       <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-yellow-400" />
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <Trophy className="w-5 h-5 text-purple-400" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white">Community Features</h3>
@@ -793,7 +827,7 @@ export function GameHub() {
         </div>
         
         <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
-          <p className="text-purple-300 mb-2">🏆 Switch to Community mode to view:</p>
+          <p className="text-purple-300 mb-2">🏆 Coming soon:</p>
           <div className="flex flex-wrap justify-center gap-2 text-sm">
             <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Your Rating</span>
             <span className="px-3 py-1 rounded-full bg-white/5 text-gray-300">Match History</span>

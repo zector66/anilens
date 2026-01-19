@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MediaListEntry } from '@/types/anilist';
 import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
 import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
 import { BracketResults } from './bracket-results';
+import { submitBracketResults, EntityType } from '@/hooks/use-bracket-leaderboards';
 
 interface BracketBattleProps {
   entries: MediaListEntry[];
@@ -61,7 +62,52 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   const [showResults, setShowResults] = useState(false);
   const [allBracketResults, setAllBracketResults] = useState<Array<{ id: number; title: string; image: string; round: number }>>([]);
   const [matchHistory, setMatchHistory] = useState<Array<{ winner: { id: number; title: string; image: string; round: number }; loser: { id: number; title: string; image: string; round: number }; round: number }>>([]);
+  const [runId, setRunId] = useState<string>('');
+  const [statsSubmitted, setStatsSubmitted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Map battleType to entity type for stats
+  const getEntityType = useCallback((): EntityType | null => {
+    if (battleType === 'anime' || battleType === 'openings' || battleType === 'endings') return 'anime';
+    if (battleType === 'manga') return 'manga';
+    if (battleType === 'characters') return 'character';
+    return null;
+  }, [battleType]);
+
+  // Submit bracket stats when complete
+  const submitStats = useCallback(async (championId: number) => {
+    if (statsSubmitted || !runId) return;
+    
+    const entityType = getEntityType();
+    if (!entityType) return;
+    
+    // Only submit for brackets with 16+ entries
+    if (items.length < 16) {
+      console.log('Bracket too small for stats tracking:', items.length);
+      return;
+    }
+
+    try {
+      const matches = matchHistory.map(m => ({
+        entityType,
+        winnerId: m.winner.id,
+        loserId: m.loser.id,
+      }));
+
+      await submitBracketResults({
+        runId,
+        bracketType: entityType,
+        bracketSize: items.length,
+        matches,
+        championId,
+      });
+
+      setStatsSubmitted(true);
+      console.log('Bracket stats submitted successfully');
+    } catch (error) {
+      console.error('Failed to submit bracket stats:', error);
+    }
+  }, [statsSubmitted, runId, getEntityType, items.length, matchHistory]);
 
   // Debug state changes
   console.log('BracketBattle state:', { 
@@ -243,6 +289,12 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     
     console.log('Creating first round with', items.length, 'items');
     
+    // Generate a unique run ID for this bracket session
+    const newRunId = crypto.randomUUID();
+    setRunId(newRunId);
+    setStatsSubmitted(false);
+    console.log('Generated bracket runId:', newRunId);
+    
     // Create first round
     const matches: [BattleItem, BattleItem][] = [];
     for (let i = 0; i < items.length; i += 2) {
@@ -311,6 +363,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
           // We have a winner! Show results screen
           setWinner(newWinners[0]);
           setShowResults(true);
+          // Submit bracket stats to leaderboard (async, don't block UI)
+          submitStats(newWinners[0].id);
         } else {
           // Start next round
           const newMatches: [BattleItem, BattleItem][] = [];

@@ -27,6 +27,13 @@ export class AniListClient {
     });
   }
 
+  /**
+   * Generic request method for custom GraphQL queries
+   */
+  async request<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    return this.client.request<T>(query, variables);
+  }
+
   async getCurrentUser(): Promise<AniListUser> {
     const query = gql`
       query {
