@@ -9,6 +9,7 @@ import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHubV2 } from '@/components/games/community-hub-v2';
 import { Studio } from '@/components/studio/studio';
+import { BracketHub } from '@/components/games/bracket-hub';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -252,25 +253,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       case 'games':
         return <GameHub />;
       case 'brackets':
-        return <div className="text-center py-12">
-          <Trophy className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Anime Bracket Battle</h2>
-          <p className="text-gray-400 mb-6">Advanced bracket system coming soon!</p>
-          <div className="max-w-md mx-auto text-left bg-white/5 rounded-lg p-6 border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">🚀 Coming Features:</h3>
-            <ul className="space-y-2 text-gray-300">
-              <li>• Advanced seeding modes (Random, Your Ratings, Global Score, Popularity, Hybrid)</li>
-              <li>• Format filters (TV, Movie, OVA, ONA, Special)</li>
-              <li>• Status filters (Completed, Dropped, Planning, etc.)</li>
-              <li>• &ldquo;No sequels/spin-offs&rdquo; option</li>
-              <li>• &ldquo;Only high confidence titles&rdquo; filter</li>
-              <li>• &ldquo;Exclude adult content&rdquo; toggle</li>
-              <li>• Difficulty/chaos slider (Safe picks vs Chaos mode)</li>
-              <li>• Hall of Fame integration with global stats</li>
-              <li>• Personalized tournament themes and naming</li>
-            </ul>
-          </div>
-        </div>;
+        return <BracketHub userId={user?.id} />;
       case 'community':
         return <CommunityHubV2 onNavigateToGames={() => handleTabChange('games')} />;
       case 'recommendations':
