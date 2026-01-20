@@ -13,6 +13,7 @@ interface BracketBattleProps {
   onBack: () => void;
   battleType: 'anime' | 'manga' | 'openings' | 'endings' | 'characters';
   bracketSize?: number;
+  onViewLeaderboard?: () => void;
 }
 
 interface BattleItem {
@@ -46,7 +47,7 @@ function getRoundName(remaining: number): string {
   return `Round of ${remaining}`;
 }
 
-export function BracketBattle({ entries, onComplete, onBack, battleType, bracketSize = 16 }: BracketBattleProps) {
+export function BracketBattle({ entries, onComplete, onBack, battleType, bracketSize = 16, onViewLeaderboard }: BracketBattleProps) {
   const [items, setItems] = useState<BattleItem[]>([]);
   const [currentRound, setCurrentRound] = useState<BracketRound | null>(null);
   const [matchIndex, setMatchIndex] = useState(0);
@@ -537,13 +538,7 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         matchHistory={matchHistory}
         entries={entries}
         battleType={battleType}
-        onViewLeaderboard={() => {
-          // This will be handled by the parent component
-          if (onBack) {
-            onBack(); // Go back to game hub first
-            // The game hub will need to handle showing the leaderboard
-          }
-        }}
+        onViewLeaderboard={onViewLeaderboard}
         onPlayAgain={() => {
           // Reset everything to generate a completely new bracket
           setShowResults(false);

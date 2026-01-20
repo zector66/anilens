@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Star, Swords, Share2, Download, Award, Tv, BookOpen, Users, Target, Loader2 } from 'lucide-react';
+import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Star, Swords, Share2, Download, Award, Tv, BookOpen, Users, Target, Loader2, Clock, Zap, Target as TargetIcon, CheckCircle } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { MediaListEntry } from '@/types/anilist';
 import { useAllTimeLeaderboard, EntityType } from '@/hooks/use-bracket-leaderboards';
@@ -384,6 +384,73 @@ export function BracketResults({
           </div>
         </div>
       )}
+
+      {/* Your Performance Summary */}
+      <div className="p-5 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+        <div className="flex items-center gap-2 mb-4">
+          <Star className="w-5 h-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Your Performance</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-400">
+              {analysis.totalMatches}
+            </div>
+            <div className="text-xs text-gray-400">Matches Played</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-400">
+              {Math.round((analysis.totalMatches - analysis.upsetCount) / analysis.totalMatches * 100)}%
+            </div>
+            <div className="text-xs text-gray-400">Expected Picks</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-orange-400">
+              {analysis.upsetCount}
+            </div>
+            <div className="text-xs text-gray-400">Upsets Caused</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-400">
+              {analysis.inconsistencyScore.toFixed(0)}%
+            </div>
+            <div className="text-xs text-gray-400">Chaos Score</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bracket Completion Stats */}
+      <div className="p-5 rounded-xl bg-white/5 border border-white/10">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock className="w-5 h-5 text-gray-400" />
+          <h3 className="text-lg font-semibold text-white">Bracket Stats</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+            <Trophy className="w-4 h-4 text-yellow-400" />
+            <div>
+              <div className="text-sm font-medium text-white">Champion</div>
+              <div className="text-xs text-gray-400">{analysis.winner.title}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+            <Zap className="w-4 h-4 text-orange-400" />
+            <div>
+              <div className="text-sm font-medium text-white">Runner-up</div>
+              <div className="text-xs text-gray-400">{analysis.runnerUp.title}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+            <TargetIcon className="w-4 h-4 text-purple-400" />
+            <div>
+              <div className="text-sm font-medium text-white">Total Entries</div>
+              <div className="text-xs text-gray-400">{bracketResults.length} contestants</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Leaderboard Preview */}
       {leaderboardQuery.isLoading ? (

@@ -398,6 +398,10 @@ export function GameHub() {
           setSpecialGame(null);
         }}
         onBack={() => setSpecialGame(null)}
+        onViewLeaderboard={() => {
+          setSpecialGame(null);
+          setShowLeaderboard(true);
+        }}
       />
     );
   }
