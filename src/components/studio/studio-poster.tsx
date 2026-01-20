@@ -10,24 +10,6 @@ interface StudioPosterProps {
   height?: number;
 }
 
-const GlassPanel: React.FC<{ 
-  children: React.ReactNode; 
-  className?: string;
-  style?: React.CSSProperties;
-}> = ({ children, className = '', style }) => (
-  <div 
-    className={`rounded-xl backdrop-blur-md ${className}`}
-    style={{
-      background: 'rgba(10, 10, 15, 0.55)',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-      ...style,
-    }}
-  >
-    {children}
-  </div>
-);
-
 const PosterBlock: React.FC<{ 
   children: React.ReactNode; 
   className?: string;
@@ -53,14 +35,6 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
     const { theme } = settings;
     
     const formatNumber = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : n.toString();
-    
-    // Calculate estimated percentiles for demo
-    const estimatedPercentiles = {
-      completion: Math.min(95, Math.round((activityStats.completionRate / 0.8) * 100)),
-      listSize: Math.min(99, Math.round((activityStats.totalTitles / 500) * 100)),
-      meanScore: Math.min(98, Math.round((activityStats.meanScore / 9) * 100)),
-      diversity: Math.min(92, Math.round((indices.find(i => i.label === 'Diversity')?.value || 0.5) * 100)),
-    };
     
     return (
       <div
@@ -183,30 +157,30 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
             
             {/* Bottom Stats Pills */}
             <div className="absolute bottom-4 left-10 right-10">
-              <div className="flex gap-8">
-                <PosterBlock className="text-center">
-                  <div className="text-3xl font-black text-white">{activityStats.totalTitles}</div>
-                  <div className="text-sm text-gray-300 uppercase tracking-wider">Titles</div>
+              <div className="flex gap-10 overflow-hidden">
+                <PosterBlock className="text-center min-w-0">
+                  <div className="text-4xl font-black text-white leading-none tabular-nums truncate">{activityStats.totalTitles}</div>
+                  <div className="text-sm text-gray-200 uppercase tracking-wider leading-tight">Titles</div>
                 </PosterBlock>
                 {activityStats.episodesWatched !== undefined && (
-                  <PosterBlock className="text-center">
-                    <div className="text-3xl font-black text-white">{formatNumber(activityStats.episodesWatched)}</div>
-                    <div className="text-sm text-gray-300 uppercase tracking-wider">Episodes</div>
+                  <PosterBlock className="text-center min-w-0">
+                    <div className="text-4xl font-black text-white leading-none tabular-nums truncate">{formatNumber(activityStats.episodesWatched)}</div>
+                    <div className="text-sm text-gray-200 uppercase tracking-wider leading-tight">Episodes</div>
                   </PosterBlock>
                 )}
                 {activityStats.chaptersRead !== undefined && (
-                  <PosterBlock className="text-center">
-                    <div className="text-3xl font-black text-white">{formatNumber(activityStats.chaptersRead)}</div>
-                    <div className="text-sm text-gray-300 uppercase tracking-wider">Chapters</div>
+                  <PosterBlock className="text-center min-w-0">
+                    <div className="text-4xl font-black text-white leading-none tabular-nums truncate">{formatNumber(activityStats.chaptersRead)}</div>
+                    <div className="text-sm text-gray-200 uppercase tracking-wider leading-tight">Chapters</div>
                   </PosterBlock>
                 )}
-                <PosterBlock className="text-center">
-                  <div className="text-3xl font-black text-white">{activityStats.meanScore.toFixed(1)}</div>
-                  <div className="text-sm text-gray-300 uppercase tracking-wider">Mean Score</div>
+                <PosterBlock className="text-center min-w-0">
+                  <div className="text-4xl font-black text-white leading-none tabular-nums truncate">{activityStats.meanScore.toFixed(1)}</div>
+                  <div className="text-sm text-gray-200 uppercase tracking-wider leading-tight">Mean Score</div>
                 </PosterBlock>
-                <PosterBlock className="text-center">
-                  <div className="text-3xl font-black text-white">{Math.round(activityStats.completionRate * 100)}%</div>
-                  <div className="text-sm text-gray-300 uppercase tracking-wider">Completion</div>
+                <PosterBlock className="text-center min-w-0">
+                  <div className="text-4xl font-black text-white leading-none tabular-nums truncate">{Math.round(activityStats.completionRate * 100)}%</div>
+                  <div className="text-sm text-gray-200 uppercase tracking-wider leading-tight">Completion</div>
                 </PosterBlock>
               </div>
             </div>
@@ -223,7 +197,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                       style={{ 
                         width: i === 0 ? '180px' : '120px',
                         height: i === 0 ? '240px' : '160px',
-                        boxShadow: i === 0 ? `0 0 0 4px ${theme.accent}, 0 10px 40px ${theme.accent}44` : '0 4px 20px rgba(0,0,0,0.5)',
+                        boxShadow: i === 0 ? `0 0 0 4px ${theme.accent}, 0 10px 40px ${theme.accent}44` : '0 4px 20px rgba(0,0,0,0.4)',
                       }}
                     >
                       <img 
@@ -293,7 +267,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                         <span className="text-white font-medium">{genre.name}</span>
                         <span className="text-gray-400">{Math.round(genre.strength * 100)}%</span>
                       </div>
-                      <div className="h-4 rounded-full bg-white/20 overflow-hidden">
+                      <div className="h-4 rounded-full bg-white/15 overflow-hidden">
                         <div 
                           className="h-full rounded-full"
                           style={{ 
@@ -342,7 +316,7 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                 </h3>
                 <div className="space-y-4">
                   {topStudiosOrAuthors.slice(0, 3).map((studio, i) => (
-                    <div key={i} className="flex items-center gap-4">
+                    <div key={i} className="flex items-center gap-4 min-w-0">
                       <div 
                         className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black"
                         style={{ 
@@ -356,12 +330,12 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-lg font-bold text-white truncate">{studio.name}</div>
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-gray-300 truncate">
                           {studio.count} titles • {studio.percentage}%
                         </div>
                       </div>
                       <div 
-                        className="text-2xl font-black"
+                        className="text-2xl font-black shrink-0"
                         style={{ color: i === 0 ? theme.accent : '#fff' }}
                       >
                         {Math.round(studio.strength * 100)}%

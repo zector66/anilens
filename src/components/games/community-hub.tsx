@@ -640,10 +640,19 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
       {/* Leaderboard */}
       <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
         <div className="p-4 border-b border-white/10">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Crown className="w-5 h-5 text-yellow-400" />
-            {leaderboardType === 'global' ? 'Global Rankings' : leaderboardTypes.find(t => t.id === leaderboardType)?.label + ' Rankings'}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-400" />
+              {leaderboardType === 'global' ? 'Global Rankings' : leaderboardTypes.find(t => t.id === leaderboardType)?.label + ' Rankings'}
+            </h3>
+            <a 
+              href="/brackets"
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Trophy className="w-4 h-4" />
+              View Brackets
+            </a>
+          </div>
         </div>
         
         {isLoading ? (

@@ -18,14 +18,15 @@ import {
   Share2,
   LogOut,
   Settings,
-  Sparkles
+  Sparkles,
+  Trophy
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
 import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
 import { useUI } from '@/contexts/ui-context';
 
-type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
+type TabType = 'studio' | 'taste' | 'games' | 'brackets' | 'community' | 'recommendations';
 
 export default function Home() {
   const { isAuthenticated, user, logout, loading } = useAuth();
@@ -228,6 +229,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
     { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
     { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
     { id: 'games' as const, label: 'Games', icon: Gamepad2 },
+    { id: 'brackets' as const, label: 'Brackets', icon: Trophy },
     { id: 'community' as const, label: 'Community', icon: Users },
     { id: 'recommendations' as const, label: 'Recommendations', icon: TrendingUp },
   ];
@@ -249,6 +251,26 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         return <TasteProfile userId={user?.id} />;
       case 'games':
         return <GameHub />;
+      case 'brackets':
+        return <div className="text-center py-12">
+          <Trophy className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Anime Bracket Battle</h2>
+          <p className="text-gray-400 mb-6">Advanced bracket system coming soon!</p>
+          <div className="max-w-md mx-auto text-left bg-white/5 rounded-lg p-6 border border-white/10">
+            <h3 className="text-lg font-semibold text-white mb-4">🚀 Coming Features:</h3>
+            <ul className="space-y-2 text-gray-300">
+              <li>• Advanced seeding modes (Random, Your Ratings, Global Score, Popularity, Hybrid)</li>
+              <li>• Format filters (TV, Movie, OVA, ONA, Special)</li>
+              <li>• Status filters (Completed, Dropped, Planning, etc.)</li>
+              <li>• &ldquo;No sequels/spin-offs&rdquo; option</li>
+              <li>• &ldquo;Only high confidence titles&rdquo; filter</li>
+              <li>• &ldquo;Exclude adult content&rdquo; toggle</li>
+              <li>• Difficulty/chaos slider (Safe picks vs Chaos mode)</li>
+              <li>• Hall of Fame integration with global stats</li>
+              <li>• Personalized tournament themes and naming</li>
+            </ul>
+          </div>
+        </div>;
       case 'community':
         return <CommunityHubV2 onNavigateToGames={() => handleTabChange('games')} />;
       case 'recommendations':
