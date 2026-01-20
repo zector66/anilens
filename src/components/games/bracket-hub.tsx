@@ -46,39 +46,27 @@ export function BracketHub({ userId }: BracketHubProps) {
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [bracketHistory, setBracketHistory] = useState<BracketHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [siteStats, setSiteStats] = useState<{
+    totalBrackets: number;
+    uniqueUsers: number;
+    activePlayers: number;
+    recentBrackets: number;
+  } | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   // Load bracket history
   useEffect(() => {
     const loadHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        // Mock history data - replace with actual API call
-        const mockHistory: BracketHistory[] = [
-          {
-            id: 'bracket_1',
-            tournamentName: 'My Anime Showdown 2024',
-            battleType: 'anime',
-            bracketSize: 16,
-            completedAt: '2024-01-15T10:30:00Z',
-            winner: {
-              id: 1,
-              title: 'Attack on Titan',
-              image: '/api/placeholder/120/180',
-            },
-            config: {
-              seedingMode: 'hybrid',
-              formatFilters: ['TV', 'MOVIE'],
-              statusFilters: ['COMPLETED'],
-              noSequels: false,
-              highConfidenceOnly: false,
-              excludeAdult: true,
-              difficultyLevel: 30,
-              tournamentName: 'My Anime Showdown 2024',
-              bracketSize: 16,
-            },
-          },
-        ];
-        setBracketHistory(mockHistory);
+        const response = await fetch(`/api/brackets/history?userId=${userId}&limit=10`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setBracketHistory(data.history || []);
+        } else {
+          console.error('Failed to load bracket history:', data.error);
+        }
       } catch (error) {
         console.error('Failed to load bracket history:', error);
       } finally {
@@ -90,6 +78,29 @@ export function BracketHub({ userId }: BracketHubProps) {
       loadHistory();
     }
   }, [userId]);
+
+  // Load site stats
+  useEffect(() => {
+    const loadStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        const response = await fetch('/api/brackets/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setSiteStats(data.stats);
+        } else {
+          console.error('Failed to load site stats:', data.error);
+        }
+      } catch (error) {
+        console.error('Failed to load site stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   const handleConfigSubmit = async (newConfig: BracketConfiguration) => {
     setConfig(newConfig);
@@ -191,9 +202,15 @@ export function BracketHub({ userId }: BracketHubProps) {
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="flex items-center gap-3 mb-2">
             <Swords className="w-5 h-5 text-purple-400" />
-            <h3 className="font-medium text-white">Total Brackets</h3>
+            <h3 className="font-medium text-white">Your Brackets</h3>
           </div>
-          <div className="text-2xl font-bold text-purple-400">{bracketHistory.length}</div>
+          <div className="text-2xl font-bold text-purple-400">
+            {isLoadingHistory ? (
+              <div className="w-8 h-6 bg-white/10 rounded animate-pulse" />
+            ) : (
+              bracketHistory.length
+            )}
+          </div>
           <div className="text-sm text-gray-400">Completed tournaments</div>
         </div>
         
@@ -202,17 +219,29 @@ export function BracketHub({ userId }: BracketHubProps) {
             <Users className="w-5 h-5 text-blue-400" />
             <h3 className="font-medium text-white">Community</h3>
           </div>
-          <div className="text-2xl font-bold text-blue-400">2,847</div>
+          <div className="text-2xl font-bold text-blue-400">
+            {isLoadingStats ? (
+              <div className="w-8 h-6 bg-white/10 rounded animate-pulse" />
+            ) : (
+              siteStats?.activePlayers || 0
+            )}
+          </div>
           <div className="text-sm text-gray-400">Active players</div>
         </div>
         
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="flex items-center gap-3 mb-2">
-            <Sparkles className="w-5 h-5 text-yellow-400" />
-            <h3 className="font-medium text-white">Features</h3>
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            <h3 className="font-medium text-white">Site Total</h3>
           </div>
-          <div className="text-2xl font-bold text-yellow-400">5+</div>
-          <div className="text-sm text-gray-400">Seeding modes</div>
+          <div className="text-2xl font-bold text-yellow-400">
+            {isLoadingStats ? (
+              <div className="w-8 h-6 bg-white/10 rounded animate-pulse" />
+            ) : (
+              siteStats?.totalBrackets || 0
+            )}
+          </div>
+          <div className="text-sm text-gray-400">Total brackets played</div>
         </div>
       </div>
 

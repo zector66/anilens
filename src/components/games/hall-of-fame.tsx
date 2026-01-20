@@ -33,68 +33,41 @@ export function HallOfFame({ winnerId, showUserResult = true }: HallOfFameProps)
   useEffect(() => {
     const fetchHallOfFame = async () => {
       try {
-        // Mock data for now - replace with actual API call
-        const mockData: HallOfFameEntry[] = [
-          {
-            id: 1,
-            title: "Attack on Titan",
-            coverImage: "/api/placeholder/120/180",
-            globalWins: 143,
-            allTimeRank: 7,
-            thisWeekRank: 5,
-            lastWeekRank: 8,
-            winRate: 78.5,
-            averageSeed: 2.3,
-            biggestUpset: 8,
-          },
-          {
-            id: 2,
-            title: "Steins;Gate",
-            coverImage: "/api/placeholder/120/180",
-            globalWins: 128,
-            allTimeRank: 12,
-            thisWeekRank: 11,
-            lastWeekRank: 15,
-            winRate: 82.1,
-            averageSeed: 3.1,
-            biggestUpset: 11,
-          },
-          {
-            id: 3,
-            title: "Fullmetal Alchemist: Brotherhood",
-            coverImage: "/api/placeholder/120/180",
-            globalWins: 156,
-            allTimeRank: 3,
-            thisWeekRank: 2,
-            lastWeekRank: 3,
-            winRate: 85.7,
-            averageSeed: 1.8,
-            biggestUpset: 6,
-          },
-        ];
-
-        setEntries(mockData);
-
-        // Mock user result if winner is provided
-        if (winnerId && showUserResult) {
-          const winnerEntry = mockData.find(e => e.id === winnerId);
-          if (winnerEntry) {
-            setUserResult({
-              globalWins: winnerEntry.globalWins,
-              allTimeRank: winnerEntry.allTimeRank,
-              percentile: "Top 2%",
-            });
-          }
+        // Fetch real Hall of Fame data from bracket_entity_stats
+        const response = await fetch('/api/brackets/hall-of-fame');
+        const data = await response.json();
+        
+        if (data.success) {
+          setEntries(data.entries || []);
+        } else {
+          console.error('Failed to fetch Hall of Fame:', data.error);
+          // Fallback to empty array
+          setEntries([]);
         }
       } catch (error) {
         console.error('Failed to fetch Hall of Fame:', error);
+        setEntries([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchHallOfFame();
-  }, [winnerId, showUserResult]);
+  }, []);
+
+  // Set user result if winner is provided
+  useEffect(() => {
+    if (winnerId && showUserResult && entries.length > 0) {
+      const winnerEntry = entries.find((e: HallOfFameEntry) => e.id === winnerId);
+      if (winnerEntry) {
+        setUserResult({
+          globalWins: winnerEntry.globalWins,
+          allTimeRank: winnerEntry.allTimeRank,
+          percentile: "Top 2%",
+        });
+      }
+    }
+  }, [winnerId, showUserResult, entries]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="w-5 h-5 text-yellow-400" />;
