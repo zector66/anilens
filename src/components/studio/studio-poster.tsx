@@ -28,6 +28,21 @@ const GlassPanel: React.FC<{
   </div>
 );
 
+const PosterBlock: React.FC<{ 
+  children: React.ReactNode; 
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ children, className = '', style }) => (
+  <div 
+    className={`${className}`}
+    style={{
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
+
 export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
   function StudioPoster({ profile, className = '', width = 1600, height = 900 }, ref) {
     const { 
@@ -92,235 +107,269 @@ export const StudioPoster = forwardRef<HTMLDivElement, StudioPosterProps>(
           />
         </div>
 
-        {/* Content Grid - AniWrapped Style */}
+        {/* POSTER LAYOUT - Full Width Hero Banner */}
         <div className="relative h-full flex flex-col">
           
-          {/* ROW 1: HERO BANNER (20% height) */}
-          <div className="relative h-[20%] flex items-center justify-between px-8 py-4">
-            {/* Left: Avatar + Username */}
-            <div className="flex items-center gap-4">
-              {/* Avatar */}
+          {/* ROW 1: FULL-WIDTH HERO BANNER (25% height) */}
+          <div className="relative h-[25%]">
+            {/* Banner Background */}
+            <div className="absolute inset-0">
+              {user.banner ? (
+                <img 
+                  src={user.banner} 
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ filter: 'blur(2px) brightness(0.4)' }}
+                />
+              ) : (
+                <div 
+                  className="absolute inset-0"
+                  style={{ 
+                    background: user.fallbackGradient || 'linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)',
+                  }}
+                />
+              )}
+              {/* Heavy Gradient Overlay */}
               <div 
-                className="w-20 h-20 rounded-full overflow-hidden shrink-0"
-                style={{ boxShadow: `0 0 0 3px ${theme.accent}, 0 0 20px ${theme.accent}44` }}
-              >
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-white">{user.name[0]}</span>
-                  </div>
-                )}
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%)',
+                }}
+              />
+            </div>
+            
+            {/* Hero Content */}
+            <div className="relative h-full flex items-center justify-between px-10">
+              {/* Left: Avatar + Username */}
+              <div className="flex items-center gap-6">
+                {/* Avatar */}
+                <div 
+                  className="w-24 h-24 rounded-full overflow-hidden shrink-0"
+                  style={{ 
+                    boxShadow: `0 0 0 4px ${theme.accent}, 0 0 30px ${theme.accent}66`,
+                    border: '4px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-white">{user.name[0]}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Username + Summary */}
+                <div>
+                  <h1 className="text-6xl font-black text-white mb-2 leading-tight">{user.name}</h1>
+                  <p 
+                    className="text-2xl font-bold italic"
+                    style={{ color: theme.accent }}
+                  >
+                    &ldquo;{summaryLine}&rdquo;
+                  </p>
+                </div>
               </div>
               
-              {/* Username + Summary */}
-              <div>
-                <h1 className="text-4xl font-bold text-white mb-1">{user.name}</h1>
-                <p 
-                  className="text-lg font-medium italic"
-                  style={{ color: theme.accent }}
-                >
-                  &ldquo;{summaryLine}&rdquo;
-                </p>
+              {/* Right: Branding + Time Window */}
+              <div className="text-right">
+                <div className="text-lg font-bold text-white mb-1">AniLens Studio</div>
+                <div className="text-3xl font-black text-white mb-1">
+                  {metadata.timeRange} {mode === 'ANIME' ? 'Anime' : 'Manga'}
+                </div>
+                <div className="text-sm text-gray-300">anilens.gg/studio</div>
               </div>
             </div>
             
-            {/* Right: Branding + Time Window */}
-            <div className="text-right">
-              <div className="text-sm text-gray-400 mb-1">AniLens Studio</div>
-              <div className="text-xl font-bold text-white">
-                {metadata.timeRange} {mode === 'ANIME' ? 'Anime' : 'Manga'}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">anilens.gg/studio</div>
-            </div>
-          </div>
-          
-          {/* ROW 2: 3x2 STAT GRID + PERCENTILES (15% height) */}
-          <div className="h-[15%] grid grid-cols-12 gap-4 px-8">
-            {/* 3x2 Stat Grid (cols 1-8) */}
-            <div className="col-span-8 grid grid-cols-3 gap-3">
-              {indices.slice(0, 6).map((stat, i) => (
-                <div key={i} className="text-center">
-                  <div 
-                    className="text-3xl font-bold mb-1"
-                    style={{ color: stat.color }}
-                  >
-                    {stat.displayValue}
-                  </div>
-                  <div className="text-xs text-gray-400 uppercase tracking-wide">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Percentile Cards (cols 9-12) */}
-            <div className="col-span-4 grid grid-cols-2 gap-2">
-              <div className="text-center p-2 rounded-lg" style={{ background: `${theme.accent}15` }}>
-                <div className="text-xl font-bold" style={{ color: theme.accent }}>
-                  Top {estimatedPercentiles.completion}%
-                </div>
-                <div className="text-xs text-gray-400">Completion</div>
-              </div>
-              <div className="text-center p-2 rounded-lg" style={{ background: `${theme.accent}15` }}>
-                <div className="text-xl font-bold" style={{ color: theme.accent }}>
-                  Top {estimatedPercentiles.listSize}%
-                </div>
-                <div className="text-xs text-gray-400">List Size</div>
-              </div>
-              <div className="text-center p-2 rounded-lg" style={{ background: `${theme.accent}15` }}>
-                <div className="text-xl font-bold" style={{ color: theme.accent }}>
-                  Top {estimatedPercentiles.meanScore}%
-                </div>
-                <div className="text-xs text-gray-400">Mean Score</div>
-              </div>
-              <div className="text-center p-2 rounded-lg" style={{ background: `${theme.accent}15` }}>
-                <div className="text-xl font-bold" style={{ color: theme.accent }}>
-                  Top {estimatedPercentiles.diversity}%
-                </div>
-                <div className="text-xs text-gray-400">Diversity</div>
+            {/* Bottom Stats Pills */}
+            <div className="absolute bottom-4 left-10 right-10">
+              <div className="flex gap-8">
+                <PosterBlock className="text-center">
+                  <div className="text-3xl font-black text-white">{activityStats.totalTitles}</div>
+                  <div className="text-sm text-gray-300 uppercase tracking-wider">Titles</div>
+                </PosterBlock>
+                {activityStats.episodesWatched !== undefined && (
+                  <PosterBlock className="text-center">
+                    <div className="text-3xl font-black text-white">{formatNumber(activityStats.episodesWatched)}</div>
+                    <div className="text-sm text-gray-300 uppercase tracking-wider">Episodes</div>
+                  </PosterBlock>
+                )}
+                {activityStats.chaptersRead !== undefined && (
+                  <PosterBlock className="text-center">
+                    <div className="text-3xl font-black text-white">{formatNumber(activityStats.chaptersRead)}</div>
+                    <div className="text-sm text-gray-300 uppercase tracking-wider">Chapters</div>
+                  </PosterBlock>
+                )}
+                <PosterBlock className="text-center">
+                  <div className="text-3xl font-black text-white">{activityStats.meanScore.toFixed(1)}</div>
+                  <div className="text-sm text-gray-300 uppercase tracking-wider">Mean Score</div>
+                </PosterBlock>
+                <PosterBlock className="text-center">
+                  <div className="text-3xl font-black text-white">{Math.round(activityStats.completionRate * 100)}%</div>
+                  <div className="text-sm text-gray-300 uppercase tracking-wider">Completion</div>
+                </PosterBlock>
               </div>
             </div>
           </div>
           
-          {/* ROW 3: TOP MEDIA + STUDIOS (35% height) */}
-          <div className="h-[35%] grid grid-cols-12 gap-4 px-8">
-            {/* Top 5 Media Strip (cols 1-7) */}
-            <div className="col-span-7">
-              <GlassPanel className="h-full p-4">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Top {mode === 'ANIME' ? 'Anime' : 'Manga'}
-                </h3>
-                <div className="flex gap-3 justify-center items-end h-full">
-                  {topMedia.slice(0, 5).map((media, i) => (
-                    <div key={media.id} className="relative group">
-                      <div 
-                        className="rounded-lg overflow-hidden transition-transform"
-                        style={{ 
-                          width: i === 0 ? '120px' : '80px',
-                          height: i === 0 ? '180px' : '120px',
-                          boxShadow: i === 0 ? `0 0 0 3px ${theme.accent}` : '0 0 0 1px rgba(255,255,255,0.1)',
-                          transform: i === 0 ? 'scale(1.05)' : 'scale(1)',
-                        }}
-                      >
-                        <img 
-                          src={media.cover} 
-                          alt={media.title}
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Score Badge */}
-                        {media.score && (
-                          <div 
-                            className="absolute bottom-2 right-2 px-2 py-1 rounded text-xs font-bold"
-                            style={{ 
-                              background: 'rgba(0,0,0,0.9)',
-                              color: media.score >= 8 ? '#22c55e' : media.score >= 6 ? '#eab308' : '#ef4444'
-                            }}
-                          >
-                            {media.score}
-                          </div>
-                        )}
-                      </div>
-                      {/* Rank Badge */}
-                      <div 
-                        className="absolute -top-2 -left-2 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                        style={{ 
-                          background: i === 0 ? theme.accent : 'rgba(255,255,255,0.1)',
-                          color: i === 0 ? '#fff' : '#9ca3af'
-                        }}
-                      >
-                        #{i + 1}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassPanel>
-            </div>
-            
-            {/* Top Studios (cols 8-12) */}
-            <div className="col-span-5">
-              <GlassPanel className="h-full p-4">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Top {mode === 'ANIME' ? 'Studios' : 'Authors'}
-                </h3>
-                <div className="space-y-3">
-                  {topStudiosOrAuthors.slice(0, 4).map((studio, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
-                        style={{ 
-                          background: i === 0 ? `${theme.accent}22` : 'rgba(255,255,255,0.05)',
-                          color: i === 0 ? theme.accent : '#9ca3af',
-                          border: i === 0 ? `2px solid ${theme.accent}44` : '1px solid rgba(255,255,255,0.08)'
-                        }}
-                      >
-                        #{i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{studio.name}</div>
-                        <div className="text-xs text-gray-500">
-                          {studio.count} titles • {studio.percentage}%
-                        </div>
-                      </div>
-                      <div 
-                        className="text-sm font-bold"
-                        style={{ color: i === 0 ? theme.accent : '#9ca3af' }}
-                      >
-                        {Math.round(studio.strength * 100)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassPanel>
-            </div>
-          </div>
-          
-          {/* ROW 4: GENRE RADAR + TAGS (30% height) */}
-          <div className="h-[30%] grid grid-cols-12 gap-4 px-8 pb-6">
-            {/* Genre Distribution (cols 1-6) */}
-            <div className="col-span-6">
-              <GlassPanel className="h-full p-4">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Genre Signature</h3>
-                <div className="space-y-2">
-                  {topGenres.slice(0, 6).map((genre, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-300">{genre.name}</span>
-                        <span className="text-gray-500">{Math.round(genre.strength * 100)}%</span>
-                      </div>
-                      <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+          {/* ROW 2: TOP RATED STRIP (20% height) */}
+          <div className="h-[20%] px-10 py-6">
+            <PosterBlock className="h-full">
+              <div className="flex items-end justify-center gap-4 h-full">
+                {topMedia.slice(0, 5).map((media, i) => (
+                  <div key={media.id} className="relative">
+                    <div 
+                      className="rounded-lg overflow-hidden"
+                      style={{ 
+                        width: i === 0 ? '180px' : '120px',
+                        height: i === 0 ? '240px' : '160px',
+                        boxShadow: i === 0 ? `0 0 0 4px ${theme.accent}, 0 10px 40px ${theme.accent}44` : '0 4px 20px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      <img 
+                        src={media.cover} 
+                        alt={media.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Score Badge */}
+                      {media.score && (
                         <div 
-                          className="h-full rounded-full transition-all"
+                          className="absolute bottom-3 right-3 px-3 py-1.5 rounded text-sm font-black"
+                          style={{ 
+                            background: 'rgba(0,0,0,0.9)',
+                            color: media.score >= 8 ? '#22c55e' : media.score >= 6 ? '#eab308' : '#ef4444'
+                          }}
+                        >
+                          {media.score}
+                        </div>
+                      )}
+                    </div>
+                    {/* Rank Badge */}
+                    <div 
+                      className="absolute -top-3 -left-3 w-12 h-12 rounded-full flex items-center justify-center text-lg font-black"
+                      style={{ 
+                        background: i === 0 ? theme.accent : 'rgba(255,255,255,0.9)',
+                        color: i === 0 ? '#fff' : '#000',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      #{i + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </PosterBlock>
+          </div>
+          
+          {/* ROW 3: 3x2 STAT GRID + GENRE (25% height) */}
+          <div className="h-[25%] grid grid-cols-12 gap-6 px-10">
+            {/* 3x2 Stat Grid (cols 1-7) */}
+            <div className="col-span-7">
+              <PosterBlock className="h-full">
+                <div className="grid grid-cols-3 gap-6 h-full">
+                  {indices.slice(0, 6).map((stat, i) => (
+                    <div key={i} className="text-center">
+                      <div 
+                        className="text-5xl font-black mb-2"
+                        style={{ color: stat.color }}
+                      >
+                        {stat.displayValue}
+                      </div>
+                      <div className="text-sm text-gray-300 uppercase tracking-wider">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </PosterBlock>
+            </div>
+            
+            {/* Genre Bars (cols 8-12) */}
+            <div className="col-span-5">
+              <PosterBlock className="h-full p-4">
+                <h3 className="text-lg font-black text-white mb-4">Genre Signature</h3>
+                <div className="space-y-3">
+                  {topGenres.slice(0, 5).map((genre, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-white font-medium">{genre.name}</span>
+                        <span className="text-gray-400">{Math.round(genre.strength * 100)}%</span>
+                      </div>
+                      <div className="h-4 rounded-full bg-white/20 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full"
                           style={{ 
                             width: `${Math.min(100, genre.strength * 100)}%`,
-                            background: `linear-gradient(90deg, ${theme.accent}88, ${theme.accent})`
+                            background: `linear-gradient(90deg, ${theme.accent}CC, ${theme.accent})`
                           }}
                         />
                       </div>
                     </div>
                   ))}
                 </div>
-              </GlassPanel>
+              </PosterBlock>
             </div>
-            
-            {/* Tags Cloud (cols 7-12) */}
-            <div className="col-span-6">
-              <GlassPanel className="h-full p-4">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Common Themes</h3>
-                <div className="flex flex-wrap gap-2">
-                  {topTags.slice(0, 15).map((tag, i) => (
+          </div>
+          
+          {/* ROW 4: THEMES + STUDIOS (30% height) */}
+          <div className="h-[30%] grid grid-cols-12 gap-6 px-10 pb-10">
+            {/* Themes Cloud (cols 1-7) */}
+            <div className="col-span-7">
+              <PosterBlock className="h-full p-6">
+                <h3 className="text-lg font-black text-white mb-4">Common Themes</h3>
+                <div className="flex flex-wrap gap-3">
+                  {topTags.slice(0, 20).map((tag, i) => (
                     <span
                       key={i}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                      className="px-4 py-2 rounded-full text-sm font-bold"
                       style={{ 
-                        background: i < 3 ? `${theme.accent}33` : 'rgba(255,255,255,0.05)',
-                        color: i < 3 ? theme.accent : '#9ca3af',
-                        border: `1px solid ${i < 3 ? `${theme.accent}55` : 'rgba(255,255,255,0.08)'}`
+                        background: i < 4 ? `${theme.accent}33` : 'rgba(255,255,255,0.1)',
+                        color: i < 4 ? theme.accent : '#fff',
+                        border: `2px solid ${i < 4 ? `${theme.accent}66` : 'rgba(255,255,255,0.2)'}`,
+                        boxShadow: i < 4 ? `0 4px 20px ${theme.accent}44` : '0 2px 10px rgba(0,0,0,0.3)'
                       }}
                     >
                       {tag.name}
                     </span>
                   ))}
                 </div>
-              </GlassPanel>
+              </PosterBlock>
+            </div>
+            
+            {/* Top Studios (cols 8-12) */}
+            <div className="col-span-5">
+              <PosterBlock className="h-full p-6">
+                <h3 className="text-lg font-black text-white mb-4">
+                  Top {mode === 'ANIME' ? 'Studios' : 'Authors'}
+                </h3>
+                <div className="space-y-4">
+                  {topStudiosOrAuthors.slice(0, 3).map((studio, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div 
+                        className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black"
+                        style={{ 
+                          background: i === 0 ? `${theme.accent}33` : 'rgba(255,255,255,0.1)',
+                          color: i === 0 ? theme.accent : '#fff',
+                          border: i === 0 ? `3px solid ${theme.accent}` : '2px solid rgba(255,255,255,0.2)',
+                          boxShadow: i === 0 ? `0 4px 20px ${theme.accent}44` : '0 2px 10px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        #{i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-lg font-bold text-white truncate">{studio.name}</div>
+                        <div className="text-sm text-gray-300">
+                          {studio.count} titles • {studio.percentage}%
+                        </div>
+                      </div>
+                      <div 
+                        className="text-2xl font-black"
+                        style={{ color: i === 0 ? theme.accent : '#fff' }}
+                      >
+                        {Math.round(studio.strength * 100)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PosterBlock>
             </div>
           </div>
         </div>
