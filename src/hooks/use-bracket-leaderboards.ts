@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-export type EntityType = "anime" | "manga" | "character";
+export type EntityType = "anime" | "manga" | "character" | "openings" | "endings";
 export type SortBy = "wins" | "championships" | "winrate";
 
 export interface LeaderboardEntry {

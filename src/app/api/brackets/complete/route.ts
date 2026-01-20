@@ -9,14 +9,14 @@ function getSupabaseAdmin(): SupabaseClient | null {
 }
 
 type BracketMatch = {
-  entityType: "anime" | "manga" | "character";
+  entityType: "anime" | "manga" | "character" | "openings" | "endings";
   winnerId: number;
   loserId: number;
 };
 
 interface RequestBody {
   runId: string;
-  bracketType: "anime" | "manga" | "character";
+  bracketType: "anime" | "manga" | "character" | "openings" | "endings";
   bracketSize: number;
   matches: BracketMatch[];
   championId?: number;
@@ -49,9 +49,9 @@ export async function POST(req: Request) {
     }
 
     // Validate bracket type
-    if (!["anime", "manga", "character"].includes(body.bracketType)) {
+    if (!["anime", "manga", "character", "openings", "endings"].includes(body.bracketType)) {
       return NextResponse.json(
-        { error: "Invalid bracket type. Must be anime, manga, or character" },
+        { error: "Invalid bracket type. Must be anime, manga, character, openings, or endings" },
         { status: 400 }
       );
     }

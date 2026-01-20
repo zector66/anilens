@@ -68,7 +68,9 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
 
   // Map battleType to entity type for stats
   const getEntityType = useCallback((): EntityType | null => {
-    if (battleType === 'anime' || battleType === 'openings' || battleType === 'endings') return 'anime';
+    if (battleType === 'anime') return 'anime';
+    if (battleType === 'openings') return 'openings';
+    if (battleType === 'endings') return 'endings';
     if (battleType === 'manga') return 'manga';
     if (battleType === 'characters') return 'character';
     return null;

@@ -68,8 +68,8 @@ function useEntityDetails(entityType: EntityType, entityIds: number[]) {
             image: char.image?.large || '',
           });
         }
-      } else {
-        // Fetch anime/manga
+      } else if (entityType === 'anime' || entityType === 'manga' || entityType === 'openings' || entityType === 'endings') {
+        // Fetch anime/manga/openings/endings (all use media type)
         const query = `
           query ($ids: [Int]) {
             Page(perPage: 50) {
@@ -229,6 +229,8 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
     switch (entityType) {
       case 'character': return <Users className="w-5 h-5" />;
       case 'manga': return <BookOpen className="w-5 h-5" />;
+      case 'openings': return <Target className="w-5 h-5" />;
+      case 'endings': return <Award className="w-5 h-5" />;
       default: return <Tv className="w-5 h-5" />;
     }
   };
@@ -256,12 +258,12 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
       </div>
 
       {/* Entity Type Tabs */}
-      <div className="flex justify-center gap-2">
-        {(['anime', 'manga', 'character'] as EntityType[]).map((type) => (
+      <div className="flex justify-center gap-2 flex-wrap">
+        {(['anime', 'manga', 'character', 'openings', 'endings'] as EntityType[]).map((type) => (
           <button
             key={type}
             onClick={() => setEntityType(type)}
-            className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
+            className={`px-3 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
               entityType === type
                 ? 'bg-purple-500 text-white'
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -269,8 +271,10 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
           >
             {type === 'character' ? <Users className="w-4 h-4" /> : 
              type === 'manga' ? <BookOpen className="w-4 h-4" /> : 
+             type === 'openings' ? <Target className="w-4 h-4" /> :
+             type === 'endings' ? <Award className="w-4 h-4" /> :
              <Tv className="w-4 h-4" />}
-            <span className="capitalize">{type}</span>
+            <span className="capitalize">{type === 'openings' ? 'Openings' : type === 'endings' ? 'Endings' : type}</span>
           </button>
         ))}
       </div>

@@ -8,7 +8,7 @@ function getSupabaseClient(): SupabaseClient | null {
   return createClient(url, key);
 }
 
-type EntityType = "anime" | "manga" | "character";
+type EntityType = "anime" | "manga" | "character" | "openings" | "endings";
 type SortBy = "wins" | "championships" | "winrate";
 
 export async function GET(req: Request) {
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   const sortBy = (searchParams.get("sort") ?? "wins") as SortBy;
 
   // Validate entity type
-  if (!["anime", "manga", "character"].includes(entityType)) {
+  if (!["anime", "manga", "character", "openings", "endings"].includes(entityType)) {
     return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });
   }
 

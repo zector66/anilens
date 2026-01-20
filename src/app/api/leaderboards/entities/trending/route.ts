@@ -8,7 +8,7 @@ function getSupabaseClient(): SupabaseClient | null {
   return createClient(url, key);
 }
 
-type EntityType = "anime" | "manga" | "character";
+type EntityType = "anime" | "manga" | "character" | "openings" | "endings";
 
 interface DailyRow {
   day: string;
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
   const minAppearances = Number(searchParams.get("min") ?? 3);
 
   // Validate entity type
-  if (!["anime", "manga", "character"].includes(entityType)) {
+  if (!["anime", "manga", "character", "openings", "endings"].includes(entityType)) {
     return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });
   }
 
