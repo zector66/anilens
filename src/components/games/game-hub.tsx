@@ -668,17 +668,29 @@ export function GameHub() {
   ];
 
   const gameTypes = [
+    // Daily Challenge - always first
+    {
+      id: 'daily-challenge',
+      title: 'Daily Challenge',
+      description: 'Same questions for everyone. Compare your score!',
+      icon: Calendar,
+      gradient: 'from-yellow-400 to-orange-500',
+      color: 'text-yellow-400',
+      action: () => handleStartDailyChallenge(),
+      special: true,
+      difficulty: 'Daily',
+      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
+      estimatedTime: '3-5 min',
+    },
     ...(activeType === 'ANIME' ? animeGameTypes : mangaGameTypes),
     ...commonGameTypes,
   ];
 
-  /*
-  const _handleStartDailyChallenge = () => {
+  const handleStartDailyChallenge = () => {
     const questions = GameEngine.generateOPGuessingQuestions(allEntries, 10);
     const session = GameEngine.createGameSession('daily-challenge', questions);
     setCurrentGame(session);
   };
-  */
 
   return (
     <div className="space-y-8">
@@ -776,16 +788,18 @@ export function GameHub() {
                       Battle
                     </button>
                     <button
-                      onClick={() => !isDisabled && openGameSettings(gameType.id)}
+                      onClick={() => !isDisabled && (('action' in gameType) ? gameType.action() : openGameSettings(gameType.id))}
                       disabled={isDisabled}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isDisabled 
                           ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
-                          : 'bg-white/10 hover:bg-white/20 text-white'
+                          : gameType.special 
+                            ? 'bg-yellow-500 hover:bg-yellow-600 text-black' 
+                            : 'bg-white/10 hover:bg-white/20 text-white'
                       }`}
                     >
                       <Play className="w-4 h-4" />
-                      {isDisabled ? 'Coming Soon' : 'Play'}
+                      {isDisabled ? 'Coming Soon' : gameType.special ? 'Start' : 'Play'}
                     </button>
                   </div>
                 </div>

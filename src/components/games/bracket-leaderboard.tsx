@@ -183,8 +183,32 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
   const [entityType, setEntityType] = useState<EntityType>('anime');
   const [view, setView] = useState<'alltime' | 'trending7' | 'trending30'>('alltime');
   const [sortBy, setSortBy] = useState<SortBy>('wins');
-  const [minAppearances, setMinAppearances] = useState(10);
+  
+  // Smart defaults for min appearances based on time window
+  const getDefaultMinAppearances = (viewType: typeof view) => {
+    switch (viewType) {
+      case 'alltime': return 3;
+      case 'trending7': return 2;
+      case 'trending30': return 2;
+      default: return 3;
+    }
+  };
+  
+  const [minAppearances, setMinAppearances] = useState(getDefaultMinAppearances('alltime'));
   const [showFilters, setShowFilters] = useState(false);
+
+  // Handle view changes with smart defaults
+  const handleViewChange = (newView: typeof view) => {
+    setView(newView);
+    
+    // Auto-adjust min appearances for trending views
+    if (newView !== 'alltime') {
+      const defaultMin = getDefaultMinAppearances(newView);
+      if (minAppearances > defaultMin) {
+        setMinAppearances(defaultMin);
+      }
+    }
+  };
 
   // Fetch leaderboard data
   const allTimeQuery = useAllTimeLeaderboard(entityType, {
@@ -282,33 +306,33 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
       {/* View Toggle */}
       <div className="flex justify-center gap-2">
         <button
-          onClick={() => setView('alltime')}
+          onClick={() => handleViewChange('alltime')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
             view === 'alltime'
               ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
           }`}
         >
           <Trophy className="w-3.5 h-3.5" />
           All-Time
         </button>
         <button
-          onClick={() => setView('trending7')}
+          onClick={() => handleViewChange('trending7')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
             view === 'trending7'
               ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
           }`}
         >
-          <Flame className="w-3.5 h-3.5" />
+          <TrendingUp className="w-3.5 h-3.5" />
           This Week
         </button>
         <button
-          onClick={() => setView('trending30')}
+          onClick={() => handleViewChange('trending30')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
             view === 'trending30'
               ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
           }`}
         >
           <Calendar className="w-3.5 h-3.5" />
@@ -391,12 +415,43 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
           <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
             {getEntityIcon()}
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No Data Yet</h3>
-          <p className="text-gray-400 text-sm max-w-sm mx-auto">
-            {view === 'alltime' 
-              ? `No ${entityType} have enough bracket appearances yet. Play more brackets to see the legends emerge!`
-              : `No ${entityType} bracket activity in the selected time period.`}
+          <h3 className="text-lg font-semibold text-white mb-2">
+            {minAppearances > 1 
+              ? `Not enough results for "Min Entries ≥ ${minAppearances}"` 
+              : 'No Data Yet'}
+          </h3>
+          <p className="text-gray-400 text-sm max-w-sm mx-auto mb-6">
+            {minAppearances > 1 
+              ? `This category is new — try lowering the minimum entries filter to explore more results.`
+              : view === 'alltime' 
+                ? `No ${entityType} have enough bracket appearances yet. Play more brackets to see the legends emerge!`
+                : `No ${entityType} bracket activity in the selected time period.`}
           </p>
+          
+          {minAppearances > 1 && (
+            <div className="flex flex-col gap-2 max-w-xs mx-auto">
+              <button
+                onClick={() => setMinAppearances(Math.max(1, minAppearances - 2))}
+                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Lower Min Entries
+              </button>
+              <button
+                onClick={() => setMinAppearances(1)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors"
+              >
+                Show Everything (1+)
+              </button>
+              {view !== 'alltime' && (
+                <button
+                  onClick={() => handleViewChange('alltime')}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors"
+                >
+                  Switch to All-Time
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

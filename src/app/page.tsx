@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { TasteProfile } from '@/components/taste/taste-profile';
 import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
-import { CommunityHub } from '@/components/games/community-hub';
+import { CommunityHubV2 } from '@/components/games/community-hub-v2';
 import { Studio } from '@/components/studio/studio';
 import { 
   BarChart3, 
@@ -250,7 +250,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       case 'games':
         return <GameHub />;
       case 'community':
-        return <CommunityHub onNavigateToGames={() => handleTabChange('games')} />;
+        return <CommunityHubV2 onNavigateToGames={() => handleTabChange('games')} />;
       case 'recommendations':
         return <Recommendations userId={user?.id} />;
       default:
