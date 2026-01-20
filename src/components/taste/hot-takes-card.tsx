@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Flame, TrendingUp, TrendingDown, Clock, ChevronDown, ChevronUp, Zap, Info } from 'lucide-react';
+import { Flame, TrendingUp, TrendingDown, Clock, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { HotTakesProfile, HotTake } from '@/lib/hot-takes-analyzer';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 
@@ -11,10 +11,11 @@ interface HotTakesCardProps {
 }
 
 export function HotTakesCard({ profile }: HotTakesCardProps) {
-  const { hotTakeEnergy, hotTakeEnergyLabel, tendency, tendencyLabel, mostContrarianPicks, overratedTakes, underratedTakes, stats, procrastination } = profile;
+  const { hotTakeEnergy, hotTakeEnergyLabel, tendency, tendencyLabel, hotTakesByCategory, stats, procrastination } = profile;
   
-  const [showAllOverrated, setShowAllOverrated] = useState(false);
-  const [showAllUnderrated, setShowAllUnderrated] = useState(false);
+  const [showAllMainstream, setShowAllMainstream] = useState(false);
+  const [showAllPopular, setShowAllPopular] = useState(false);
+  const [showAllKnown, setShowAllKnown] = useState(false);
 
   const energyColor = useMemo(() => {
     if (hotTakeEnergy >= 65) return '#ef4444'; // Red for hot
@@ -90,82 +91,93 @@ export function HotTakesCard({ profile }: HotTakesCardProps) {
         </div>
       </div>
 
-      {/* Most Contrarian Picks - Always show first if available */}
-      {mostContrarianPicks.length > 0 && (
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-5 h-5 text-orange-400" />
-            <h3 className="text-base font-semibold text-white">Your Hottest Takes</h3>
-            <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full">Top 5</span>
-          </div>
-          <p className="text-xs text-gray-400 mb-3">Your strongest disagreements with the community</p>
-          <div className="space-y-3">
-            {mostContrarianPicks.map((take) => (
-              <TakeRow key={take.mediaId} take={take} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Split: Overrated vs Underrated */}
-      {(overratedTakes.length > 0 || underratedTakes.length > 0) && (
+      {/* Hot Takes by Crowd Category - New 3-Section Approach */}
+      {(hotTakesByCategory.mainstream.length > 0 || hotTakesByCategory.popular.length > 0 || hotTakesByCategory.known.length > 0 || hotTakesByCategory.niche.length > 0) && (
         <div className="space-y-4">
-          {/* Overrated Section */}
-          {overratedTakes.length > 0 && (
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="w-5 h-5 text-red-400" />
-                  <h3 className="text-base font-semibold text-white">You Think Are Overrated</h3>
-                  <span className="text-xs text-gray-500">({overratedTakes.length})</span>
-                </div>
+          {/* Hot Takes (Mainstream) - 200k+ popularity */}
+          {hotTakesByCategory.mainstream.length > 0 && (
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Flame className="w-5 h-5 text-red-400" />
+                <h3 className="text-base font-semibold text-white">Hot Takes (Mainstream)</h3>
+                <span className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">200k+ popularity</span>
               </div>
-              <p className="text-xs text-gray-500 mb-3">Community loves these (≥7.0), but you rated them much lower</p>
+              <p className="text-xs text-gray-400 mb-3">Your disagreements on shows everyone&apos;s watching</p>
               <div className="space-y-3">
-                {(showAllOverrated ? overratedTakes : overratedTakes.slice(0, 5)).map((take) => (
+                {(showAllMainstream ? hotTakesByCategory.mainstream : hotTakesByCategory.mainstream.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} />
                 ))}
               </div>
-              {overratedTakes.length > 5 && (
+              {hotTakesByCategory.mainstream.length > 5 && (
                 <button
-                  onClick={() => setShowAllOverrated(!showAllOverrated)}
+                  onClick={() => setShowAllMainstream(!showAllMainstream)}
                   className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                 >
-                  {showAllOverrated ? (
+                  {showAllMainstream ? (
                     <><ChevronUp className="w-4 h-4" /> Show Less</>
                   ) : (
-                    <><ChevronDown className="w-4 h-4" /> Show All {overratedTakes.length}</>
+                    <><ChevronDown className="w-4 h-4" /> Show All {hotTakesByCategory.mainstream.length}</>
                   )}
                 </button>
               )}
             </div>
           )}
 
-          {/* Underrated Section */}
-          {underratedTakes.length > 0 && (
+          {/* Contrarian Picks - 100k-200k popularity */}
+          {hotTakesByCategory.popular.length > 0 && (
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-green-400" />
-                  <h3 className="text-base font-semibold text-white">You Think Are Underrated</h3>
-                  <span className="text-xs text-gray-500">({underratedTakes.length})</span>
-                </div>
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <h3 className="text-base font-semibold text-white">Contrarian Picks</h3>
+                <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">100k-200k popularity</span>
               </div>
-              <p className="text-xs text-gray-500 mb-3">You rated these much higher than the global average</p>
+              <p className="text-xs text-gray-400 mb-3">Meaningful disagreements on popular shows</p>
               <div className="space-y-3">
-                {(showAllUnderrated ? underratedTakes : underratedTakes.slice(0, 5)).map((take) => (
+                {(showAllPopular ? hotTakesByCategory.popular : hotTakesByCategory.popular.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} />
                 ))}
               </div>
-              {underratedTakes.length > 5 && (
+              {hotTakesByCategory.popular.length > 5 && (
                 <button
-                  onClick={() => setShowAllUnderrated(!showAllUnderrated)}
+                  onClick={() => setShowAllPopular(!showAllPopular)}
                   className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                 >
-                  {showAllUnderrated ? (
+                  {showAllPopular ? (
                     <><ChevronUp className="w-4 h-4" /> Show Less</>
                   ) : (
-                    <><ChevronDown className="w-4 h-4" /> Show All {underratedTakes.length}</>
+                    <><ChevronDown className="w-4 h-4" /> Show All {hotTakesByCategory.popular.length}</>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Deep Cuts - <50k popularity */}
+          {(hotTakesByCategory.known.length > 0 || hotTakesByCategory.niche.length > 0) && (
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+                <h3 className="text-base font-semibold text-white">Deep Cuts</h3>
+                <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">&lt;50k popularity</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">Fun differences on lesser-known shows</p>
+              <div className="space-y-3">
+                {[
+                  ...hotTakesByCategory.known.slice(0, 3),
+                  ...hotTakesByCategory.niche.slice(0, 2)
+                ].map((take) => (
+                  <TakeRow key={take.mediaId} take={take} />
+                ))}
+              </div>
+              {(hotTakesByCategory.known.length > 3 || hotTakesByCategory.niche.length > 2) && (
+                <button
+                  onClick={() => setShowAllKnown(!showAllKnown)}
+                  className="mt-3 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
+                  {showAllKnown ? (
+                    <><ChevronUp className="w-4 h-4" /> Show Less</>
+                  ) : (
+                    <><ChevronDown className="w-4 h-4" /> Show All ({hotTakesByCategory.known.length + hotTakesByCategory.niche.length})</>
                   )}
                 </button>
               )}

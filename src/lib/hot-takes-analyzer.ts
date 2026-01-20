@@ -20,6 +20,7 @@ export interface HotTake {
   direction: 'overrated' | 'underrated' | 'consensus'; // User's stance vs global
   ratingBand: 'beloved' | 'well-liked' | 'mixed' | 'disliked' | 'bad'; // AniList rating band
   ratingBandLabel: string; // Human-readable context
+  crowdCategory: 'mainstream' | 'popular' | 'known' | 'niche'; // Crowd size category
 }
 
 export interface HotTakesProfile {
@@ -37,6 +38,13 @@ export interface HotTakesProfile {
   overratedTakes: HotTake[];
   /** Shows user thinks are underrated (user rated higher) */
   underratedTakes: HotTake[];
+  /** Hot Takes by crowd category */
+  hotTakesByCategory: {
+    mainstream: HotTake[];  // 200k+ popularity - TRUE hot takes
+    popular: HotTake[];     // 100k-200k - contrarian picks
+    known: HotTake[];       // 50k-100k - meaningful disagreements
+    niche: HotTake[];       // <50k - fun differences
+  };
   /** Stats breakdown */
   stats: {
     avgDelta: number;
@@ -55,15 +63,18 @@ export interface HotTakesProfile {
 
 /**
  * Calculate popularity confidence using sigmoid curve (0-1)
- * P = 1k → low confidence
- * P = 10k → decent
- * P = 100k+ → very high confidence
+ * Updated to normalize around mainstream shows (~300k popularity)
+ * P = 10k → low confidence (~0.1)
+ * P = 100k → decent confidence (~0.4)  
+ * P = 300k → high confidence (~0.8) - Solo Leveling range
+ * P = 500k+ → very high confidence (~0.9+)
  */
 function calculatePopularityConfidence(popularity: number): number {
-  // Sigmoid: 1 / (1 + exp(-(log10(P) - 4.2) * 2.2))
-  // This gives ~0.1 at 1k, ~0.5 at 15k, ~0.9 at 100k
   const logP = Math.log10(Math.max(1, popularity));
-  return 1 / (1 + Math.exp(-(logP - 4.2) * 2.2));
+  // Normalize around 4.5-5.5 range (31k to 316k) so mainstream hits hard
+  const normalized = (logP - 4.5) / 1.0; // 4.5 ≈ 31k, 5.5 ≈ 316k
+  const clamped = Math.max(0, Math.min(1, normalized)); // Clamp to 0-1
+  return clamped;
 }
 
 /**
@@ -158,6 +169,16 @@ function getRatingBand(globalScore: number): 'beloved' | 'well-liked' | 'mixed' 
 }
 
 /**
+ * Get crowd category based on popularity
+ */
+function getCrowdCategory(popularity: number): 'mainstream' | 'popular' | 'known' | 'niche' {
+  if (popularity >= 200000) return 'mainstream'; // Solo Leveling (~300k) and above
+  if (popularity >= 100000) return 'popular';   // 100k-200k
+  if (popularity >= 50000) return 'known';      // 50k-100k  
+  return 'niche';                               // Below 50k
+}
+
+/**
  * Get human-readable context for the take based on rating band and direction
  */
 function getRatingBandLabel(band: string, direction: string, globalScore: number): string {
@@ -183,7 +204,7 @@ export function analyzeHotTakes(
 ): HotTakesProfile {
   // Filter to scored entries with quality data
   // Require: valid user score, global score exists, minimum popularity for confidence
-  const MIN_POPULARITY = 10000; // Higher threshold for stability
+  const MIN_POPULARITY = 50000; // Higher threshold - only shows with meaningful audience
   
   const scoredEntries = entries.filter(e => 
     e.score && e.score >= 1 && // Valid user score (Filter C)
@@ -201,6 +222,12 @@ export function analyzeHotTakes(
       mostContrarianPicks: [],
       overratedTakes: [],
       underratedTakes: [],
+      hotTakesByCategory: {
+        mainstream: [],
+        popular: [],
+        known: [],
+        niche: [],
+      },
       stats: {
         avgDelta: 0,
         totalScored: 0,
@@ -246,6 +273,7 @@ export function analyzeHotTakes(
       direction,
       ratingBand,
       ratingBandLabel,
+      crowdCategory: getCrowdCategory(popularity),
     };
   });
 
@@ -295,6 +323,14 @@ export function analyzeHotTakes(
   const tendency = avgDelta;
   const tendencyLabel = getTendencyLabel(tendency);
 
+  // Group takes by crowd category
+  const hotTakesByCategory = {
+    mainstream: takes.filter(t => t.crowdCategory === 'mainstream' && t.heat >= HEAT_THRESHOLD),
+    popular: takes.filter(t => t.crowdCategory === 'popular' && t.heat >= HEAT_THRESHOLD),
+    known: takes.filter(t => t.crowdCategory === 'known' && t.heat >= HEAT_THRESHOLD),
+    niche: takes.filter(t => t.crowdCategory === 'niche' && t.heat >= HEAT_THRESHOLD),
+  };
+
   return {
     hotTakeEnergy,
     hotTakeEnergyLabel: getHotTakeEnergyLabel(hotTakeEnergy),
@@ -303,6 +339,7 @@ export function analyzeHotTakes(
     mostContrarianPicks: mostContrarian,
     overratedTakes: overrated,
     underratedTakes: underrated,
+    hotTakesByCategory,
     stats: {
       avgDelta: Math.round(avgDelta * 100) / 100,
       totalScored: scoredEntries.length,
