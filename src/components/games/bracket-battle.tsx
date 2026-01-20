@@ -536,6 +536,14 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         bracketResults={bracketResults}
         matchHistory={matchHistory}
         entries={entries}
+        battleType={battleType}
+        onViewLeaderboard={() => {
+          // This will be handled by the parent component
+          if (onBack) {
+            onBack(); // Go back to game hub first
+            // The game hub will need to handle showing the leaderboard
+          }
+        }}
         onPlayAgain={() => {
           // Reset everything to generate a completely new bracket
           setShowResults(false);

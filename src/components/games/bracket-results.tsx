@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Star, Swords, Share2, Download } from 'lucide-react';
+import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Star, Swords, Share2, Download, Award, Tv, BookOpen, Users, Target, Loader2 } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { MediaListEntry } from '@/types/anilist';
+import { useAllTimeLeaderboard, EntityType } from '@/hooks/use-bracket-leaderboards';
+import { useQuery } from '@tanstack/react-query';
+import { anilistClient } from '@/lib/anilist-client';
 
 interface BracketResult {
   id: number;
@@ -38,6 +41,8 @@ interface BracketResultsProps {
   entries: MediaListEntry[];
   onPlayAgain: () => void;
   onBack: () => void;
+  battleType?: 'anime' | 'manga' | 'character' | 'openings' | 'endings' | 'characters';
+  onViewLeaderboard?: () => void;
 }
 
 export function BracketResults({ 
@@ -45,8 +50,100 @@ export function BracketResults({
   matchHistory, 
   entries,
   onPlayAgain, 
-  onBack 
+  onBack,
+  battleType = 'anime',
+  onViewLeaderboard
 }: BracketResultsProps) {
+
+  // Get entity type from battle type
+  const getEntityType = (): EntityType => {
+    if (battleType === 'anime') return 'anime';
+    if (battleType === 'openings') return 'openings';
+    if (battleType === 'endings') return 'endings';
+    if (battleType === 'manga') return 'manga';
+    if (battleType === 'characters') return 'character';
+    return 'character';
+  };
+
+  const entityType = getEntityType();
+
+  // Fetch top 5 leaderboard entries
+  const leaderboardQuery = useAllTimeLeaderboard(entityType, {
+    minAppearances: 1,
+    limit: 5,
+    sortBy: 'wins',
+    enabled: true
+  });
+
+  // Fetch entity details for leaderboard entries
+  const entityIds = useMemo(() => 
+    leaderboardQuery.data?.items.map(e => e.entityId) || [], 
+    [leaderboardQuery.data]
+  );
+
+  const entityDetailsQuery = useQuery({
+    queryKey: ['entityDetails', entityType, entityIds.slice(0, 50).join(',')],
+    queryFn: async (): Promise<Map<number, { name: string; image: string }>> => {
+      if (!entityIds.length) return new Map();
+
+      const ids = entityIds.slice(0, 50);
+      const map = new Map<number, { name: string; image: string }>();
+
+      if (entityType === 'character') {
+        // Fetch characters
+        const query = `
+          query ($ids: [Int]) {
+            Page(perPage: 50) {
+              characters(id_in: $ids) {
+                id
+                name { full }
+                image { large }
+              }
+            }
+          }
+        `;
+        const result = await anilistClient.request<{
+          Page: { characters: Array<{ id: number; name: { full: string }; image: { large: string } }> }
+        }>(query, { ids });
+
+        for (const char of result.Page?.characters || []) {
+          map.set(char.id, {
+            name: char.name?.full || 'Unknown Character',
+            image: char.image?.large || '',
+          });
+        }
+      } else {
+        // Fetch anime/manga/openings/endings (all use media type)
+        const query = `
+          query ($ids: [Int]) {
+            Page(perPage: 50) {
+              media(id_in: $ids) {
+                id
+                title { romaji english }
+                coverImage { large }
+              }
+            }
+          }
+        `;
+        const result = await anilistClient.request<{
+          Page: { media: Array<{ id: number; title: { romaji: string; english: string }; coverImage: { large: string } }> }
+        }>(query, { ids });
+
+        for (const media of result.Page?.media || []) {
+          map.set(media.id, {
+            name: media.title?.english || media.title?.romaji || 'Unknown',
+            image: media.coverImage?.large || '',
+          });
+        }
+      }
+
+      return map;
+    },
+    enabled: entityIds.length > 0,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  const entityDetailsMap = entityDetailsQuery.data;
   
   // Enrich bracket results with user scores from entries
   const enrichedResults = useMemo(() => {
@@ -287,6 +384,77 @@ export function BracketResults({
           </div>
         </div>
       )}
+
+      {/* Leaderboard Preview */}
+      {leaderboardQuery.isLoading ? (
+        <div className="p-5 rounded-xl bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 text-yellow-400 animate-spin" />
+            <span className="ml-2 text-yellow-400">Loading leaderboard...</span>
+          </div>
+        </div>
+      ) : leaderboardQuery.data && leaderboardQuery.data.items.length > 0 ? (
+        <div className="p-5 rounded-xl bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              <h3 className="text-lg font-semibold text-white">Top 5 {entityType === 'openings' ? 'Openings' : entityType === 'endings' ? 'Endings' : entityType.charAt(0).toUpperCase() + entityType.slice(1)} Legends</h3>
+            </div>
+            {onViewLeaderboard && (
+              <button
+                onClick={onViewLeaderboard}
+                className="px-3 py-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm font-medium transition-colors border border-yellow-500/30"
+              >
+                View All
+              </button>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            {leaderboardQuery.data.items.map((entry, index) => {
+              const isInThisBracket = bracketResults.some(r => r.id === entry.entityId);
+              const entityDetails = entityDetailsMap?.get(entry.entityId);
+              return (
+                <div 
+                  key={entry.entityId}
+                  className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+                    isInThisBracket 
+                      ? 'bg-purple-500/20 border border-purple-500/30' 
+                      : 'bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-center text-sm font-bold text-yellow-400">
+                      #{index + 1}
+                    </span>
+                    <span className="text-sm text-white truncate max-w-[200px]">
+                      {entityDetails?.name || `ID: ${entry.entityId}`}
+                    </span>
+                    {isInThisBracket && (
+                      <span className="px-2 py-0.5 rounded-full bg-purple-500 text-white text-xs font-medium">
+                        You played this!
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Trophy className="w-3 h-3 text-yellow-400" />
+                      {entry.wins}
+                    </span>
+                    <span>{entry.winRate}%</span>
+                    {entry.championships > 0 && (
+                      <span className="flex items-center gap-1 text-purple-400">
+                        <Award className="w-3 h-3" />
+                        {entry.championships}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* Actions */}
       <div className="flex gap-3">
