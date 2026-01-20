@@ -196,14 +196,14 @@ export function BracketLeaderboard({ onBack }: BracketLeaderboardProps) {
 
   const trending7Query = useTrendingLeaderboard(entityType, {
     days: 7,
-    minAppearances: Math.max(3, Math.floor(minAppearances / 3)),
+    minAppearances: 1, // Much lower threshold for trending
     limit: 50,
     enabled: view === 'trending7',
   });
 
   const trending30Query = useTrendingLeaderboard(entityType, {
     days: 30,
-    minAppearances: Math.max(5, Math.floor(minAppearances / 2)),
+    minAppearances: 1, // Much lower threshold for trending
     limit: 50,
     enabled: view === 'trending30',
   });

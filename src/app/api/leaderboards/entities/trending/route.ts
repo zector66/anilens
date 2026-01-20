@@ -41,6 +41,7 @@ export async function GET(req: Request) {
   try {
     const start = new Date();
     start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0); // Start of day
     const startDate = start.toISOString().slice(0, 10);
 
     const { data, error } = await supabase
