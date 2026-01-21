@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { 
   Trophy, 
   Play, 
   Settings, 
   History, 
   Award, 
-  Users,
   Sparkles,
   ChevronRight,
   Swords
@@ -185,18 +183,21 @@ export function BracketHub({ userId }: BracketHubProps) {
             <Play className="w-5 h-5" />
             Create New Bracket
           </button>
-          <Link
-            href="/?tab=community"
+          <button
+            onClick={() => {
+              // Navigate to community tab by updating the URL
+              window.location.href = '/?tab=community';
+            }}
             className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors"
           >
             <Award className="w-5 h-5" />
             View Leaderboards
-          </Link>
+          </button>
         </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="flex items-center gap-3 mb-2">
             <Swords className="w-5 h-5 text-purple-400" />
@@ -210,21 +211,6 @@ export function BracketHub({ userId }: BracketHubProps) {
             )}
           </div>
           <div className="text-sm text-gray-400">Completed tournaments</div>
-        </div>
-        
-        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-          <div className="flex items-center gap-3 mb-2">
-            <Users className="w-5 h-5 text-blue-400" />
-            <h3 className="font-medium text-white">Community</h3>
-          </div>
-          <div className="text-2xl font-bold text-blue-400">
-            {isLoadingStats ? (
-              <div className="w-8 h-6 bg-white/10 rounded animate-pulse" />
-            ) : (
-              siteStats?.uniqueUsers || 0
-            )}
-          </div>
-          <div className="text-sm text-gray-400">Total players</div>
         </div>
         
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
