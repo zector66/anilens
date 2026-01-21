@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   Trophy, 
   Play, 
@@ -14,11 +15,10 @@ import {
 } from 'lucide-react';
 import { BracketBattle } from './bracket-battle';
 import { BracketConfig, BracketConfiguration } from './bracket-config';
-import { HallOfFame } from './hall-of-fame';
 import { useAuth } from '@/hooks/use-auth';
 import { MediaListEntry } from '@/types/anilist';
 
-type BracketView = 'home' | 'config' | 'battle' | 'halloffame' | 'history';
+type BracketView = 'home' | 'config' | 'battle' | 'history';
 
 interface BracketHubProps {
   userId?: number;
@@ -49,7 +49,6 @@ export function BracketHub({ userId }: BracketHubProps) {
   const [siteStats, setSiteStats] = useState<{
     totalBrackets: number;
     uniqueUsers: number;
-    activePlayers: number;
     recentBrackets: number;
   } | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -147,7 +146,6 @@ export function BracketHub({ userId }: BracketHubProps) {
         { id: 'home' as BracketView, label: 'Home', icon: Trophy },
         { id: 'config' as BracketView, label: 'Create Bracket', icon: Settings },
         { id: 'history' as BracketView, label: 'History', icon: History },
-        { id: 'halloffame' as BracketView, label: 'Hall of Fame', icon: Award },
       ].map((view) => (
         <button
           key={view.id}
@@ -187,13 +185,13 @@ export function BracketHub({ userId }: BracketHubProps) {
             <Play className="w-5 h-5" />
             Create New Bracket
           </button>
-          <button
-            onClick={() => setCurrentView('halloffame')}
+          <Link
+            href="/?tab=community"
             className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors"
           >
             <Award className="w-5 h-5" />
-            View Hall of Fame
-          </button>
+            View Leaderboards
+          </Link>
         </div>
       </div>
 
@@ -223,10 +221,10 @@ export function BracketHub({ userId }: BracketHubProps) {
             {isLoadingStats ? (
               <div className="w-8 h-6 bg-white/10 rounded animate-pulse" />
             ) : (
-              siteStats?.activePlayers || 0
+              siteStats?.uniqueUsers || 0
             )}
           </div>
-          <div className="text-sm text-gray-400">Active players</div>
+          <div className="text-sm text-gray-400">Total players</div>
         </div>
         
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
@@ -385,13 +383,6 @@ export function BracketHub({ userId }: BracketHubProps) {
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">Preparing Battle...</h3>
             <p className="text-gray-400">Generating bracket based on your configuration</p>
-          </div>
-        );
-      case 'halloffame':
-        return (
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-6">Hall of Fame</h2>
-            <HallOfFame />
           </div>
         );
       case 'history':

@@ -75,8 +75,6 @@ export async function GET(req: Request) {
         uniqueUsers: uniqueUsers,
         recentBrackets: recentBrackets || 0,
         statsByType,
-        // Calculate active players (users who played in last 7 days)
-        activePlayers: recentBrackets ? Math.min(uniqueUsers, Math.ceil(recentBrackets * 0.7)) : 0,
       },
     });
   } catch (e: unknown) {
