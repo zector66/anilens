@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { LoginButton } from '@/components/auth/login-button';
 import { useAuth } from '@/hooks/use-auth';
 import { TasteProfile } from '@/components/taste/taste-profile';
@@ -9,7 +10,6 @@ import { GameHub } from '@/components/games/game-hub';
 import { Recommendations } from '@/components/recommendations/recommendations';
 import { CommunityHubV2 } from '@/components/games/community-hub-v2';
 import { Studio } from '@/components/studio/studio';
-import { BracketHub } from '@/components/games/bracket-hub';
 import { 
   BarChart3, 
   Gamepad2, 
@@ -19,19 +19,33 @@ import {
   Share2,
   LogOut,
   Settings,
-  Sparkles,
-  Trophy
+  Sparkles
 } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
 import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
 import { useUI } from '@/contexts/ui-context';
 
-type TabType = 'studio' | 'taste' | 'games' | 'brackets' | 'community' | 'recommendations';
+type TabType = 'studio' | 'taste' | 'games' | 'community' | 'recommendations';
 
-export default function Home() {
+function HomeWithSearchParams() {
+  const searchParams = useSearchParams();
+  
+  // Initialize activeTab from URL parameter
+  const getInitialTab = (): TabType => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['studio', 'taste', 'games', 'community', 'recommendations'].includes(tabParam)) {
+      return tabParam as TabType;
+    }
+    return 'taste';
+  };
+  
+  return <HomeContent initialTab={getInitialTab()} />;
+}
+
+function HomeContent({ initialTab }: { initialTab: TabType }) {
   const { isAuthenticated, user, logout, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('taste');
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   if (loading && !isAuthenticated) {
     return (
@@ -230,7 +244,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
     { id: 'studio' as const, label: 'AniLens Studio', icon: Sparkles },
     { id: 'taste' as const, label: 'Taste Profile', icon: BarChart3 },
     { id: 'games' as const, label: 'Games', icon: Gamepad2 },
-    { id: 'brackets' as const, label: 'Brackets', icon: Trophy },
     { id: 'community' as const, label: 'Community', icon: Users },
     { id: 'recommendations' as const, label: 'Recommendations', icon: TrendingUp },
   ];
@@ -252,8 +265,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         return <TasteProfile userId={user?.id} />;
       case 'games':
         return <GameHub />;
-      case 'brackets':
-        return <BracketHub userId={user?.id} />;
       case 'community':
         return <CommunityHubV2 onNavigateToGames={() => handleTabChange('games')} />;
       case 'recommendations':
@@ -361,6 +372,23 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
+            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-gray-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    }>
+      <HomeWithSearchParams />
+    </Suspense>
   );
 }
 

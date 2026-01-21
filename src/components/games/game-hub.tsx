@@ -454,6 +454,17 @@ export function GameHub() {
 
   const animeGameTypes = [
     {
+      id: 'bracket-anime',
+      title: 'Anime Bracket Battle',
+      description: 'Tournament to crown your favorite anime',
+      icon: Swords,
+      gradient: 'from-red-500 to-pink-600',
+      difficulty: 'Fun',
+      difficultyColor: 'bg-pink-500/20 text-pink-400',
+      estimatedTime: '5-10 min',
+      special: true,
+    },
+    {
       id: 'op-guessing',
       title: 'OP/ED Guessing',
       description: 'Guess series from their opening and ending themes',
@@ -483,17 +494,6 @@ export function GameHub() {
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-6 min',
     },
-    {
-      id: 'bracket-anime',
-      title: 'Anime Bracket Battle',
-      description: 'Tournament to crown your favorite anime',
-      icon: Swords,
-      gradient: 'from-red-500 to-pink-600',
-      difficulty: 'Fun',
-      difficultyColor: 'bg-pink-500/20 text-pink-400',
-      estimatedTime: '5-10 min',
-      special: true,
-    },
     // P3-14: Seiyuu (Voice Actor) guessing game
     {
       id: 'seiyuu-guessing',
@@ -508,6 +508,17 @@ export function GameHub() {
   ];
 
   const mangaGameTypes = [
+    {
+      id: 'bracket-manga',
+      title: 'Manga Bracket Battle',
+      description: 'Tournament to crown your favorite manga',
+      icon: Swords,
+      gradient: 'from-red-500 to-pink-600',
+      difficulty: 'Fun',
+      difficultyColor: 'bg-pink-500/20 text-pink-400',
+      estimatedTime: '5-10 min',
+      special: true,
+    },
     {
       id: 'cover-guessing',
       title: 'Cover Art Expert',
@@ -527,17 +538,6 @@ export function GameHub() {
       difficulty: 'Hard',
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-5 min',
-    },
-    {
-      id: 'bracket-manga',
-      title: 'Manga Bracket Battle',
-      description: 'Tournament to crown your favorite manga',
-      icon: Swords,
-      gradient: 'from-red-500 to-pink-600',
-      difficulty: 'Fun',
-      difficultyColor: 'bg-pink-500/20 text-pink-400',
-      estimatedTime: '5-10 min',
-      special: true,
     },
   ];
 
