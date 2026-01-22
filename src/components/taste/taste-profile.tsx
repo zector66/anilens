@@ -8,6 +8,7 @@ import { useTasteProfile as useTasteProfileWorker } from '@/hooks/use-taste-work
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 import { analyzeHotTakes, HotTakesProfile } from '@/lib/hot-takes-analyzer';
+import { analyzeChaos, ChaosProfile } from '@/lib/chaos-analyzer';
 import { 
   BarChart, 
   Bar, 
@@ -258,6 +259,12 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     if (analyzedEntries.length === 0) return null;
     return analyzeHotTakes(analyzedEntries, allEntriesWithPlanning);
   }, [analyzedEntries, allEntriesWithPlanning]);
+
+  // Chaos Level analysis (4-component composite index)
+  const chaosProfile = useMemo<ChaosProfile | null>(() => {
+    if (!tasteProfile || analyzedEntries.length === 0) return null;
+    return analyzeChaos(analyzedEntries, tasteProfile.tagAffinity);
+  }, [analyzedEntries, tasteProfile]);
 
   // Only show loading screen if we don't have cached data
   // This prevents flash of loading screen when switching tabs
@@ -677,6 +684,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </p>
         </div>
 
+        {/* Chaos Level - 4-Component Composite Index */}
         <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 group relative">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
@@ -687,37 +695,93 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                 Chaos Level
                 <div className="group/tooltip relative">
                   <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
-                    <p className="font-bold text-white mb-1">How it&apos;s calculated:</p>
-                    <ul className="list-disc pl-3 space-y-1">
-                      <li>Frequency of Parody, Comedy, Surreal, and Gore tags</li>
-                      <li>High scores for non-linear or abstract storytelling</li>
-                      <li>Penalized by high ratios of grounded {activeTab === 'ANIME' ? 'Slice of Life' : 'Daily Life'}</li>
+                  <div className="absolute left-0 bottom-full mb-2 w-80 p-3 bg-gray-900 border border-white/10 rounded-lg text-[10px] text-gray-400 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 font-normal">
+                    <p className="font-bold text-white mb-2">4-Component Composite Index:</p>
+                    <ul className="space-y-1.5">
+                      <li className="flex justify-between">
+                        <span>🏷️ Tag Weirdness (rare tags)</span>
+                        <span className="text-purple-400 font-mono">35%</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>🎭 Whiplash (polarity swings)</span>
+                        <span className="text-purple-400 font-mono">30%</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>🔍 Obscurity (niche picks)</span>
+                        <span className="text-purple-400 font-mono">20%</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>💥 Rating Volatility</span>
+                        <span className="text-purple-400 font-mono">15%</span>
+                      </li>
                     </ul>
+                    <p className="text-green-400 mt-2 italic text-[9px]">Chaos = unpredictability + contrast, not just &quot;weirdness&quot;</p>
                   </div>
                 </div>
               </h4>
-              <p className="text-sm text-gray-400">How wild is your taste?</p>
+              <p className="text-sm text-gray-400">
+                {chaosProfile ? chaosProfile.chaosArchetype : 'How wild is your taste?'}
+              </p>
             </div>
           </div>
-          <div className="text-4xl font-bold text-purple-400 mb-3">
-            {tasteProfile.personalityTraits.chaosLevel.toFixed(1)}
-            <span className="text-lg text-gray-500">/10</span>
+          
+          <div className="text-4xl font-bold text-purple-400 mb-1">
+            {chaosProfile ? chaosProfile.chaosLevel.toFixed(0) : tasteProfile.personalityTraits.chaosLevel.toFixed(1)}
+            <span className="text-lg text-gray-500">/100</span>
           </div>
+          <div className="text-xs text-purple-300 mb-3">
+            {chaosProfile?.chaosLabel || 'Calculating...'}
+          </div>
+          
           <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
             <div 
-              className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full"
-              style={{ width: `${tasteProfile.personalityTraits.chaosLevel * 10}%` }}
+              className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+              style={{ width: `${chaosProfile ? chaosProfile.chaosLevel : tasteProfile.personalityTraits.chaosLevel * 10}%` }}
             />
           </div>
-          <p className="text-sm text-gray-400">
-            {tasteProfile.personalityTraits.chaosLevel > 7 
-              ? "Pure chaos. Ecchi, gore, and madness await."
-              : tasteProfile.personalityTraits.chaosLevel > 4
-              ? "A healthy mix of chaos and order."
-              : "You prefer structured, predictable content."
-            }
-          </p>
+          
+          {/* Chaos Drivers */}
+          {chaosProfile && chaosProfile.drivers.length > 0 && (
+            <div className="space-y-1.5 mt-3 pt-3 border-t border-white/10">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Chaos Drivers</p>
+              {chaosProfile.drivers.slice(0, 3).map((driver, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">{driver.label}</span>
+                  <span className="text-purple-300 font-mono text-[10px]">{driver.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Component breakdown mini-bars */}
+          {chaosProfile && (
+            <div className="grid grid-cols-4 gap-1 mt-3 pt-3 border-t border-white/10">
+              <div className="text-center">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-1">
+                  <div className="h-full bg-pink-500 rounded-full" style={{ width: `${chaosProfile.tagWeirdness * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-gray-500">Tags</span>
+              </div>
+              <div className="text-center">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-1">
+                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${chaosProfile.whiplash * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-gray-500">Whiplash</span>
+              </div>
+              <div className="text-center">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-1">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${chaosProfile.risk * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-gray-500">Niche</span>
+              </div>
+              <div className="text-center">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-1">
+                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${chaosProfile.ratingChaos * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-gray-500">Ratings</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
