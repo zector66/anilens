@@ -60,6 +60,8 @@ import { HotTakesCard } from './hot-takes-card';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
+const ALL_STATUSES = ['COMPLETED', 'CURRENT', 'REPEATING', 'PAUSED', 'DROPPED', 'PLANNING'] as const;
+
 interface TasteProfileProps {
   userId?: number;
 }
@@ -73,6 +75,32 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const [viewMode, setViewMode] = useState<'stats' | 'emotional'>('stats');
   // P3-13: Glossary modal state
   const [showGlossary, setShowGlossary] = useState(false);
+  // Status filter for analysis - which list statuses to include
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set(['COMPLETED', 'CURRENT', 'REPEATING']));
+  
+  const STATUS_LABELS: Record<string, string> = {
+    'COMPLETED': 'Completed',
+    'CURRENT': activeTab === 'ANIME' ? 'Watching' : 'Reading',
+    'REPEATING': activeTab === 'ANIME' ? 'Rewatching' : 'Rereading',
+    'PAUSED': 'Paused',
+    'DROPPED': 'Dropped',
+    'PLANNING': activeTab === 'ANIME' ? 'Plan to Watch' : 'Plan to Read',
+  };
+  
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilters(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(status)) {
+        // Don't allow removing all filters
+        if (newSet.size > 1) {
+          newSet.delete(status);
+        }
+      } else {
+        newSet.add(status);
+      }
+      return newSet;
+    });
+  };
 
   const effectiveUserId = userId || user?.id || 0;
   
@@ -122,9 +150,14 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     enabled: false,
   });
 
-  // Normalize list: flatten, dedupe, and filter to watched entries only
+  // Normalize list: flatten, dedupe, and filter based on status filters
   const analyzedEntries = useMemo(() => {
-    return normalizeMediaList(currentList);
+    return normalizeMediaList(currentList, { statuses: Array.from(statusFilters) });
+  }, [currentList, statusFilters]);
+  
+  // Get ALL entries (unfiltered) for accurate total counts
+  const allEntries = useMemo(() => {
+    return normalizeMediaList(currentList, { statuses: ALL_STATUSES as unknown as string[] });
   }, [currentList]);
 
   // Use Web Worker for heavy taste computation (falls back to main thread if needed)
@@ -418,6 +451,32 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       </div>
 
+      {/* Status Filters */}
+      <div className="flex flex-wrap items-center justify-center gap-2 px-4">
+        <span className="text-xs text-gray-500 mr-2">Include in analysis:</span>
+        {ALL_STATUSES.map(status => (
+          <button
+            key={status}
+            onClick={() => toggleStatusFilter(status)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              statusFilters.has(status)
+                ? status === 'COMPLETED' ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                : status === 'CURRENT' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                : status === 'REPEATING' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                : status === 'PAUSED' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                : status === 'DROPPED' ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
+            }`}
+          >
+            {STATUS_LABELS[status]}
+          </button>
+        ))}
+        <span className="text-xs text-gray-600 ml-2">
+          ({analyzedEntries.length} of {allEntries.length} entries)
+        </span>
+      </div>
+
       {/* Emotional Profile View */}
       {viewMode === 'emotional' && (
         <EmotionalProfile userId={effectiveUserId} />
@@ -446,8 +505,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         {[
           { 
             label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, 
-            value: statsLoading ? '...' : (userStats ? (activeTab === 'ANIME' ? userStats.anime?.count || 0 : userStats.manga?.count || 0) : analyzedEntries.length), 
-            icon: BarChart3 
+            value: statsLoading ? '...' : (userStats ? (activeTab === 'ANIME' ? userStats.anime?.count || 0 : userStats.manga?.count || 0) : allEntries.length), 
+            icon: BarChart3,
+            sub: analyzedEntries.length !== allEntries.length ? `${analyzedEntries.length} in analysis` : undefined
           },
           { 
             label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', 
@@ -460,8 +520,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             icon: TrendingUp 
           },
           { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} tags`, icon: Palette },
-          { label: 'Completed', value: analyzedEntries.filter(e => e.status === 'COMPLETED').length, icon: Target },
-          { label: activeTab === 'ANIME' ? 'Dropped' : 'Dropped', value: analyzedEntries.filter(e => e.status === 'DROPPED').length, icon: Activity },
+          { label: 'Completed', value: allEntries.filter(e => e.status === 'COMPLETED').length, icon: Target },
+          { label: 'In Analysis', value: analyzedEntries.length, icon: Activity, sub: `of ${allEntries.length} total` },
         ].map((stat, i) => (
           <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
             <div className="flex items-center gap-3 mb-2">
@@ -469,6 +529,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               <span className="text-sm text-gray-400">{stat.label}</span>
             </div>
             <div className="text-2xl font-bold text-white">{stat.value}</div>
+            {stat.sub && <div className="text-xs text-gray-500 mt-1">{stat.sub}</div>}
           </div>
         ))}
       </div>
