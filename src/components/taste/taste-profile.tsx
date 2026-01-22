@@ -83,6 +83,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const error = activeTab === 'ANIME' ? animeError : mangaError;
+  const statsLoading = isLoadingStats;
+  const statsError = userStats === null && !isLoadingStats;
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
   
   // Check if we have cached data - don't show loading screen if data exists
@@ -426,20 +428,35 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       <>
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {statsLoading && (
+          <div className="col-span-full flex items-center justify-center py-2">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+              Loading official AniList statistics...
+            </div>
+          </div>
+        )}
+        {statsError && (
+          <div className="col-span-full flex items-center justify-center py-2">
+            <div className="text-sm text-orange-400">
+              Using calculated stats (AniList API unavailable)
+            </div>
+          </div>
+        )}
         {[
           { 
             label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, 
-            value: userStats ? (activeTab === 'ANIME' ? userStats.anime?.count || 0 : userStats.manga?.count || 0) : analyzedEntries.length, 
+            value: statsLoading ? '...' : (userStats ? (activeTab === 'ANIME' ? userStats.anime?.count || 0 : userStats.manga?.count || 0) : analyzedEntries.length), 
             icon: BarChart3 
           },
           { 
             label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', 
-            value: userStats ? (activeTab === 'ANIME' ? userStats.anime?.episodesWatched || 0 : userStats.manga?.chaptersRead || 0) : totalProgressWatched, 
+            value: statsLoading ? '...' : (userStats ? (activeTab === 'ANIME' ? userStats.anime?.episodesWatched || 0 : userStats.manga?.chaptersRead || 0) : totalProgressWatched), 
             icon: Clock 
           },
           { 
             label: 'Mean Score', 
-            value: userStats ? (activeTab === 'ANIME' ? (userStats.anime?.meanScore || 0).toFixed(1) : (userStats.manga?.meanScore || 0).toFixed(1)) : tasteProfile.scorePatterns.meanScore.toFixed(1), 
+            value: statsLoading ? '...' : (userStats ? (activeTab === 'ANIME' ? (userStats.anime?.meanScore || 0).toFixed(1) : (userStats.manga?.meanScore || 0).toFixed(1)) : tasteProfile.scorePatterns.meanScore.toFixed(1)), 
             icon: TrendingUp 
           },
           { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} tags`, icon: Palette },
