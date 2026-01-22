@@ -203,29 +203,53 @@ ALTER TABLE user_studio_templates ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users profiles are publicly readable" ON users
     FOR SELECT USING (is_public = true);
 
-CREATE POLICY "Users can manage own profile" ON users
-    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Users can insert own profile" ON users
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update own profile" ON users
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+CREATE POLICY "Users can delete own profile" ON users
+    FOR DELETE USING (true);
 
 -- Game stats policies
 CREATE POLICY "Game stats are publicly readable" ON user_game_stats
     FOR SELECT USING (true);
 
-CREATE POLICY "Users can manage own game stats" ON user_game_stats
-    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Users can insert game stats" ON user_game_stats
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update game stats" ON user_game_stats
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+CREATE POLICY "Users can delete game stats" ON user_game_stats
+    FOR DELETE USING (true);
 
 -- Achievements policies
 CREATE POLICY "Achievements are publicly readable" ON user_achievements
     FOR SELECT USING (true);
 
-CREATE POLICY "Users can manage own achievements" ON user_achievements
-    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Users can insert achievements" ON user_achievements
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update achievements" ON user_achievements
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+CREATE POLICY "Users can delete achievements" ON user_achievements
+    FOR DELETE USING (true);
 
 -- Studio templates policies
 CREATE POLICY "Public templates are readable" ON user_studio_templates
     FOR SELECT USING (is_public = true);
 
-CREATE POLICY "Users can manage own templates" ON user_studio_templates
-    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Users can insert templates" ON user_studio_templates
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update templates" ON user_studio_templates
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+CREATE POLICY "Users can delete templates" ON user_studio_templates
+    FOR DELETE USING (true);
 
 -- ============================================
 -- 7. HELPER FUNCTIONS
