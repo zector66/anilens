@@ -167,6 +167,9 @@ export class AuthManager {
         this.isOAuth = true;
         localStorage.setItem('anilist_username', this.username!);
         logger.info(`[AuthManager] OAuth user loaded: ${this.user!.name} (${this.user!.id})`);
+        
+        // Sync with AniLens profile system
+        this.syncAniLensProfile();
       } else {
         throw new Error('Failed to get authenticated user');
       }
@@ -258,6 +261,35 @@ export class AuthManager {
   // Check if user can submit scores (OAuth authenticated)
   canSubmitScores(): boolean {
     return this.isOAuth && !!this.accessToken && !!this.user;
+  }
+
+  // Sync user profile with AniLens database
+  private async syncAniLensProfile(): Promise<void> {
+    if (!this.user) return;
+
+    try {
+      const response = await fetch('/api/user/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anilistId: this.user.id,
+          username: this.user.name,
+          avatarUrl: this.user.avatar?.large || this.user.avatar?.medium,
+          bannerUrl: this.user.bannerImage,
+          totalAnime: this.user.statistics?.anime?.count || 0,
+          totalManga: this.user.statistics?.manga?.count || 0,
+        }),
+      });
+
+      if (response.ok) {
+        logger.info(`[AuthManager] AniLens profile synced for ${this.user.name}`);
+      } else {
+        logger.warn('[AuthManager] Failed to sync AniLens profile');
+      }
+    } catch (error) {
+      // Non-blocking - profile sync failure shouldn't break auth
+      logger.warn('[AuthManager] AniLens profile sync error:', error);
+    }
   }
 }
 
