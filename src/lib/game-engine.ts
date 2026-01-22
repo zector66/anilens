@@ -869,18 +869,22 @@ export class GameEngine {
       const realTags = media.tags?.map(t => t.name) || [];
       if (realTags.length < 2) continue;
 
-      // Pick 2 real tags
+      // Pick 1 real tag for the answer
       const shuffledReal = shuffleArray(realTags);
-      const selectedReal = shuffledReal.slice(0, 2);
+      const realTag = shuffledReal[0];
 
       // Pick 1 fake tag that's NOT in real tags
       const availableFakes = this.FAKE_TAGS.filter(f => !realTags.includes(f));
       const fakeTag = shuffleArray(availableFakes)[0];
 
+      // Pick 1 more fake tag for the third option
+      const remainingFakes = availableFakes.filter(f => f !== fakeTag);
+      const secondFake = shuffleArray(remainingFakes)[0];
+
       // 50% chance: "Which tag is FAKE?" vs "Which tag is REAL?"
       const askForFake = Math.random() > 0.5;
-      const options = shuffleArray([...selectedReal, fakeTag]);
-      const correctAnswer = askForFake ? fakeTag : selectedReal[0];
+      const options = shuffleArray([realTag, fakeTag, secondFake]);
+      const correctAnswer = askForFake ? fakeTag : realTag;
 
       const title = media.title.english || media.title.romaji || 'Unknown';
 

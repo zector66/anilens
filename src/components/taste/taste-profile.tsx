@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useAnimeList, useMangaList, useFavorites } from '@/hooks/use-anilist';
+import { useAnimeList, useMangaList, useFavorites, useUserStats } from '@/hooks/use-anilist';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
 import { useTasteProfile as useTasteProfileWorker } from '@/hooks/use-taste-worker';
 import { MediaListEntry, type TasteProfile as TasteProfileType } from '@/types/anilist';
@@ -79,6 +79,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
   const { data: favorites, isLoading: isLoadingFavorites } = useFavorites(effectiveUserId);
+  const { data: userStats, isLoading: isLoadingStats } = useUserStats(effectiveUserId);
 
   const isLoading = activeTab === 'ANIME' ? isLoadingAnime : isLoadingManga;
   const error = activeTab === 'ANIME' ? animeError : mangaError;
@@ -426,12 +427,24 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, value: analyzedEntries.length, icon: BarChart3 },
-          { label: activeTab === 'ANIME' ? 'Watched' : 'Read', value: analyzedEntries.length, icon: Activity },
-          { label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', value: totalProgressWatched, icon: Clock },
+          { 
+            label: `Total ${activeTab === 'ANIME' ? 'Anime' : 'Manga'}`, 
+            value: userStats ? (activeTab === 'ANIME' ? userStats.anime?.count || 0 : userStats.manga?.count || 0) : analyzedEntries.length, 
+            icon: BarChart3 
+          },
+          { 
+            label: activeTab === 'ANIME' ? 'Episodes' : 'Chapters', 
+            value: userStats ? (activeTab === 'ANIME' ? userStats.anime?.episodesWatched || 0 : userStats.manga?.chaptersRead || 0) : totalProgressWatched, 
+            icon: Clock 
+          },
+          { 
+            label: 'Mean Score', 
+            value: userStats ? (activeTab === 'ANIME' ? (userStats.anime?.meanScore || 0).toFixed(1) : (userStats.manga?.meanScore || 0).toFixed(1)) : tasteProfile.scorePatterns.meanScore.toFixed(1), 
+            icon: TrendingUp 
+          },
           { label: 'Diversity', value: `${(tasteProfile.behavioralMetrics.diversityIndex * 100).toFixed(0)}%`, sub: `~${tasteProfile.behavioralMetrics.effectiveCategories.effectiveGenres.toFixed(1)} genres, ${tasteProfile.behavioralMetrics.effectiveCategories.effectiveTags.toFixed(0)} tags`, icon: Palette },
-          { label: 'Mean Score', value: tasteProfile.scorePatterns.meanScore.toFixed(1), icon: TrendingUp },
-          { label: 'Completion', value: `${(tasteProfile.behavioralMetrics.completionRate * 100).toFixed(0)}%`, icon: Target },
+          { label: 'Completed', value: analyzedEntries.filter(e => e.status === 'COMPLETED').length, icon: Target },
+          { label: activeTab === 'ANIME' ? 'Dropped' : 'Dropped', value: analyzedEntries.filter(e => e.status === 'DROPPED').length, icon: Activity },
         ].map((stat, i) => (
           <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
             <div className="flex items-center gap-3 mb-2">
