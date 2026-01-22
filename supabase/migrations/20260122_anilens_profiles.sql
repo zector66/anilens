@@ -264,9 +264,23 @@ CREATE OR REPLACE FUNCTION upsert_user_on_login(
     p_total_anime INTEGER DEFAULT 0,
     p_total_manga INTEGER DEFAULT 0
 )
-RETURNS users AS $$
-DECLARE
-    result users;
+RETURNS TABLE (
+    anilist_id INTEGER,
+    username VARCHAR(255),
+    avatar_url TEXT,
+    banner_url TEXT,
+    created_at TIMESTAMPTZ,
+    last_seen TIMESTAMPTZ,
+    anime_archetype VARCHAR(100),
+    manga_archetype VARCHAR(100),
+    taste_title VARCHAR(255),
+    is_public BOOLEAN,
+    adult_content_enabled BOOLEAN,
+    total_anime INTEGER,
+    total_manga INTEGER,
+    total_games_played INTEGER,
+    profile_updated_at TIMESTAMPTZ
+) AS $$
 BEGIN
     INSERT INTO users (anilist_id, username, avatar_url, banner_url, total_anime, total_manga, last_seen)
     VALUES (p_anilist_id, p_username, p_avatar_url, p_banner_url, p_total_anime, p_total_manga, NOW())
@@ -276,15 +290,15 @@ BEGIN
         banner_url = COALESCE(EXCLUDED.banner_url, users.banner_url),
         total_anime = EXCLUDED.total_anime,
         total_manga = EXCLUDED.total_manga,
-        last_seen = NOW()
-    RETURNING * INTO result;
+        last_seen = NOW();
     
     -- Also ensure game stats row exists
     INSERT INTO user_game_stats (anilist_id)
     VALUES (p_anilist_id)
     ON CONFLICT (anilist_id) DO NOTHING;
     
-    RETURN result;
+    -- Return the user record
+    RETURN QUERY SELECT * FROM users WHERE users.anilist_id = p_anilist_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -296,15 +310,35 @@ CREATE OR REPLACE FUNCTION update_game_stats(
     p_wrong INTEGER,
     p_is_daily BOOLEAN DEFAULT false
 )
-RETURNS user_game_stats AS $$
+RETURNS TABLE (
+    anilist_id INTEGER,
+    total_games_played INTEGER,
+    total_correct INTEGER,
+    total_wrong INTEGER,
+    accuracy_rate DECIMAL,
+    current_streak INTEGER,
+    longest_streak INTEGER,
+    last_played_at TIMESTAMPTZ,
+    daily_challenges_completed INTEGER,
+    daily_current_streak INTEGER,
+    daily_longest_streak INTEGER,
+    last_daily_completed_at DATE,
+    game_type_stats JSONB,
+    multiplayer_wins INTEGER,
+    multiplayer_losses INTEGER,
+    multiplayer_draws INTEGER,
+    mmr INTEGER,
+    peak_mmr INTEGER,
+    brackets_completed INTEGER,
+    bracket_champions JSONB
+) AS $$
 DECLARE
-    result user_game_stats;
     current_game_stats JSONB;
     new_game_stats JSONB;
 BEGIN
     -- Get current game type stats
-    SELECT game_type_stats INTO current_game_stats
-    FROM user_game_stats WHERE anilist_id = p_anilist_id;
+    SELECT user_game_stats.game_type_stats INTO current_game_stats
+    FROM user_game_stats WHERE user_game_stats.anilist_id = p_anilist_id;
     
     -- Update game type stats
     new_game_stats = COALESCE(current_game_stats, '{}'::jsonb);
@@ -319,40 +353,40 @@ BEGIN
     );
     
     UPDATE user_game_stats SET
-        total_games_played = total_games_played + 1,
-        total_correct = total_correct + p_correct,
-        total_wrong = total_wrong + p_wrong,
+        total_games_played = user_game_stats.total_games_played + 1,
+        total_correct = user_game_stats.total_correct + p_correct,
+        total_wrong = user_game_stats.total_wrong + p_wrong,
         accuracy_rate = CASE 
-            WHEN (total_correct + total_wrong + p_correct + p_wrong) > 0 
-            THEN ((total_correct + p_correct)::decimal / (total_correct + total_wrong + p_correct + p_wrong)::decimal) * 100
+            WHEN (user_game_stats.total_correct + user_game_stats.total_wrong + p_correct + p_wrong) > 0 
+            THEN ((user_game_stats.total_correct + p_correct)::decimal / (user_game_stats.total_correct + user_game_stats.total_wrong + p_correct + p_wrong)::decimal) * 100
             ELSE 0 
         END,
-        current_streak = CASE WHEN p_wrong = 0 THEN current_streak + p_correct ELSE 0 END,
-        longest_streak = GREATEST(longest_streak, CASE WHEN p_wrong = 0 THEN current_streak + p_correct ELSE current_streak END),
+        current_streak = CASE WHEN p_wrong = 0 THEN user_game_stats.current_streak + p_correct ELSE 0 END,
+        longest_streak = GREATEST(user_game_stats.longest_streak, CASE WHEN p_wrong = 0 THEN user_game_stats.current_streak + p_correct ELSE user_game_stats.current_streak END),
         last_played_at = NOW(),
         game_type_stats = new_game_stats,
-        daily_challenges_completed = CASE WHEN p_is_daily THEN daily_challenges_completed + 1 ELSE daily_challenges_completed END,
+        daily_challenges_completed = CASE WHEN p_is_daily THEN user_game_stats.daily_challenges_completed + 1 ELSE user_game_stats.daily_challenges_completed END,
         daily_current_streak = CASE 
-            WHEN p_is_daily AND (last_daily_completed_at IS NULL OR last_daily_completed_at = CURRENT_DATE - 1) 
-            THEN daily_current_streak + 1 
-            WHEN p_is_daily AND last_daily_completed_at < CURRENT_DATE - 1
+            WHEN p_is_daily AND (user_game_stats.last_daily_completed_at IS NULL OR user_game_stats.last_daily_completed_at = CURRENT_DATE - 1) 
+            THEN user_game_stats.daily_current_streak + 1 
+            WHEN p_is_daily AND user_game_stats.last_daily_completed_at < CURRENT_DATE - 1
             THEN 1
-            ELSE daily_current_streak 
+            ELSE user_game_stats.daily_current_streak 
         END,
         daily_longest_streak = CASE 
             WHEN p_is_daily 
-            THEN GREATEST(daily_longest_streak, daily_current_streak + 1)
-            ELSE daily_longest_streak 
+            THEN GREATEST(user_game_stats.daily_longest_streak, user_game_stats.daily_current_streak + 1)
+            ELSE user_game_stats.daily_longest_streak 
         END,
-        last_daily_completed_at = CASE WHEN p_is_daily THEN CURRENT_DATE ELSE last_daily_completed_at END
-    WHERE anilist_id = p_anilist_id
-    RETURNING * INTO result;
+        last_daily_completed_at = CASE WHEN p_is_daily THEN CURRENT_DATE ELSE user_game_stats.last_daily_completed_at END
+    WHERE user_game_stats.anilist_id = p_anilist_id;
     
     -- Update users table total games
-    UPDATE users SET total_games_played = result.total_games_played
-    WHERE anilist_id = p_anilist_id;
+    UPDATE users SET total_games_played = (SELECT user_game_stats.total_games_played FROM user_game_stats WHERE user_game_stats.anilist_id = p_anilist_id)
+    WHERE users.anilist_id = p_anilist_id;
     
-    RETURN result;
+    -- Return the updated stats
+    RETURN QUERY SELECT * FROM user_game_stats WHERE user_game_stats.anilist_id = p_anilist_id;
 END;
 $$ LANGUAGE plpgsql;
 
