@@ -257,8 +257,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   // Hot Takes analysis
   const hotTakesProfile = useMemo<HotTakesProfile | null>(() => {
     if (analyzedEntries.length === 0) return null;
-    return analyzeHotTakes(analyzedEntries, allEntriesWithPlanning);
-  }, [analyzedEntries, allEntriesWithPlanning]);
+    return analyzeHotTakes(analyzedEntries, allEntriesWithPlanning, activeTab);
+  }, [analyzedEntries, allEntriesWithPlanning, activeTab]);
 
   // Chaos Level analysis (4-component composite index)
   const chaosProfile = useMemo<ChaosProfile | null>(() => {
@@ -1118,7 +1118,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             <Flame className="w-5 h-5 text-orange-400" />
             <h3 className="text-xl font-bold text-white">Hot Takes & Contrarian Index</h3>
           </div>
-          <HotTakesCard profile={hotTakesProfile} />
+          <HotTakesCard profile={hotTakesProfile} type={activeTab} />
         </div>
       )}
 

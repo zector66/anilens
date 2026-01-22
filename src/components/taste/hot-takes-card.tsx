@@ -8,9 +8,10 @@ import { OptimizedImage } from '@/components/ui/optimized-image';
 interface HotTakesCardProps {
   profile: HotTakesProfile;
   accentColor?: string;
+  type?: 'ANIME' | 'MANGA';
 }
 
-export function HotTakesCard({ profile }: HotTakesCardProps) {
+export function HotTakesCard({ profile, type = 'ANIME' }: HotTakesCardProps) {
   const { hotTakeEnergy, hotTakeEnergyLabel, tendency, tendencyLabel, hotTakesByCategory, stats, procrastination } = profile;
   
   const [showAllMainstream, setShowAllMainstream] = useState(false);
@@ -102,7 +103,7 @@ export function HotTakesCard({ profile }: HotTakesCardProps) {
                 <h3 className="text-base font-semibold text-white">Hot Takes (Mainstream)</h3>
                 <span className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">200k+ popularity</span>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Your disagreements on shows everyone&apos;s watching</p>
+              <p className="text-xs text-gray-400 mb-3">Your disagreements on {type === 'ANIME' ? 'shows' : 'titles'} everyone&apos;s watching</p>
               <div className="space-y-3">
                 {(showAllMainstream ? hotTakesByCategory.mainstream : hotTakesByCategory.mainstream.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} />
@@ -131,7 +132,7 @@ export function HotTakesCard({ profile }: HotTakesCardProps) {
                 <h3 className="text-base font-semibold text-white">Contrarian Picks</h3>
                 <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">100k-200k popularity</span>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Meaningful disagreements on popular shows</p>
+              <p className="text-xs text-gray-400 mb-3">Meaningful disagreements on popular {type === 'ANIME' ? 'shows' : 'titles'}</p>
               <div className="space-y-3">
                 {(showAllPopular ? hotTakesByCategory.popular : hotTakesByCategory.popular.slice(0, 5)).map((take) => (
                   <TakeRow key={take.mediaId} take={take} />
@@ -160,7 +161,7 @@ export function HotTakesCard({ profile }: HotTakesCardProps) {
                 <h3 className="text-base font-semibold text-white">Deep Cuts</h3>
                 <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">&lt;50k popularity</span>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Fun differences on lesser-known shows</p>
+              <p className="text-xs text-gray-400 mb-3">Fun differences on lesser-known {type === 'ANIME' ? 'shows' : 'titles'}</p>
               <div className="space-y-3">
                 {[
                   ...hotTakesByCategory.known.slice(0, 3),

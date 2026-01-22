@@ -170,8 +170,18 @@ function getRatingBand(globalScore: number): 'beloved' | 'well-liked' | 'mixed' 
 
 /**
  * Get crowd category based on popularity
+ * Manga has ~5-10x lower popularity than anime on AniList
  */
-function getCrowdCategory(popularity: number): 'mainstream' | 'popular' | 'known' | 'niche' {
+function getCrowdCategory(popularity: number, type: 'ANIME' | 'MANGA' = 'ANIME'): 'mainstream' | 'popular' | 'known' | 'niche' {
+  if (type === 'MANGA') {
+    // Adjusted thresholds for manga (divide by ~5)
+    if (popularity >= 40000) return 'mainstream'; // Frieren, Oshi no Ko range
+    if (popularity >= 20000) return 'popular';    // 20k-40k
+    if (popularity >= 10000) return 'known';      // 10k-20k
+    return 'niche';                               // Below 10k
+  }
+  
+  // Anime thresholds (original)
   if (popularity >= 200000) return 'mainstream'; // Solo Leveling (~300k) and above
   if (popularity >= 100000) return 'popular';   // 100k-200k
   if (popularity >= 50000) return 'known';      // 50k-100k  
@@ -200,11 +210,12 @@ function getRatingBandLabel(band: string, direction: string, globalScore: number
  */
 export function analyzeHotTakes(
   entries: MediaListEntry[],
-  allEntriesIncludingPlanning?: MediaListEntry[]
+  allEntriesIncludingPlanning?: MediaListEntry[],
+  type: 'ANIME' | 'MANGA' = 'ANIME'
 ): HotTakesProfile {
   // Filter to scored entries with quality data
   // Require: valid user score, global score exists, minimum popularity for confidence
-  const MIN_POPULARITY = 50000; // Higher threshold - only shows with meaningful audience
+  const MIN_POPULARITY = type === 'MANGA' ? 2000 : 10000; 
   
   const scoredEntries = entries.filter(e => 
     e.score && e.score >= 1 && // Valid user score (Filter C)
@@ -273,7 +284,7 @@ export function analyzeHotTakes(
       direction,
       ratingBand,
       ratingBandLabel,
-      crowdCategory: getCrowdCategory(popularity),
+      crowdCategory: getCrowdCategory(popularity, type),
     };
   });
 
