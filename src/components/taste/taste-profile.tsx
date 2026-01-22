@@ -238,12 +238,12 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   // Calculate accurate entry counts (excluding Planning to match analyzed entries)
   const animeEntryCount = useMemo(() => {
     if (!animeList) return undefined;
-    return normalizeMediaList(animeList).length;
+    return normalizeMediaList(animeList, { statuses: ALL_STATUSES as unknown as string[] }).length;
   }, [animeList]);
   
   const mangaEntryCount = useMemo(() => {
     if (!mangaList) return undefined;
-    return normalizeMediaList(mangaList).length;
+    return normalizeMediaList(mangaList, { statuses: ALL_STATUSES as unknown as string[] }).length;
   }, [mangaList]);
 
   // Get all entries including Planning for procrastination stats
