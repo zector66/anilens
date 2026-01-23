@@ -59,6 +59,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AnalysisLoadingScreen } from '@/components/ui/analysis-loading-screen';
 import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
+import { TasteDriftCard } from './taste-drift-card';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -1136,6 +1137,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             type={activeTab}
           />
         </div>
+      )}
+
+      {/* Taste Drift - Track taste evolution over time */}
+      {tasteProfile && user?.id && analyzedEntries.length > 10 && (
+        <TasteDriftCard 
+          profile={tasteProfile} 
+          entries={analyzedEntries}
+          anilistId={user.id}
+          type={activeTab}
+        />
       )}
 
       {/* Detailed Genre & Studio Cards */}
