@@ -56,7 +56,7 @@ import {
 import { ArchetypeGlossary, GlossaryButton } from './archetype-glossary';
 import { anilistClient } from '@/lib/anilist-client';
 import { useQuery } from '@tanstack/react-query';
-import { AnalysisLoadingScreen } from '@/components/ui/analysis-loading-screen';
+import { AnalysisLoadingScreen, hasBootedThisSession, markAsBooted } from '@/components/ui/analysis-loading-screen';
 import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
@@ -268,9 +268,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     return analyzeChaos(analyzedEntries, tasteProfile.tagAffinity);
   }, [analyzedEntries, tasteProfile]);
 
-  // Only show loading screen if we don't have cached data
-  // This prevents flash of loading screen when switching tabs
-  if ((isLoading || isAnalyzing) && !hasData) {
+  // Only show loading screen if we don't have cached data AND haven't booted this session
+  // This prevents flash of loading screen when switching tabs or refreshing
+  const skipLoadingScreen = hasBootedThisSession();
+  
+  if ((isLoading || isAnalyzing) && !hasData && !skipLoadingScreen) {
     return (
       <AnalysisLoadingScreen
         user={user}
@@ -278,6 +280,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         mangaCount={mangaEntryCount}
       />
     );
+  }
+  
+  // Mark as booted once we have data (so next refresh skips loading screen)
+  if (hasData && !skipLoadingScreen) {
+    markAsBooted();
   }
 
   if (error || !currentList) {

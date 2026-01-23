@@ -5,6 +5,25 @@ import Image from 'next/image';
 import { Check, Loader2, Sparkles } from 'lucide-react';
 import { AniListUser } from '@/types/anilist';
 
+// Session storage key for tracking if user has seen loading screen
+const LOADING_SCREEN_KEY = 'anilens_analysis_booted';
+
+/**
+ * Check if we should skip the loading screen this session
+ */
+export function hasBootedThisSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem(LOADING_SCREEN_KEY) === '1';
+}
+
+/**
+ * Mark that user has booted this session
+ */
+export function markAsBooted(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(LOADING_SCREEN_KEY, '1');
+}
+
 interface LoadingStep {
   id: string;
   label: string;

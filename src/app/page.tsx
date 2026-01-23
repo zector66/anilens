@@ -19,8 +19,10 @@ import {
   Share2,
   LogOut,
   Settings,
-  Sparkles
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
+import Link from 'next/link';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Logo } from '@/components/ui/logo';
 import { WeatherEffects, WeatherWidget } from '@/components/ui/weather-effects';
@@ -276,58 +278,123 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
+      {/* Weather Effects - Fixed overlay at root level */}
       {weatherEnabled && (
-        <WeatherEffects 
-          condition={effectiveWeather} 
-          isDay={isDay} 
-          intensity={weatherIntensity}
-        />
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <WeatherEffects 
+            condition={effectiveWeather} 
+            isDay={isDay} 
+            intensity={weatherIntensity}
+          />
+        </div>
       )}
       
-      <header className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Logo size="md" />
+      {/* Premium Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/40 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          {/* Left: Logo + Brand */}
+          <div className="flex items-center gap-3">
+            <Logo size="sm" />
+            <div className="leading-tight hidden sm:block">
+              <div className="text-sm font-semibold text-white">AniLens</div>
+              <div className="text-[11px] text-white/50">Taste Lab</div>
+            </div>
+          </div>
 
-            <div className="flex items-center gap-2">
-              {/* Weather Widget */}
-              {weatherEnabled && weatherData && (
-                <WeatherWidget 
-                  condition={weatherData.condition}
-                  temperature={weatherData.temperature}
-                  description={weatherData.description}
-                  icon={weatherData.icon}
-                  isDay={weatherData.isDay}
-                  className="hidden md:flex"
-                />
-              )}
-              
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-                {user?.avatar?.medium && (
+          {/* Center: Nav Tabs */}
+          <nav className="hidden lg:flex items-center gap-1 rounded-full bg-white/5 p-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="hidden xl:inline">{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            {/* Weather Widget */}
+            {weatherEnabled && weatherData && (
+              <WeatherWidget 
+                condition={weatherData.condition}
+                temperature={weatherData.temperature}
+                description={weatherData.description}
+                icon={weatherData.icon}
+                isDay={weatherData.isDay}
+                className="hidden md:flex"
+              />
+            )}
+            
+            {/* Settings Button */}
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              className="h-9 w-9 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              aria-label="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* Profile Dropdown */}
+            <div className="relative group">
+              <Link 
+                href={user?.name ? `/u/${user.name}` : '#'}
+                className="flex items-center gap-2 h-9 pl-1 pr-3 rounded-full bg-white/5 hover:bg-white/10 transition-all border border-white/10 hover:border-purple-500/50"
+              >
+                {user?.avatar?.medium ? (
                   <Image 
                     src={user.avatar.medium} 
-                    alt={user.name}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-lg"
+                    alt={user.name || 'Profile'}
+                    width={28}
+                    height={28}
+                    className="w-7 h-7 rounded-full"
                   />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-purple-500/30" />
                 )}
-                <span className="text-white font-medium hidden sm:inline">{user?.name}</span>
+                <span className="text-sm font-medium text-white hidden sm:inline">{user?.name}</span>
+                <ChevronDown className="w-3 h-3 text-gray-400 hidden sm:block" />
+              </Link>
+              
+              {/* Dropdown Menu */}
+              <div className="absolute right-0 top-full mt-2 w-48 py-2 rounded-xl bg-[#1a1a24] border border-white/10 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <Link 
+                  href={user?.name ? `/u/${user.name}` : '#'}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  View Profile
+                </Link>
+                <Link 
+                  href="/?tab=studio"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Studio Export
+                </Link>
+                <button 
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors w-full"
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </button>
+                <div className="border-t border-white/10 my-2" />
+                <button 
+                  onClick={logout}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors w-full"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
               </div>
-              <button 
-                onClick={() => setSettingsOpen(true)}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Settings"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={logout}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
@@ -336,17 +403,17 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
       {/* Settings Panel */}
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Navigation Tabs */}
-      <div className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6">
-          <nav className="flex gap-1 overflow-x-auto py-2">
+      {/* Mobile Navigation Tabs (hidden on desktop - nav is in header) */}
+      <div className="lg:hidden border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-14 z-40">
+        <div className="max-w-7xl mx-auto px-4">
+          <nav className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-white/10 text-white'
+                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
