@@ -34,10 +34,27 @@ export interface AnalysisResult {
   originalCount: number;
 }
 
+// Valid author roles for manga (Fix: author role filtering)
+const VALID_AUTHOR_ROLES = new Set([
+  'Story',
+  'Story & Art', 
+  'Original Creator',
+  'Author',
+  'Original Story',
+  'Art',  // Only if no Story exists
+]);
+
+// Primary author roles (take precedence)
+const PRIMARY_AUTHOR_ROLES = new Set(['Story', 'Story & Art', 'Original Creator', 'Author', 'Original Story']);
+
 export class TasteAnalyzer {
   // Constants for Bayesian/Dirichlet smoothing and shrinkage
   private static readonly GLOBAL_MEAN_SCORE = 6.8;
-  private static readonly SCORE_SHRINKAGE_LAMBDA = 5;
+  
+  // Type-specific shrinkage (Fix: Manga-specific priors)
+  private static readonly SCORE_SHRINKAGE_LAMBDA_ANIME = 5;
+  private static readonly SCORE_SHRINKAGE_LAMBDA_MANGA = 8;  // Manga shrinks harder due to sampling
+  
   private static readonly PROPORTION_PRIOR_ALPHA = 2;
   private static readonly PROPORTION_PRIOR_BETA = 2;
   private static readonly DIRICHLET_ALPHA = 0.5;
@@ -46,6 +63,9 @@ export class TasteAnalyzer {
   private static readonly GENRE_CONFIDENCE_K = 8;
   private static readonly TAG_CONFIDENCE_K = 6;
   private static readonly STUDIO_CONFIDENCE_K = 5;
+  
+  // Manga-specific tag rank filter (Fix: only accept rank >= 60)
+  private static readonly MANGA_TAG_RANK_FILTER = 60;
 
   // Completionist correction utilities
   private static getCompletionistWeights(completionRate: number) {
@@ -123,7 +143,11 @@ export class TasteAnalyzer {
     // Extended data structures with engagement weights
     const genreData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
     const tagData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; avgRank: number; engagementWeight: number }>();
-    const sourceData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
+    // Extended type for manga authors includes additional stats for "Why this author?" tooltip
+    const sourceData = new Map<string, { 
+      count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number;
+      chaptersRead?: number; completedCount?: number; bestScore?: number; bestTitle?: string;
+    }>();
     const yearData = new Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
     const formatData = new Map<string, { count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number }>();
     
@@ -187,6 +211,9 @@ export class TasteAnalyzer {
       if (media.tags) {
         media.tags.forEach((tag) => {
           if (tag.isGeneralSpoiler || tag.isMediaSpoiler) return;
+          // Fix: Manga tag rank filter >= 60 (tags in manga are noisier)
+          if (type === 'MANGA' && (tag.rank || 50) < this.MANGA_TAG_RANK_FILTER) return;
+          
           const existing = tagData.get(tag.name) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, avgRank: 0, engagementWeight: 0 };
           const newCount = existing.count + 1;
           tagData.set(tag.name, {
@@ -215,15 +242,47 @@ export class TasteAnalyzer {
           }
         });
       } else if (type === 'MANGA' && media.staff?.edges) {
-        media.staff.edges.forEach((staffEdge) => {
+        // Fix: Filter to valid author roles only (Story, Story & Art, Original Creator, Author)
+        const validStaff = media.staff.edges.filter(e => VALID_AUTHOR_ROLES.has(e.role));
+        
+        // Prefer primary author roles (Story > Art)
+        const hasPrimaryRole = validStaff.some(e => PRIMARY_AUTHOR_ROLES.has(e.role));
+        const authorsToCount = hasPrimaryRole 
+          ? validStaff.filter(e => PRIMARY_AUTHOR_ROLES.has(e.role))
+          : validStaff.filter(e => e.role === 'Art');  // Only use Art if no Story exists
+        
+        authorsToCount.forEach((staffEdge) => {
           const staffName = staffEdge.node.name.full;
-          const existing = sourceData.get(staffName) || { count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0 };
+          
+          // Fix: Author contribution weighting (55% score + 35% progress + 10% completion)
+          const scoreSignal = score > 0 ? (score - 5) / 5 : 0;  // Normalized score signal
+          const progressSignal = Math.log(1 + Math.min(progressWatched, 500)) / Math.log(501);  // Clamp to prevent giga-series domination
+          const completionSignal = entry.status === 'COMPLETED' ? 1 : 0;
+          
+          const authorWeight = 0.55 * scoreSignal + 0.35 * progressSignal + 0.10 * completionSignal;
+          
+          const existing = sourceData.get(staffName) as { 
+            count: number; totalScore: number; progressUnits: number; scoredCount: number; engagementWeight: number;
+            chaptersRead?: number; completedCount?: number; bestScore?: number; bestTitle?: string;
+          } || { 
+            count: 0, totalScore: 0, progressUnits: 0, scoredCount: 0, engagementWeight: 0,
+            chaptersRead: 0, completedCount: 0, bestScore: 0, bestTitle: ''
+          };
+          
+          // Track detailed stats for "Why this author?" tooltip
+          const newBestScore = score > (existing.bestScore || 0) ? score : (existing.bestScore || 0);
+          const newBestTitle = score > (existing.bestScore || 0) ? (media.title?.english || media.title?.romaji || '') : (existing.bestTitle || '');
+          
           sourceData.set(staffName, {
             count: existing.count + 1,
             totalScore: existing.totalScore + score,
             progressUnits: existing.progressUnits + progressWatched,
             scoredCount: existing.scoredCount + (score > 0 ? 1 : 0),
-            engagementWeight: existing.engagementWeight + entryWeight,
+            engagementWeight: existing.engagementWeight + (score > 0 ? authorWeight : 0),  // Only count scored entries
+            chaptersRead: (existing.chaptersRead || 0) + progressWatched,
+            completedCount: (existing.completedCount || 0) + completionSignal,
+            bestScore: newBestScore,
+            bestTitle: newBestTitle
           });
         });
       }
@@ -253,9 +312,10 @@ export class TasteAnalyzer {
       }
     });
 
-    // Shrinkage for mean score
+    // Shrinkage for mean score (type-specific: manga shrinks harder)
+    const shrinkageLambda = type === 'MANGA' ? this.SCORE_SHRINKAGE_LAMBDA_MANGA : this.SCORE_SHRINKAGE_LAMBDA_ANIME;
     const rawMeanScore = scoredCountNum > 0 ? totalScoreSum / scoredCountNum : this.GLOBAL_MEAN_SCORE;
-    const meanScore = (scoredCountNum * rawMeanScore + this.SCORE_SHRINKAGE_LAMBDA * this.GLOBAL_MEAN_SCORE) / (scoredCountNum + this.SCORE_SHRINKAGE_LAMBDA);
+    const meanScore = (scoredCountNum * rawMeanScore + shrinkageLambda * this.GLOBAL_MEAN_SCORE) / (scoredCountNum + shrinkageLambda);
     
     const consistency = this.calculateScoreConsistency(scores);
     const scoreInflation = this.calculateScoreInflation(scores);
@@ -270,52 +330,97 @@ export class TasteAnalyzer {
     const { completionEvidenceWeight, scoreWeightMultiplier } = this.getCompletionistWeights(completionRate);
 
     // Dirichlet smoothing for genres with completionist correction + engagement weighting
-    // Note: totalEngagementWeight is used in genreData/tagData calculations below
+    // TYPE-SPECIFIC WEIGHTING:
+    // Anime: Volume 40%, Score 35%, Count 15%, Baseline 10%
+    // Manga: Score 50%, Count 25%, Volume 15%, Baseline 10% (manga progress is inconsistent)
     const genreAffinity = Array.from(genreData.entries())
       .map(([genre, data]) => {
-        // Use engagement weight for volume factor instead of raw count
         const totalGenreEngagement = Array.from(genreData.values()).reduce((sum, d) => sum + d.engagementWeight, 0);
         const volumeFactor = (data.engagementWeight + this.DIRICHLET_ALPHA) / (totalGenreEngagement + genreData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
-        const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
-        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
-        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 20 : 15)) * completionEvidenceWeight; // Downweighted for completionists
-        const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.35) + (countFactor * 0.15) + 0.10));
-        // Use new confidence formula: 1 - exp(-count / k)
+        const shrunkScore = (data.scoredCount * avgScore + shrinkageLambda * meanScore) / (data.scoredCount + shrinkageLambda);
+        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier;
+        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 20 : 15)) * completionEvidenceWeight;
+        
+        // Type-specific weighting
+        let affinity: number;
+        if (type === 'MANGA') {
+          // Manga: Score 50%, Count 25%, Volume 15%, Baseline 10%
+          affinity = Math.max(0, Math.min(1, (scoreFactor * 0.50) + (countFactor * 0.25) + (volumeFactor * 1.5) + 0.10));
+        } else {
+          // Anime: Volume 40%, Score 35%, Count 15%, Baseline 10%
+          affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.35) + (countFactor * 0.15) + 0.10));
+        }
+        
         const confidence = calculateConfidence(data.count, data.scoredCount, this.GENRE_CONFIDENCE_K);
         return { genre, affinity, count: data.count, avgScore: shrunkScore, confidence };
       })
       .sort((a, b) => b.affinity - a.affinity)
       .slice(0, 15);
 
+    // Adaptive tag cap: clamp(totalEntries / 3, 30, 120)
+    const adaptiveTagCap = Math.max(30, Math.min(120, Math.floor(n / 3)));
+    
     const tagAffinity = Array.from(tagData.entries())
       .map(([tag, data]) => {
-        // Use engagement weight for volume factor instead of raw count
         const totalTagEngagement = Array.from(tagData.values()).reduce((sum, d) => sum + d.engagementWeight, 0);
         const volumeFactor = (data.engagementWeight + this.DIRICHLET_ALPHA) / (totalTagEngagement + tagData.size * this.DIRICHLET_ALPHA);
         const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : this.GLOBAL_MEAN_SCORE;
-        const shrunkScore = (data.scoredCount * avgScore + this.SCORE_SHRINKAGE_LAMBDA * meanScore) / (data.scoredCount + this.SCORE_SHRINKAGE_LAMBDA);
-        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier; // Amplified for completionists
-        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 25 : 20)) * completionEvidenceWeight; // Downweighted for completionists
-        const affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.3) + (countFactor * 0.2) + 0.10));
-        // Use new confidence formula: 1 - exp(-count / k)
+        const shrunkScore = (data.scoredCount * avgScore + shrinkageLambda * meanScore) / (data.scoredCount + shrinkageLambda);
+        const scoreFactor = ((shrunkScore - 5) / 5) * scoreWeightMultiplier;
+        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 25 : 20)) * completionEvidenceWeight;
+        
+        // Type-specific weighting
+        let affinity: number;
+        if (type === 'MANGA') {
+          // Manga: Score 50%, Count 25%, Volume 15%, Baseline 10%
+          affinity = Math.max(0, Math.min(1, (scoreFactor * 0.50) + (countFactor * 0.25) + (volumeFactor * 1.5) + 0.10));
+        } else {
+          // Anime: Volume 40%, Score 30%, Count 20%, Baseline 10%
+          affinity = Math.max(0, Math.min(1, (volumeFactor * 4.0) + (scoreFactor * 0.3) + (countFactor * 0.2) + 0.10));
+        }
+        
         const confidence = calculateConfidence(data.count, data.scoredCount, this.TAG_CONFIDENCE_K);
         return { tag, affinity, count: data.count, avgScore: shrunkScore, avgRank: data.avgRank, confidence };
       })
       .sort((a, b) => b.affinity - a.affinity)
-      .slice(0, 20);
+      .slice(0, Math.min(20, adaptiveTagCap));
 
-    const studioBias = Array.from(sourceData.entries())
-      .map(([source, data]) => {
-        const volumeFactor = totalProgress > 0 ? (data.progressUnits / totalProgress) : 0;
-        const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : 7;
-        const scoreFactor = avgScore / 10;
-        const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 10 : 5));
-        const bias = (volumeFactor * 0.5) + (scoreFactor * 0.3) + (countFactor * 0.2);
-        return { studio: source, bias, count: data.count, avgScore };
-      })
-      .sort((a, b) => b.bias - a.bias)
-      .slice(0, 10);
+    // For manga: create TWO separate author outputs (Most Read vs Most Loved)
+    // For anime: keep existing studio bias
+    const sourceEntries = Array.from(sourceData.entries()).map(([source, data]) => {
+      const volumeFactor = totalProgress > 0 ? (data.progressUnits / totalProgress) : 0;
+      const avgScore = data.scoredCount > 0 ? (data.totalScore / data.scoredCount) : 7;
+      const scoreFactor = avgScore / 10;
+      const countFactor = Math.min(1, data.count / (type === 'ANIME' ? 10 : 5));
+      
+      // Combined bias (original formula)
+      const bias = (volumeFactor * 0.5) + (scoreFactor * 0.3) + (countFactor * 0.2);
+      
+      // Separate rankings for manga authors
+      const readBias = volumeFactor * 0.7 + countFactor * 0.3;  // Progress-weighted
+      const loveBias = scoreFactor * 0.8 + countFactor * 0.2;   // Score-weighted
+      
+      return { 
+        studio: source, 
+        bias, 
+        readBias,
+        loveBias,
+        count: data.count, 
+        avgScore,
+        // Manga-specific "Why this author?" stats
+        chaptersRead: data.chaptersRead || 0,
+        completedCount: data.completedCount || 0,
+        bestScore: data.bestScore || 0,
+        bestTitle: data.bestTitle || ''
+      };
+    });
+    
+    // For manga: use combined "Most Loved" ranking (score-weighted)
+    // For anime: keep original volume-based ranking
+    const studioBias = type === 'MANGA'
+      ? sourceEntries.sort((a, b) => b.loveBias - a.loveBias).slice(0, 10)
+      : sourceEntries.sort((a, b) => b.bias - a.bias).slice(0, 10);
 
     const eraPreference = Array.from(yearData.entries())
       .map(([year, data]) => {

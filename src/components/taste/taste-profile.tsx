@@ -1076,7 +1076,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       {tasteProfile.studioBias.length > 0 && (
       <div className="p-6 rounded-xl bg-white/5 border border-white/10">
         <h3 className="text-lg font-semibold text-white mb-2">{activeTab === 'ANIME' ? 'Favorite Studios' : 'Top Authors'}</h3>
-        <p className="text-sm text-gray-400 mb-6">Your most {activeTab === 'ANIME' ? 'watched animation studios' : 'read authors'}</p>
+        <p className="text-sm text-gray-400 mb-6">Your most {activeTab === 'ANIME' ? 'watched animation studios' : 'loved authors'}</p>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -1119,6 +1119,26 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               </Pie>
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload[0]) return null;
+                  const data = payload[0].payload;
+                  const isManga = activeTab === 'MANGA';
+                  return (
+                    <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm">
+                      <p className="font-bold text-white mb-2">{data.studio}</p>
+                      <div className="space-y-1 text-gray-300 text-xs">
+                        <p>📚 {data.count} title{data.count !== 1 ? 's' : ''} {isManga ? 'read' : 'watched'}</p>
+                        {isManga && data.chaptersRead > 0 && (
+                          <p>📖 {data.chaptersRead.toLocaleString()} chapters read</p>
+                        )}
+                        <p>⭐ {data.avgScore?.toFixed(1) || 'N/A'} avg score</p>
+                        {isManga && data.bestTitle && (
+                          <p className="text-green-400">🏆 Best: {data.bestTitle} ({data.bestScore}/10)</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }}
               />
               <Legend verticalAlign="bottom" height={36}/>
             </PieChart>
