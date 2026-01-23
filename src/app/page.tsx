@@ -293,7 +293,7 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           {/* Left: Logo + Brand */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <Logo size="sm" />
+            <Logo size="sm" showText={false} />
             <div className="leading-tight hidden md:block">
               <div className="text-base font-bold text-white">AniLens</div>
             </div>
