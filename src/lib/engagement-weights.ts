@@ -186,3 +186,16 @@ export function filterByStatus(
   if (includedStatuses.length === 0) return entries;
   return entries.filter(entry => includedStatuses.includes(entry.status));
 }
+
+/**
+ * Filter entries by format (for manga ecosystem separation)
+ */
+export function filterByFormat(
+  entries: MediaListEntry[],
+  includedFormats: string[]
+): MediaListEntry[] {
+  if (includedFormats.length === 0) return entries;
+  return entries.filter(entry => 
+    entry.media?.format && includedFormats.includes(entry.media.format)
+  );
+}

@@ -80,6 +80,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const [showGlossary, setShowGlossary] = useState(false);
   // Status filter for analysis - which list statuses to include
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set(['COMPLETED', 'CURRENT', 'REPEATING']));
+  // Format filters for manga ecosystem separation
+  const [formatFilters, setFormatFilters] = useState<Set<string>>(new Set(['MANGA', 'NOVEL', 'ONE_SHOT']));
   
   const STATUS_LABELS: Record<string, string> = {
     'COMPLETED': 'Completed',
@@ -88,6 +90,14 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     'PAUSED': 'Paused',
     'DROPPED': 'Dropped',
     'PLANNING': activeTab === 'ANIME' ? 'Plan to Watch' : 'Plan to Read',
+  };
+  
+  const FORMAT_LABELS: Record<string, string> = {
+    'MANGA': 'Manga',
+    'NOVEL': 'Light Novel',
+    'ONE_SHOT': 'One-shot',
+    'MANHWA': 'Manhwa',
+    'MANHUA': 'Manhua',
   };
   
   const toggleStatusFilter = (status: string) => {
@@ -100,6 +110,21 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         }
       } else {
         newSet.add(status);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleFormatFilter = (format: string) => {
+    setFormatFilters(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(format)) {
+        // Don't allow removing all filters
+        if (newSet.size > 1) {
+          newSet.delete(format);
+        }
+      } else {
+        newSet.add(format);
       }
       return newSet;
     });
@@ -154,10 +179,19 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     enabled: false,
   });
 
-  // Normalize list: flatten, dedupe, and filter based on status filters
+  // Normalize list: flatten, dedupe, and filter based on status filters + format filters
   const analyzedEntries = useMemo(() => {
-    return normalizeMediaList(currentList, { statuses: Array.from(statusFilters) });
-  }, [currentList, statusFilters]);
+    const normalized = normalizeMediaList(currentList, { statuses: Array.from(statusFilters) });
+    
+    // Apply format filter for manga only
+    if (activeTab === 'MANGA' && formatFilters.size > 0 && formatFilters.size < 5) {
+      return normalized.filter(entry => 
+        entry.media?.format && formatFilters.has(entry.media.format)
+      );
+    }
+    
+    return normalized;
+  }, [currentList, statusFilters, formatFilters, activeTab]);
   
   // Get ALL entries (unfiltered) for accurate total counts
   const allEntries = useMemo(() => {
@@ -499,6 +533,26 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           ({analyzedEntries.length} of {allEntries.length} entries)
         </span>
       </div>
+
+      {/* Format Filters (Manga only) */}
+      {activeTab === 'MANGA' && (
+        <div className="flex flex-wrap items-center justify-center gap-2 px-4">
+          <span className="text-xs text-gray-500 mr-2">Format:</span>
+          {Object.keys(FORMAT_LABELS).map(format => (
+            <button
+              key={format}
+              onClick={() => toggleFormatFilter(format)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                formatFilters.has(format)
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {FORMAT_LABELS[format]}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Emotional Profile View */}
       {viewMode === 'emotional' && (

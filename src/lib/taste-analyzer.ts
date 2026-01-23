@@ -5,7 +5,8 @@ import {
   calculateUserScoreStats, 
   calculateConfidence,
   filterByTimeWindow,
-  filterByStatus
+  filterByStatus,
+  filterByFormat
 } from './engagement-weights';
 import { generateListHash, analyzeDataCompleteness, DataCompletenessFlags } from './taste-profile-cache';
 
@@ -24,6 +25,8 @@ export interface AnalysisOptions {
   timeWindow?: 'all' | '12months' | '90days';
   includedStatuses?: string[];
   type?: 'ANIME' | 'MANGA';
+  // Format filters for manga ecosystem separation
+  includedFormats?: string[];  // If specified, only include these formats
 }
 
 export interface AnalysisResult {
@@ -106,10 +109,16 @@ export class TasteAnalyzer {
     const type = options.type || 'ANIME';
     const timeWindow = options.timeWindow || 'all';
     const includedStatuses = options.includedStatuses || ['COMPLETED', 'CURRENT', 'DROPPED', 'PAUSED', 'REPEATING'];
+    const includedFormats = options.includedFormats || [];
     
     // Apply filters
     let filteredList = filterByStatus(mediaList, includedStatuses);
     filteredList = filterByTimeWindow(filteredList, timeWindow);
+    
+    // Apply format filter (for manga ecosystem separation)
+    if (includedFormats.length > 0) {
+      filteredList = filterByFormat(filteredList, includedFormats);
+    }
     
     // Generate hash and check completeness
     const listHash = generateListHash(filteredList, type);
