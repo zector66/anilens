@@ -79,8 +79,15 @@ const PERSONALITY_AXES = ['chaosLevel', 'emotionalDamageIndex', 'completionist',
 const TAG_HASH_BUCKETS = 64;
 
 // Top-K limits for prediction (prevents noise from weak signals)
-const TOP_K_GENRES = 3;  // Use best 3 genre matches
-const TOP_K_TAGS = 8;    // Use best 8 tag matches
+const TOP_K_GENRES = 2;  // Use best 2 genre matches (Fix 2)
+const TOP_K_TAGS = 6;    // Use best 6 ranked tags (Fix 2)
+
+// Support genre merging (Fix 7: Slice of Life penalty reduction)
+const SUPPORT_GENRES: Record<string, string[]> = {
+  'Slice of Life': ['Romance', 'Drama', 'Comedy'],  // If user likes Romance/Drama, reduce SoL penalty
+  'Sports': ['Drama', 'Action'],
+  'Mecha': ['Sci-Fi', 'Action'],
+};
 
 // Adjacent genre/tag correlations (users who like A often tolerate B)
 const GENRE_ADJACENCY: Record<string, string[]> = {
@@ -447,12 +454,13 @@ export function predictEnjoyment(
   // ============================================
   // 1. Genre score using TOP-K matching
   // ============================================
-  const genreAffinities: Array<{ genre: string; affinity: number; hasAdjacencyBoost: boolean }> = [];
+  const genreAffinities: Array<{ genre: string; affinity: number; hasAdjacencyBoost: boolean; penaltyReduced: boolean }> = [];
   
   for (const genre of media.genres) {
     const key = normalizeTagKey(genre);
     let affinity = genreMap.get(key);
     let hasAdjacencyBoost = false;
+    let penaltyReduced = false;
     
     // If no direct match, check adjacency boost
     if (affinity === undefined || affinity < 0.3) {
@@ -468,8 +476,24 @@ export function predictEnjoyment(
       }
     }
     
+    // Fix 7: Support genre penalty reduction (Slice of Life + Romance/Drama)
+    // If user likes a "parent" genre, reduce penalty of the "child" genre
+    if (affinity !== undefined && affinity < 0.5) {
+      const supportGenres = SUPPORT_GENRES[genre] || [];
+      for (const support of supportGenres) {
+        const supportKey = normalizeTagKey(support);
+        const supportAffinity = genreMap.get(supportKey);
+        if (supportAffinity && supportAffinity > 0.6) {
+          // Reduce negative penalty by 40% if user likes a related genre
+          affinity = 0.5 - (0.5 - affinity) * 0.6;
+          penaltyReduced = true;
+          break;
+        }
+      }
+    }
+    
     if (affinity !== undefined) {
-      genreAffinities.push({ genre, affinity, hasAdjacencyBoost });
+      genreAffinities.push({ genre, affinity, hasAdjacencyBoost, penaltyReduced });
     }
   }
   
@@ -580,22 +604,32 @@ export function predictEnjoyment(
   const qualityBoost = Math.pow(quality, 0.65);  // Curve emphasizes high end
   
   // ============================================
-  // FINAL: Weighted combination with stronger quality influence
+  // FINAL: Match score from TOP matches only (Fix 2)
   // ============================================
-  const weights = { genre: 0.30, tag: 0.30, pop: 0.10, quality: 0.30 };
-  const rawAffinity = 
-    weights.genre * genreScore +
-    weights.tag * tagScore +
-    weights.pop * popMatch +
-    weights.quality * qualityBoost;
+  // 45% top genres + 55% top tags (weighted by rank)
+  const matchScore = 0.45 * genreScore + 0.55 * tagScore;
   
-  // Convert to user's rating scale
-  const predictedZ = (rawAffinity - 0.5) * 2;
-  const predictedScore = clamp(
-    userStats.mean + predictedZ * userStats.std * 1.5,
+  // ============================================
+  // BASELINE FLOOR for global classics (Fix 3)
+  // ============================================
+  // Steins;Gate / AoT / FMAB can't "expect 6" - they minimum land in 7.5-9 range
+  const qualityFloor = clamp((media.meanScore - 65) / 35, 0, 1);  // 65→100 maps to 0→1
+  const fameFloor = clamp((Math.log10(Math.max(1, media.popularity)) - 4) / 2, 0, 1);  // 10k→1M
+  const baselineFloor = 5.5 + 2.5 * qualityFloor + 1.0 * fameFloor;  // 5.5 → 9.0
+  
+  // ============================================
+  // Convert match score to user scale (Fix 8: more aggressive)
+  // ============================================
+  const clampedStd = clamp(userStats.std, 1.2, 2.2);  // Fix 8: sane std range
+  const predictedZ = (matchScore - 0.5) * 3.0;  // Fix 8: 3.0 instead of 2.0
+  let predictedScore = clamp(
+    userStats.mean + predictedZ * clampedStd,
     1,
     10
   );
+  
+  // Apply baseline floor (Fix 3)
+  predictedScore = Math.max(predictedScore, baselineFloor);
   
   // ============================================
   // Confidence and uncertainty bands
@@ -674,25 +708,27 @@ export interface TasteContradiction {
   
   actualScore: number;
   expectedScore: number;
-  expectedRange: { low: number; high: number };  // Confidence band
+  expectedRange: { low: number; high: number };
   residual: number;
   residualZ: number;
+  matchScore: number;  // 0-1, how well this matches your taste profile
+  surpriseScore: number;  // For true wildcards
   
-  // Improved classification types
+  // CLEAN 3-bucket classification (Fix 1, 4)
   contradictionType: 
-    | 'ON_BRAND_FAVORITE'      // High residual + strong match factors OR acclaimed
-    | 'TASTE_SURPRISE'         // High residual + genuinely mismatched taste
-    | 'GUILTY_PLEASURE'        // High residual + low community score / trashy
-    | 'PERSONAL_EXCEPTION'     // Low residual (you rated lower than expected)
-    | 'EXECUTION_BETRAYAL';    // Dropped despite good match
+    | 'ON_BRAND_FAVORITE'   // High match + high score - "Exactly your taste"
+    | 'GENRE_EXCEPTION'     // Loved despite 1 mismatch - "Beat your stereotype" (Fix 1)
+    | 'TRUE_WILDCARD'       // Low match + high score + not explainable by fame (Fix 4)
+    | 'PERSONAL_EXCEPTION'  // You rated lower than expected
+    | 'EXECUTION_BETRAYAL'; // Dropped despite good match
   label: string;
   explanation: string;
   
-  // BOTH sides shown for transparency
-  negativeFactors: Array<{ factor: string; affinity: number; reason: string }>;
-  positiveFactors: Array<{ factor: string; affinity: number; reason: string }>;
+  // Fix 5: "You loved it because..." + "Despite..."
+  lovedBecause: Array<{ factor: string; affinity: number }>;
+  despite: Array<{ factor: string; affinity: number }>;
   
-  // Media context for classification
+  // Media context
   meanScore: number;
   popularity: number;
 }
@@ -704,6 +740,7 @@ export function detectContradictions(
   userStats: { mean: number; std: number }
 ): TasteContradiction[] {
   const contradictions: TasteContradiction[] = [];
+  const seenMediaIds = new Set<number>();  // Fix 6: Dedupe by media.id
   
   const analyzable = entries.filter(e => 
     e.score && e.score >= 1 && 
@@ -711,8 +748,16 @@ export function detectContradictions(
     (e.status === 'COMPLETED' || e.status === 'DROPPED')
   );
   
+  // Fix 8: Use clamped std for more realistic residuals
+  const clampedStd = clamp(userStats.std, 1.2, 2.2);
+  
   for (const entry of analyzable) {
     const media = entry.media!;
+    
+    // Fix 6: Skip duplicates
+    if (seenMediaIds.has(media.id)) continue;
+    seenMediaIds.add(media.id);
+    
     const actualScore = entry.score!;
     
     const mediaFeatures: MediaFeatures = {
@@ -729,31 +774,30 @@ export function detectContradictions(
     const expectedScore = prediction.predictedScore;
     const expectedRange = prediction.expectedRange;
     const residual = actualScore - expectedScore;
-    const residualZ = residual / (userStats.std || 1.5);
+    const residualZ = residual / clampedStd;
     
-    // Only flag as contradiction if OUTSIDE the expected range
-    // This prevents "wtf anomaly" labels for scores within confidence band
-    const isOutsideRange = actualScore < expectedRange.low || actualScore > expectedRange.high;
-    if (Math.abs(residualZ) < 1.2 && !isOutsideRange) continue;
+    // Calculate match score (0-1) from component scores
+    const matchScore = 0.45 * prediction.componentScores.genreScore + 0.55 * prediction.componentScores.tagScore;
     
-    // Extract positive and negative factors with affinity values
-    const negativeFactors = prediction.matchFactors
-      .filter(f => f.direction === 'negative')
-      .map(f => ({ 
-        factor: f.factor, 
-        affinity: Math.round(f.affinity * 100),
-        reason: `${Math.round(f.affinity * 100)}% affinity` 
-      }));
-    const positiveFactors = prediction.matchFactors
+    // Calculate surprise score (Fix 4: true surprise requires low match)
+    // surprise = residualZ * (1 - matchScore) * (1 - confidence)
+    const surpriseScore = Math.abs(residualZ) * (1 - matchScore) * (1 - prediction.confidence);
+    
+    // Only flag as contradiction if significantly outside expected
+    if (Math.abs(residualZ) < 1.0) continue;
+    
+    // Extract factors for "You loved it because..." + "Despite..." (Fix 5)
+    const lovedBecause = prediction.matchFactors
       .filter(f => f.direction === 'positive')
-      .map(f => ({ 
-        factor: f.factor, 
-        affinity: Math.round(f.affinity * 100),
-        reason: `${Math.round(f.affinity * 100)}% affinity` 
-      }));
+      .slice(0, 3)
+      .map(f => ({ factor: f.factor, affinity: Math.round(f.affinity * 100) }));
+    const despite = prediction.matchFactors
+      .filter(f => f.direction === 'negative')
+      .slice(0, 2)
+      .map(f => ({ factor: f.factor, affinity: Math.round(f.affinity * 100) }));
     
     // ============================================
-    // IMPROVED CLASSIFICATION LOGIC
+    // CLEAN 3-BUCKET CLASSIFICATION (Fix 1, 4)
     // ============================================
     let contradictionType: TasteContradiction['contradictionType'];
     let label: string;
@@ -761,50 +805,58 @@ export function detectContradictions(
     
     const meanScore = mediaFeatures.meanScore;
     const popularity = mediaFeatures.popularity;
-    const strongPositiveMatches = positiveFactors.filter(f => f.affinity > 70).length;
+    const isMainstream = meanScore >= 80 || popularity >= 100000;
     
     if (residual > 0 && entry.status === 'COMPLETED') {
       // User scored HIGHER than expected
       
-      if (meanScore >= 80 || popularity >= 100000 || strongPositiveMatches >= 3) {
-        // ON-BRAND FAVORITE: Acclaimed/popular OR strong positive matches
-        // This is NOT a surprise - user loves what they should love
+      if (matchScore >= 0.70 && actualScore >= 8) {
+        // ON-BRAND FAVORITE: High match + high score = "Exactly your taste"
         contradictionType = 'ON_BRAND_FAVORITE';
-        label = 'Core Favorite';
-        const topPositive = positiveFactors.slice(0, 2).map(f => f.factor).join(', ');
-        explanation = topPositive 
-          ? `Strong alignment with ${topPositive}. This is exactly your lane.`
-          : `Highly acclaimed title (${meanScore}% rated) that resonates with your taste.`;
-      } else if (negativeFactors.length >= 2 && positiveFactors.length <= 1) {
-        // TASTE SURPRISE: Genuinely unexpected - multiple negative signals, few positive
-        contradictionType = 'TASTE_SURPRISE';
-        label = 'Taste Surprise';
-        const topNeg = negativeFactors[0]?.factor || 'unknown factors';
-        explanation = `Despite ${negativeFactors.length} factors working against it (like ${topNeg}), you rated this +${residual.toFixed(1)} above expected. Something clicked beyond the data.`;
-      } else if (meanScore < 70) {
-        // GUILTY PLEASURE: User loves it but community doesn't rate it highly
-        contradictionType = 'GUILTY_PLEASURE';
-        label = 'Guilty Pleasure';
-        explanation = `Community rates this ${meanScore}%, but you gave it ${actualScore}. A personal favorite that transcends critical consensus.`;
+        label = 'On-Brand Favorite';
+        const topFactors = lovedBecause.slice(0, 2).map(f => f.factor).join(', ');
+        explanation = topFactors 
+          ? `You loved it because: ${topFactors}. Exactly your lane.`
+          : `This fits your taste perfectly.`;
+      } else if (matchScore >= 0.45 && despite.length >= 1) {
+        // GENRE EXCEPTION (Fix 1): Loved despite 1 mismatch = "Beat your stereotype"
+        contradictionType = 'GENRE_EXCEPTION';
+        label = 'Genre Exception';
+        const topLoved = lovedBecause[0]?.factor || 'other factors';
+        const topDespite = despite[0]?.factor || 'a mismatch';
+        explanation = `You loved it because: ${topLoved}. Despite: ${topDespite} (${despite[0]?.affinity || 0}%).`;
+      } else if (matchScore < 0.45 && surpriseScore > 1.2 && !isMainstream) {
+        // TRUE WILDCARD (Fix 4): Low match + high surprise + not explainable by fame
+        contradictionType = 'TRUE_WILDCARD';
+        label = 'True Wildcard';
+        explanation = `This one makes no sense (in a cool way). Low profile match but you gave it ${actualScore}.`;
+      } else if (matchScore < 0.45 && despite.length >= 1) {
+        // Genre exception even if low match, as long as there's a clear mismatch
+        contradictionType = 'GENRE_EXCEPTION';
+        label = 'Genre Exception';
+        const topDespite = despite[0]?.factor || 'a mismatch';
+        explanation = `You beat your own stereotype. Despite: ${topDespite} (${despite[0]?.affinity || 0}%).`;
       } else {
-        // Default to ON_BRAND if we can't classify better
+        // Default to on-brand for mainstream titles
         contradictionType = 'ON_BRAND_FAVORITE';
-        label = 'Personal Favorite';
-        explanation = `You rated this ${residual.toFixed(1)} points above model expectation. A standout in your collection.`;
+        label = isMainstream ? 'Mainstream Hit' : 'Personal Favorite';
+        explanation = isMainstream 
+          ? `Highly acclaimed (${meanScore}%) and you agreed.`
+          : `You rated this +${residual.toFixed(1)} above expected.`;
       }
     } else if (residual < 0 && entry.status === 'COMPLETED') {
       // User scored LOWER than expected
       contradictionType = 'PERSONAL_EXCEPTION';
       label = 'Personal Exception';
-      const topPos = positiveFactors[0]?.factor;
-      explanation = topPos
-        ? `Matched your taste (${topPos}: ${positiveFactors[0]?.affinity}%) but you rated it ${actualScore}. Execution > ingredients.`
+      const topLoved = lovedBecause[0];
+      explanation = topLoved
+        ? `Matched your taste (${topLoved.factor}: ${topLoved.affinity}%) but you gave it ${actualScore}. Execution > ingredients.`
         : `Predicted ${expectedScore.toFixed(1)} but you gave it ${actualScore}. Sometimes things just don't click.`;
     } else {
       // DROPPED despite good prediction
       contradictionType = 'EXECUTION_BETRAYAL';
       label = 'Execution Betrayal';
-      explanation = `Matched your profile (predicted ${expectedScore.toFixed(1)}) but you dropped it. The concept didn't match the delivery.`;
+      explanation = `Matched your profile but you dropped it. The concept didn't match the delivery.`;
     }
     
     contradictions.push({
@@ -816,16 +868,19 @@ export function detectContradictions(
       expectedRange,
       residual: Math.round(residual * 10) / 10,
       residualZ: Math.round(residualZ * 100) / 100,
+      matchScore: Math.round(matchScore * 100) / 100,
+      surpriseScore: Math.round(surpriseScore * 100) / 100,
       meanScore,
       popularity,
       contradictionType,
       label,
       explanation,
-      negativeFactors: negativeFactors.slice(0, 3),
-      positiveFactors: positiveFactors.slice(0, 3)
+      lovedBecause,
+      despite
     });
   }
   
+  // Sort by residual magnitude (most surprising first)
   contradictions.sort((a, b) => Math.abs(b.residualZ) - Math.abs(a.residualZ));
   return contradictions;
 }

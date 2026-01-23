@@ -40,10 +40,10 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
     [entries, profile, genome]
   );
 
-  // Categorize contradictions with new classification types
-  const coreFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');
-  const tasteSurprises = contradictions.filter(c => c.contradictionType === 'TASTE_SURPRISE');
-  const guiltyPleasures = contradictions.filter(c => c.contradictionType === 'GUILTY_PLEASURE');
+  // Categorize contradictions with CLEAN 3-bucket classification
+  const onBrandFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');
+  const genreExceptions = contradictions.filter(c => c.contradictionType === 'GENRE_EXCEPTION');
+  const trueWildcards = contradictions.filter(c => c.contradictionType === 'TRUE_WILDCARD');
   const personalExceptions = contradictions.filter(c => c.contradictionType === 'PERSONAL_EXCEPTION');
 
   return (
@@ -121,40 +121,40 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
             </div>
           ) : (
             <>
-              {/* Core Favorites - On-brand titles you love */}
-              {coreFavorites.length > 0 && (
+              {/* On-Brand Favorites - Exactly your taste */}
+              {onBrandFavorites.length > 0 && (
                 <ContradictionSection
-                  title="Core Favorites"
-                  subtitle="Exactly your lane — you love what you should love"
+                  title="On-Brand Favorites"
+                  subtitle="Exactly your taste"
                   icon={<Star className="w-4 h-4 text-purple-400" />}
-                  items={showAll ? coreFavorites : coreFavorites.slice(0, 3)}
+                  items={showAll ? onBrandFavorites : onBrandFavorites.slice(0, 3)}
                   color="purple"
                 />
               )}
 
-              {/* Taste Surprises - Genuinely unexpected */}
-              {tasteSurprises.length > 0 && (
+              {/* Genre Exceptions - You beat your stereotype */}
+              {genreExceptions.length > 0 && (
                 <ContradictionSection
-                  title="Taste Surprises"
-                  subtitle="Outside your comfort zone, but something clicked"
+                  title="Genre Exceptions"
+                  subtitle="Shows you loved despite one major mismatch"
                   icon={<Sparkles className="w-4 h-4 text-yellow-400" />}
-                  items={showAll ? tasteSurprises : tasteSurprises.slice(0, 3)}
+                  items={showAll ? genreExceptions : genreExceptions.slice(0, 3)}
                   color="yellow"
                 />
               )}
 
-              {/* Guilty Pleasures */}
-              {guiltyPleasures.length > 0 && (
+              {/* True Wildcards - Makes no sense (in a cool way) */}
+              {trueWildcards.length > 0 && (
                 <ContradictionSection
-                  title="Guilty Pleasures"
-                  subtitle="Community disagrees, but you loved it anyway"
+                  title="True Wildcards"
+                  subtitle="Low profile match but you loved it anyway"
                   icon={<Heart className="w-4 h-4 text-pink-400" />}
-                  items={showAll ? guiltyPleasures : guiltyPleasures.slice(0, 3)}
+                  items={showAll ? trueWildcards : trueWildcards.slice(0, 3)}
                   color="pink"
                 />
               )}
 
-              {/* Personal Exceptions */}
+              {/* Personal Exceptions - Didn't click */}
               {personalExceptions.length > 0 && (
                 <ContradictionSection
                   title="Personal Exceptions"
@@ -394,14 +394,21 @@ function ContradictionRow({ contradiction }: { contradiction: TasteContradiction
           </div>
         </div>
 
-        {/* Why it was unexpected */}
-        {(contradiction.negativeFactors.length > 0 || contradiction.positiveFactors.length > 0) && (
-          <div className="mt-2 text-xs text-gray-400 line-clamp-2">
-            {contradiction.negativeFactors.length > 0 
-              ? contradiction.negativeFactors[0].reason
-              : contradiction.positiveFactors[0]?.reason}
-          </div>
-        )}
+        {/* Fix 5: "You loved it because..." + "Despite..." */}
+        <div className="mt-2 text-xs space-y-0.5">
+          {contradiction.lovedBecause.length > 0 && (
+            <div className="text-green-400/80">
+              <span className="text-gray-500">Loved: </span>
+              {contradiction.lovedBecause.slice(0, 2).map(f => `${f.factor} (${f.affinity}%)`).join(', ')}
+            </div>
+          )}
+          {contradiction.despite.length > 0 && (
+            <div className="text-orange-400/80">
+              <span className="text-gray-500">Despite: </span>
+              {contradiction.despite.map(f => `${f.factor} (${f.affinity}%)`).join(', ')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
