@@ -61,6 +61,7 @@ import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
 import { TraitInsightsCard } from './trait-insights-card';
+import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -100,6 +101,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     'MANHWA': 'Manhwa',
     'MANHUA': 'Manhua',
   };
+
+  // NEW: Get trait-based stats from enhanced genome
+  const { traitStats } = useEnhancedGenome();
   
   const toggleStatusFilter = (status: string) => {
     setStatusFilters(prev => {
@@ -739,19 +743,19 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             </div>
           </div>
           <div className="text-4xl font-bold text-red-400 mb-3">
-            {tasteProfile.personalityTraits.emotionalDamageIndex.toFixed(1)}
+            {(traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex).toFixed(1)}
             <span className="text-lg text-gray-500">/10</span>
           </div>
           <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
             <div 
               className="h-full bg-linear-to-r from-red-500 to-orange-500 rounded-full"
-              style={{ width: `${tasteProfile.personalityTraits.emotionalDamageIndex * 10}%` }}
+              style={{ width: `${(traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) * 10}%` }}
             />
           </div>
           <p className="text-sm text-gray-400">
-            {tasteProfile.personalityTraits.emotionalDamageIndex > 7 
+            {(traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) > 7 
               ? "You love to suffer. Tragedy is your middle name."
-              : tasteProfile.personalityTraits.emotionalDamageIndex > 4
+              : (traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) > 4
               ? `You enjoy some emotional depth in your ${activeTab === 'ANIME' ? 'anime' : 'manga'}.`
               : "You prefer to keep things light and fun."
             }
@@ -794,23 +798,23 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                 </div>
               </h4>
               <p className="text-sm text-gray-400">
-                {chaosProfile ? chaosProfile.chaosArchetype : 'How wild is your taste?'}
+                {traitStats?.chaos.chaosArchetype || chaosProfile?.chaosArchetype || 'How wild is your taste?'}
               </p>
             </div>
           </div>
           
           <div className="text-4xl font-bold text-purple-400 mb-1">
-            {chaosProfile ? chaosProfile.chaosLevel.toFixed(0) : tasteProfile.personalityTraits.chaosLevel.toFixed(1)}
+            {(traitStats?.chaos.chaosLevel ?? chaosProfile?.chaosLevel ?? tasteProfile.personalityTraits.chaosLevel * 10).toFixed(0)}
             <span className="text-lg text-gray-500">/100</span>
           </div>
           <div className="text-xs text-purple-300 mb-3">
-            {chaosProfile?.chaosLabel || 'Calculating...'}
+            {traitStats?.chaos.chaosLabel || chaosProfile?.chaosLabel || 'Calculating...'}
           </div>
           
           <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
             <div 
               className="h-full bg-linear-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
-              style={{ width: `${chaosProfile ? chaosProfile.chaosLevel : tasteProfile.personalityTraits.chaosLevel * 10}%` }}
+              style={{ width: `${traitStats?.chaos.chaosLevel ?? chaosProfile?.chaosLevel ?? tasteProfile.personalityTraits.chaosLevel * 10}%` }}
             />
           </div>
           
