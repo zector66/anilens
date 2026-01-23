@@ -269,11 +269,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     return analyzeChaos(analyzedEntries, tasteProfile.tagAffinity);
   }, [analyzedEntries, tasteProfile]);
 
-  // Only show loading screen if we don't have cached data AND haven't booted this session
-  // This prevents flash of loading screen when switching tabs or refreshing
-  const skipLoadingScreen = hasBootedThisSession();
+  // Show loading screen if we're loading and don't have data yet
+  // Skip it only if we've already shown it this session AND we have data in memory
+  const skipLoadingScreen = hasBootedThisSession() && hasData;
   
-  if ((isLoading || isAnalyzing) && !hasData && !skipLoadingScreen) {
+  if ((isLoading || isAnalyzing) && !skipLoadingScreen) {
     return (
       <AnalysisLoadingScreen
         user={user}
@@ -283,8 +283,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     );
   }
   
-  // Mark as booted once we have data (so next refresh skips loading screen)
-  if (hasData && !skipLoadingScreen) {
+  // Mark as booted once we've shown the loading screen at least once
+  if (!hasBootedThisSession()) {
     markAsBooted();
   }
 
