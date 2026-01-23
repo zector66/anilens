@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { 
   Dna, Brain, Sparkles, AlertTriangle, History, 
   ChevronDown, ChevronUp, TrendingUp, TrendingDown,
-  Zap, Heart
+  Zap, Heart, Star
 } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { 
@@ -40,9 +40,10 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
     [entries, profile, genome]
   );
 
-  // Categorize contradictions
+  // Categorize contradictions with new classification types
+  const coreFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');
+  const tasteSurprises = contradictions.filter(c => c.contradictionType === 'TASTE_SURPRISE');
   const guiltyPleasures = contradictions.filter(c => c.contradictionType === 'GUILTY_PLEASURE');
-  const unexpectedMasterpieces = contradictions.filter(c => c.contradictionType === 'UNEXPECTED_MASTERPIECE');
   const personalExceptions = contradictions.filter(c => c.contradictionType === 'PERSONAL_EXCEPTION');
 
   return (
@@ -120,25 +121,36 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
             </div>
           ) : (
             <>
+              {/* Core Favorites - On-brand titles you love */}
+              {coreFavorites.length > 0 && (
+                <ContradictionSection
+                  title="Core Favorites"
+                  subtitle="Exactly your lane — you love what you should love"
+                  icon={<Star className="w-4 h-4 text-purple-400" />}
+                  items={showAll ? coreFavorites : coreFavorites.slice(0, 3)}
+                  color="purple"
+                />
+              )}
+
+              {/* Taste Surprises - Genuinely unexpected */}
+              {tasteSurprises.length > 0 && (
+                <ContradictionSection
+                  title="Taste Surprises"
+                  subtitle="Outside your comfort zone, but something clicked"
+                  icon={<Sparkles className="w-4 h-4 text-yellow-400" />}
+                  items={showAll ? tasteSurprises : tasteSurprises.slice(0, 3)}
+                  color="yellow"
+                />
+              )}
+
               {/* Guilty Pleasures */}
               {guiltyPleasures.length > 0 && (
                 <ContradictionSection
                   title="Guilty Pleasures"
-                  subtitle="You loved these against all odds"
+                  subtitle="Community disagrees, but you loved it anyway"
                   icon={<Heart className="w-4 h-4 text-pink-400" />}
                   items={showAll ? guiltyPleasures : guiltyPleasures.slice(0, 3)}
                   color="pink"
-                />
-              )}
-
-              {/* Unexpected Masterpieces */}
-              {unexpectedMasterpieces.length > 0 && (
-                <ContradictionSection
-                  title="Unexpected Masterpieces"
-                  subtitle="Outside your comfort zone, but you were blown away"
-                  icon={<Sparkles className="w-4 h-4 text-yellow-400" />}
-                  items={showAll ? unexpectedMasterpieces : unexpectedMasterpieces.slice(0, 3)}
-                  color="yellow"
                 />
               )}
 
@@ -315,7 +327,7 @@ interface ContradictionSectionProps {
   subtitle: string;
   icon: React.ReactNode;
   items: TasteContradiction[];
-  color: 'pink' | 'yellow' | 'orange';
+  color: 'pink' | 'yellow' | 'orange' | 'purple';
 }
 
 function ContradictionSection({ title, subtitle, icon, items, color }: ContradictionSectionProps) {
@@ -325,6 +337,7 @@ function ContradictionSection({ title, subtitle, icon, items, color }: Contradic
     pink: 'from-pink-500/10 to-pink-500/5 border-pink-500/20',
     yellow: 'from-yellow-500/10 to-yellow-500/5 border-yellow-500/20',
     orange: 'from-orange-500/10 to-orange-500/5 border-orange-500/20',
+    purple: 'from-purple-500/10 to-purple-500/5 border-purple-500/20',
   };
 
   return (

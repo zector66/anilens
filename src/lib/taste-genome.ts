@@ -78,14 +78,51 @@ const PERSONALITY_AXES = ['chaosLevel', 'emotionalDamageIndex', 'completionist',
 
 const TAG_HASH_BUCKETS = 64;
 
+// Top-K limits for prediction (prevents noise from weak signals)
+const TOP_K_GENRES = 3;  // Use best 3 genre matches
+const TOP_K_TAGS = 8;    // Use best 8 tag matches
+
+// Adjacent genre/tag correlations (users who like A often tolerate B)
+const GENRE_ADJACENCY: Record<string, string[]> = {
+  'Sci-Fi': ['Thriller', 'Mystery', 'Mecha'],
+  'Psychological': ['Thriller', 'Mystery', 'Horror'],
+  'Mystery': ['Thriller', 'Psychological'],
+  'Horror': ['Thriller', 'Psychological'],
+  'Fantasy': ['Adventure', 'Action'],
+  'Romance': ['Drama', 'Slice of Life', 'Comedy'],
+  'Drama': ['Romance', 'Slice of Life'],
+  'Action': ['Adventure', 'Fantasy', 'Sci-Fi'],
+  'Adventure': ['Action', 'Fantasy'],
+  'Comedy': ['Slice of Life', 'Romance'],
+  'Slice of Life': ['Comedy', 'Drama', 'Romance'],
+};
+
+const TAG_ADJACENCY: Record<string, string[]> = {
+  'Time Travel': ['Sci-Fi', 'Psychological', 'Mind Games'],
+  'Psychological': ['Mind Games', 'Thriller', 'Mystery'],
+  'Mind Games': ['Psychological', 'Strategy'],
+  'Dark': ['Gore', 'Tragedy', 'Revenge'],
+  'Tragedy': ['Dark', 'Drama'],
+  'Isekai': ['Fantasy', 'Adventure', 'Reincarnation'],
+};
+
+// ============================================
+// TAG KEY NORMALIZATION (fixes string mismatch)
+// ============================================
+
+function normalizeTagKey(tagName: string): string {
+  return tagName.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 // ============================================
 // FEATURE HASHING
 // ============================================
 
 function hashTag(tagName: string): number {
+  const normalized = normalizeTagKey(tagName);
   let hash = 0;
-  for (let i = 0; i < tagName.length; i++) {
-    const char = tagName.charCodeAt(i);
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
@@ -358,6 +395,7 @@ export interface MediaFeatures {
 
 export interface EnjoymentPrediction {
   predictedScore: number;
+  expectedRange: { low: number; high: number };  // Confidence band
   confidence: number;
   confidenceLabel: string;
   probabilityOfLiking: number;
@@ -366,12 +404,28 @@ export interface EnjoymentPrediction {
     type: 'genre' | 'tag' | 'popularity' | 'community';
     contribution: number;
     direction: 'positive' | 'negative' | 'neutral';
+    affinity: number;  // Raw affinity value (0-1)
   }>;
   riskLevel: 'SAFE' | 'MODERATE' | 'EXPERIMENTAL';
+  
+  // Breakdown for transparency
+  componentScores: {
+    genreScore: number;
+    tagScore: number;
+    qualityBoost: number;
+    popMatch: number;
+  };
 }
 
 /**
- * Predict enjoyment using AVERAGED group scores (not summed)
+ * Predict enjoyment using TOP-K matching (best matches, not all)
+ * 
+ * Key improvements:
+ * - Top-K genres/tags (ignores weak matches)
+ * - Curved quality boost for acclaimed titles
+ * - Adjacent genre/tag support
+ * - Confidence-based uncertainty bands
+ * - Normalized tag matching
  */
 export function predictEnjoyment(
   genome: TasteGenome,
@@ -381,82 +435,159 @@ export function predictEnjoyment(
 ): EnjoymentPrediction {
   const matchFactors: EnjoymentPrediction['matchFactors'] = [];
   
-  // Build lookup maps
-  const genreMap = new Map(genome.dimensions.filter(d => d.category === 'genre').map(d => [d.name, d.value]));
-  const tagMap = new Map(genome.dimensions.filter(d => d.category === 'tag').map(d => [d.name, d.value]));
-  const profileTagMap = new Map(profile.tagAffinity.map(t => [t.tag, t.affinity / 100]));
+  // Build lookup maps with NORMALIZED keys
+  const genreMap = new Map(genome.dimensions.filter(d => d.category === 'genre').map(d => [normalizeTagKey(d.name), d.value]));
+  const tagMap = new Map(genome.dimensions.filter(d => d.category === 'tag').map(d => [normalizeTagKey(d.name), d.value]));
+  const profileTagMap = new Map(profile.tagAffinity.map(t => [normalizeTagKey(t.tag), t.affinity / 100]));
   
-  // 1. Genre score (AVERAGED, not summed)
-  let genreSum = 0;
-  let genreCount = 0;
+  // Also keep original names for display
+  const genreDisplayMap = new Map(genome.dimensions.filter(d => d.category === 'genre').map(d => [normalizeTagKey(d.name), d.name]));
+  const tagDisplayMap = new Map(genome.dimensions.filter(d => d.category === 'tag').map(d => [normalizeTagKey(d.name), d.name]));
+  
+  // ============================================
+  // 1. Genre score using TOP-K matching
+  // ============================================
+  const genreAffinities: Array<{ genre: string; affinity: number; hasAdjacencyBoost: boolean }> = [];
+  
   for (const genre of media.genres) {
-    const affinity = genreMap.get(genre);
-    if (affinity !== undefined) {
-      genreSum += affinity;
-      genreCount++;
-      if (Math.abs(affinity - 0.5) > 0.2) {
-        matchFactors.push({
-          factor: genre,
-          type: 'genre',
-          contribution: Math.abs(affinity - 0.5),
-          direction: affinity > 0.5 ? 'positive' : 'negative'
-        });
+    const key = normalizeTagKey(genre);
+    let affinity = genreMap.get(key);
+    let hasAdjacencyBoost = false;
+    
+    // If no direct match, check adjacency boost
+    if (affinity === undefined || affinity < 0.3) {
+      const adjacentGenres = GENRE_ADJACENCY[genre] || [];
+      for (const adj of adjacentGenres) {
+        const adjKey = normalizeTagKey(adj);
+        const adjAffinity = genreMap.get(adjKey);
+        if (adjAffinity && adjAffinity > 0.6) {
+          // Adjacent boost: if user loves Psychological, add small boost to Thriller
+          affinity = Math.max(affinity || 0, 0.35 + (adjAffinity - 0.6) * 0.3);
+          hasAdjacencyBoost = true;
+        }
       }
     }
+    
+    if (affinity !== undefined) {
+      genreAffinities.push({ genre, affinity, hasAdjacencyBoost });
+    }
   }
-  const genreScore = genreCount > 0 ? genreSum / genreCount : 0.5;
   
-  // 2. Tag score (AVERAGED, capped to top 10 by rank)
-  const topTags = [...media.tags].sort((a, b) => b.rank - a.rank).slice(0, 10);
-  let tagSum = 0;
-  let tagWeightSum = 0;
-  for (const tag of topTags) {
-    let affinity = tagMap.get(tag.name);
-    if (affinity === undefined) {
-      affinity = profileTagMap.get(tag.name);
-    }
-    if (affinity === undefined) {
-      // Check hash buckets for long-tail tags
-      const bucket = hashTag(tag.name);
-      affinity = genome.tagBuckets[bucket] || 0.5;
-    }
-    
-    const rankWeight = clamp(tag.rank / 100, 0.3, 1);
-    tagSum += affinity * rankWeight;
-    tagWeightSum += rankWeight;
-    
-    if (Math.abs(affinity - 0.5) > 0.25 && tag.rank > 50) {
+  // Sort by affinity and take TOP-K best matches
+  genreAffinities.sort((a, b) => b.affinity - a.affinity);
+  const topGenres = genreAffinities.slice(0, TOP_K_GENRES);
+  
+  let genreScore = 0.5;
+  if (topGenres.length > 0) {
+    genreScore = topGenres.reduce((sum, g) => sum + g.affinity, 0) / topGenres.length;
+  }
+  
+  // Add match factors for display
+  for (const g of genreAffinities) {
+    if (Math.abs(g.affinity - 0.5) > 0.15) {
       matchFactors.push({
-        factor: tag.name,
-        type: 'tag',
-        contribution: Math.abs(affinity - 0.5) * rankWeight,
-        direction: affinity > 0.5 ? 'positive' : 'negative'
+        factor: g.genre + (g.hasAdjacencyBoost ? ' (adjacent)' : ''),
+        type: 'genre',
+        contribution: Math.abs(g.affinity - 0.5),
+        direction: g.affinity > 0.5 ? 'positive' : 'negative',
+        affinity: g.affinity
       });
     }
   }
-  const tagScore = tagWeightSum > 0 ? tagSum / tagWeightSum : 0.5;
   
+  // ============================================
+  // 2. Tag score using TOP-K matching
+  // ============================================
+  const topMediaTags = [...media.tags].sort((a, b) => b.rank - a.rank).slice(0, 15);
+  const tagAffinities: Array<{ tag: string; affinity: number; rankWeight: number }> = [];
+  
+  for (const tag of topMediaTags) {
+    const key = normalizeTagKey(tag.name);
+    let affinity = tagMap.get(key);
+    
+    if (affinity === undefined) {
+      affinity = profileTagMap.get(key);
+    }
+    
+    if (affinity === undefined) {
+      // Check hash buckets for long-tail tags
+      const bucket = hashTag(tag.name);
+      affinity = genome.tagBuckets[bucket];
+      if (affinity === 0) affinity = undefined;
+    }
+    
+    // Check adjacent tag boost
+    if (affinity === undefined || affinity < 0.3) {
+      const adjacentTags = TAG_ADJACENCY[tag.name] || [];
+      for (const adj of adjacentTags) {
+        const adjKey = normalizeTagKey(adj);
+        const adjAffinity = tagMap.get(adjKey) || profileTagMap.get(adjKey);
+        if (adjAffinity && adjAffinity > 0.6) {
+          affinity = Math.max(affinity || 0, 0.35 + (adjAffinity - 0.6) * 0.25);
+        }
+      }
+    }
+    
+    if (affinity !== undefined) {
+      const rankWeight = clamp(tag.rank / 100, 0.3, 1);
+      tagAffinities.push({ tag: tag.name, affinity, rankWeight });
+    }
+  }
+  
+  // Sort by weighted affinity and take TOP-K
+  tagAffinities.sort((a, b) => (b.affinity * b.rankWeight) - (a.affinity * a.rankWeight));
+  const topTags = tagAffinities.slice(0, TOP_K_TAGS);
+  
+  let tagScore = 0.5;
+  if (topTags.length > 0) {
+    const weightedSum = topTags.reduce((sum, t) => sum + t.affinity * t.rankWeight, 0);
+    const weightSum = topTags.reduce((sum, t) => sum + t.rankWeight, 0);
+    tagScore = weightedSum / weightSum;
+  }
+  
+  // Add significant tags to match factors
+  for (const t of tagAffinities) {
+    if (Math.abs(t.affinity - 0.5) > 0.2 && t.rankWeight > 0.5) {
+      matchFactors.push({
+        factor: t.tag,
+        type: 'tag',
+        contribution: Math.abs(t.affinity - 0.5) * t.rankWeight,
+        direction: t.affinity > 0.5 ? 'positive' : 'negative',
+        affinity: t.affinity
+      });
+    }
+  }
+  
+  // ============================================
   // 3. Popularity match score
+  // ============================================
   const userNicheIndex = genome.dimensions.find(d => d.name === 'nicheIndex')?.value || 0.5;
   const logPop = Math.log10(Math.max(1, media.popularity));
   const normalizedPop = clamp((logPop - 3) / 3, 0, 1); // 1k to 1M range
-  // Niche users prefer low pop, mainstream users prefer high pop
+  
   const popMatch = userNicheIndex > 0.6 
-    ? 1 - normalizedPop
+    ? 1 - normalizedPop  // Niche users prefer low pop
     : userNicheIndex < 0.4
-    ? normalizedPop
-    : 0.5; // Neutral users don't care
+    ? normalizedPop       // Mainstream users prefer high pop
+    : 0.5;               // Neutral users don't care
   
-  // 4. Community score baseline
-  const communityScore = clamp((media.meanScore - 50) / 50, 0, 1);
+  // ============================================
+  // 4. Quality boost (curved for acclaimed titles)
+  // ============================================
+  // High meanScore pulls expectation UP even with imperfect taste match
+  // Uses curved function to emphasize 80+ scores
+  const quality = clamp((media.meanScore - 60) / 40, 0, 1);  // 0 at 60, 1 at 100
+  const qualityBoost = Math.pow(quality, 0.65);  // Curve emphasizes high end
   
-  // FINAL: Weighted average of group averages
-  const weights = { genre: 0.35, tag: 0.35, pop: 0.15, community: 0.15 };
+  // ============================================
+  // FINAL: Weighted combination with stronger quality influence
+  // ============================================
+  const weights = { genre: 0.30, tag: 0.30, pop: 0.10, quality: 0.30 };
   const rawAffinity = 
     weights.genre * genreScore +
     weights.tag * tagScore +
     weights.pop * popMatch +
-    weights.community * communityScore;
+    weights.quality * qualityBoost;
   
   // Convert to user's rating scale
   const predictedZ = (rawAffinity - 0.5) * 2;
@@ -466,12 +597,25 @@ export function predictEnjoyment(
     10
   );
   
-  // Confidence based on data quality
-  const matchedGenres = media.genres.filter(g => genreMap.has(g)).length;
-  const matchedTags = topTags.filter(t => tagMap.has(t.name) || profileTagMap.has(t.name)).length;
-  const dataQuality = clamp((matchedGenres * 0.15 + matchedTags * 0.08), 0, 1);
-  const signalStrength = matchFactors.reduce((sum, f) => sum + f.contribution, 0) / Math.max(1, matchFactors.length);
-  const confidence = clamp(dataQuality * 0.6 + signalStrength * 0.4, 0, 1);
+  // ============================================
+  // Confidence and uncertainty bands
+  // ============================================
+  const matchedGenreCount = genreAffinities.length;
+  const matchedTagCount = tagAffinities.length;
+  const strongSignals = matchFactors.filter(f => f.contribution > 0.3).length;
+  
+  const dataQuality = clamp((matchedGenreCount * 0.12 + matchedTagCount * 0.06 + strongSignals * 0.1), 0, 1);
+  const signalStrength = matchFactors.length > 0 
+    ? matchFactors.reduce((sum, f) => sum + f.contribution, 0) / matchFactors.length 
+    : 0;
+  const confidence = clamp(dataQuality * 0.5 + signalStrength * 0.3 + (qualityBoost > 0.5 ? 0.2 : 0), 0, 1);
+  
+  // Confidence-based uncertainty bands (low confidence = wider band)
+  const sigma = lerp(1.8, 0.6, confidence);  // 1.8 at 0% confidence, 0.6 at 100%
+  const expectedRange = {
+    low: Math.max(1, Math.round((predictedScore - sigma) * 10) / 10),
+    high: Math.min(10, Math.round((predictedScore + sigma) * 10) / 10)
+  };
   
   // Probability of liking (7+)
   const zForSeven = (7 - userStats.mean) / (userStats.std || 1.5);
@@ -480,26 +624,43 @@ export function predictEnjoyment(
   
   // Risk level
   let riskLevel: 'SAFE' | 'MODERATE' | 'EXPERIMENTAL' = 'MODERATE';
-  const positiveFactors = matchFactors.filter(f => f.direction === 'positive').length;
-  const negativeFactors = matchFactors.filter(f => f.direction === 'negative').length;
+  const positiveFactorCount = matchFactors.filter(f => f.direction === 'positive').length;
+  const negativeFactorCount = matchFactors.filter(f => f.direction === 'negative').length;
   
-  if (confidence > 0.6 && positiveFactors >= 2 && negativeFactors === 0) {
+  if (confidence > 0.6 && positiveFactorCount >= 2 && negativeFactorCount === 0) {
     riskLevel = 'SAFE';
-  } else if (confidence < 0.3 || negativeFactors > positiveFactors) {
+  } else if (confidence < 0.3 || negativeFactorCount > positiveFactorCount) {
     riskLevel = 'EXPERIMENTAL';
   }
   
-  // Sort match factors by contribution
-  matchFactors.sort((a, b) => b.contribution - a.contribution);
+  // Sort match factors by contribution (positive first, then negative)
+  matchFactors.sort((a, b) => {
+    if (a.direction !== b.direction) {
+      return a.direction === 'positive' ? -1 : 1;
+    }
+    return b.contribution - a.contribution;
+  });
   
   return {
     predictedScore: Math.round(predictedScore * 10) / 10,
+    expectedRange,
     confidence: Math.round(confidence * 100) / 100,
     confidenceLabel: confidence > 0.6 ? 'High' : confidence > 0.35 ? 'Medium' : 'Low',
     probabilityOfLiking: Math.round(probabilityOfLiking),
-    matchFactors: matchFactors.slice(0, 6),
-    riskLevel
+    matchFactors: matchFactors.slice(0, 8),
+    riskLevel,
+    componentScores: {
+      genreScore: Math.round(genreScore * 100) / 100,
+      tagScore: Math.round(tagScore * 100) / 100,
+      qualityBoost: Math.round(qualityBoost * 100) / 100,
+      popMatch: Math.round(popMatch * 100) / 100
+    }
   };
+}
+
+// Linear interpolation helper
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * clamp(t, 0, 1);
 }
 
 // ============================================
@@ -513,16 +674,27 @@ export interface TasteContradiction {
   
   actualScore: number;
   expectedScore: number;
+  expectedRange: { low: number; high: number };  // Confidence band
   residual: number;
   residualZ: number;
   
-  contradictionType: 'GUILTY_PLEASURE' | 'UNEXPECTED_MASTERPIECE' | 'PERSONAL_EXCEPTION' | 'EXECUTION_BETRAYAL';
+  // Improved classification types
+  contradictionType: 
+    | 'ON_BRAND_FAVORITE'      // High residual + strong match factors OR acclaimed
+    | 'TASTE_SURPRISE'         // High residual + genuinely mismatched taste
+    | 'GUILTY_PLEASURE'        // High residual + low community score / trashy
+    | 'PERSONAL_EXCEPTION'     // Low residual (you rated lower than expected)
+    | 'EXECUTION_BETRAYAL';    // Dropped despite good match
   label: string;
   explanation: string;
   
-  // What made this unexpected (improved)
-  negativeFactors: Array<{ factor: string; reason: string }>;
-  positiveFactors: Array<{ factor: string; reason: string }>;
+  // BOTH sides shown for transparency
+  negativeFactors: Array<{ factor: string; affinity: number; reason: string }>;
+  positiveFactors: Array<{ factor: string; affinity: number; reason: string }>;
+  
+  // Media context for classification
+  meanScore: number;
+  popularity: number;
 }
 
 export function detectContradictions(
@@ -555,42 +727,84 @@ export function detectContradictions(
     
     const prediction = predictEnjoyment(genome, profile, mediaFeatures, userStats);
     const expectedScore = prediction.predictedScore;
+    const expectedRange = prediction.expectedRange;
     const residual = actualScore - expectedScore;
     const residualZ = residual / (userStats.std || 1.5);
     
-    if (Math.abs(residualZ) < 1.2) continue;
+    // Only flag as contradiction if OUTSIDE the expected range
+    // This prevents "wtf anomaly" labels for scores within confidence band
+    const isOutsideRange = actualScore < expectedRange.low || actualScore > expectedRange.high;
+    if (Math.abs(residualZ) < 1.2 && !isOutsideRange) continue;
     
-    // Extract positive and negative factors from prediction
+    // Extract positive and negative factors with affinity values
     const negativeFactors = prediction.matchFactors
       .filter(f => f.direction === 'negative')
-      .map(f => ({ factor: f.factor, reason: `Low affinity for ${f.factor}` }));
+      .map(f => ({ 
+        factor: f.factor, 
+        affinity: Math.round(f.affinity * 100),
+        reason: `${Math.round(f.affinity * 100)}% affinity` 
+      }));
     const positiveFactors = prediction.matchFactors
       .filter(f => f.direction === 'positive')
-      .map(f => ({ factor: f.factor, reason: `High affinity for ${f.factor}` }));
+      .map(f => ({ 
+        factor: f.factor, 
+        affinity: Math.round(f.affinity * 100),
+        reason: `${Math.round(f.affinity * 100)}% affinity` 
+      }));
     
-    // Improved contradiction classification
+    // ============================================
+    // IMPROVED CLASSIFICATION LOGIC
+    // ============================================
     let contradictionType: TasteContradiction['contradictionType'];
     let label: string;
     let explanation: string;
     
+    const meanScore = mediaFeatures.meanScore;
+    const popularity = mediaFeatures.popularity;
+    const strongPositiveMatches = positiveFactors.filter(f => f.affinity > 70).length;
+    
     if (residual > 0 && entry.status === 'COMPLETED') {
-      if (negativeFactors.length >= 2) {
-        contradictionType = 'UNEXPECTED_MASTERPIECE';
-        label = 'Unexpected Masterpiece';
-        explanation = `Despite ${negativeFactors.length} factors working against it, you rated this ${residual.toFixed(1)} points above expected. Something special here.`;
-      } else {
+      // User scored HIGHER than expected
+      
+      if (meanScore >= 80 || popularity >= 100000 || strongPositiveMatches >= 3) {
+        // ON-BRAND FAVORITE: Acclaimed/popular OR strong positive matches
+        // This is NOT a surprise - user loves what they should love
+        contradictionType = 'ON_BRAND_FAVORITE';
+        label = 'Core Favorite';
+        const topPositive = positiveFactors.slice(0, 2).map(f => f.factor).join(', ');
+        explanation = topPositive 
+          ? `Strong alignment with ${topPositive}. This is exactly your lane.`
+          : `Highly acclaimed title (${meanScore}% rated) that resonates with your taste.`;
+      } else if (negativeFactors.length >= 2 && positiveFactors.length <= 1) {
+        // TASTE SURPRISE: Genuinely unexpected - multiple negative signals, few positive
+        contradictionType = 'TASTE_SURPRISE';
+        label = 'Taste Surprise';
+        const topNeg = negativeFactors[0]?.factor || 'unknown factors';
+        explanation = `Despite ${negativeFactors.length} factors working against it (like ${topNeg}), you rated this +${residual.toFixed(1)} above expected. Something clicked beyond the data.`;
+      } else if (meanScore < 70) {
+        // GUILTY PLEASURE: User loves it but community doesn't rate it highly
         contradictionType = 'GUILTY_PLEASURE';
         label = 'Guilty Pleasure';
-        explanation = `You rated this ${residual.toFixed(1)} points higher than your profile suggests. A personal favorite beyond the data.`;
+        explanation = `Community rates this ${meanScore}%, but you gave it ${actualScore}. A personal favorite that transcends critical consensus.`;
+      } else {
+        // Default to ON_BRAND if we can't classify better
+        contradictionType = 'ON_BRAND_FAVORITE';
+        label = 'Personal Favorite';
+        explanation = `You rated this ${residual.toFixed(1)} points above model expectation. A standout in your collection.`;
       }
     } else if (residual < 0 && entry.status === 'COMPLETED') {
+      // User scored LOWER than expected
       contradictionType = 'PERSONAL_EXCEPTION';
       label = 'Personal Exception';
-      explanation = `This matched your profile well (predicted ${expectedScore.toFixed(1)}) but you rated it ${actualScore}. Sometimes execution matters more than ingredients.`;
+      const topPos = positiveFactors[0]?.factor;
+      explanation = topPos
+        ? `Matched your taste (${topPos}: ${positiveFactors[0]?.affinity}%) but you rated it ${actualScore}. Execution > ingredients.`
+        : `Predicted ${expectedScore.toFixed(1)} but you gave it ${actualScore}. Sometimes things just don't click.`;
     } else {
+      // DROPPED despite good prediction
       contradictionType = 'EXECUTION_BETRAYAL';
       label = 'Execution Betrayal';
-      explanation = `This looked perfect for you on paper but you dropped it. The concept didn't match the delivery.`;
+      explanation = `Matched your profile (predicted ${expectedScore.toFixed(1)}) but you dropped it. The concept didn't match the delivery.`;
     }
     
     contradictions.push({
@@ -599,8 +813,11 @@ export function detectContradictions(
       coverImage: media.coverImage?.large || media.coverImage?.medium,
       actualScore,
       expectedScore,
+      expectedRange,
       residual: Math.round(residual * 10) / 10,
       residualZ: Math.round(residualZ * 100) / 100,
+      meanScore,
+      popularity,
       contradictionType,
       label,
       explanation,
