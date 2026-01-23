@@ -22,23 +22,60 @@ interface DerivedIndexDef {
 }
 
 export const DERIVED_INDICES: DerivedIndexDef[] = [
+  // ============================================================================
+  // SPLIT: Darkness Index → Horror Darkness + Violence Darkness
+  // ============================================================================
+  {
+    id: 'horror_darkness',
+    name: 'Horror Darkness',
+    description: 'Fear, dread, and psychological horror affinity',
+    contributingTraits: ['horror', 'creepy', 'disturbing', 'paranoid', 'psychological', 'existential_dread', 'dark', 'grim'],
+  },
+  {
+    id: 'violence_darkness',
+    name: 'Violence Darkness',
+    description: 'Gore, brutality, and violent content affinity',
+    contributingTraits: ['gore_level', 'torture', 'violence_level', 'body_horror', 'abuse_themes', 'bullying', 'humiliation', 'despair'],
+  },
+  // Legacy combined index for backward compatibility
   {
     id: 'darkness_index',
     name: 'Darkness Index',
-    description: 'How dark and intense your taste is',
+    description: 'Overall dark and intense content affinity',
     contributingTraits: ['horror', 'gore_level', 'torture', 'suicide_themes', 'abuse_themes', 'war', 'crime', 'dark', 'grim', 'tragic', 'violence_level', 'psychological_abuse'],
   },
+  
+  // ============================================================================
+  // SPLIT: Mindfuck Index → Cognitive Complexity + Reality Warp
+  // ============================================================================
   {
-    id: 'cozy_index',
-    name: 'Cozy Index',
-    description: 'Your comfort content affinity',
-    contributingTraits: ['wholesome', 'cozy', 'chill', 'warm', 'cute', 'slice_of_life', 'comfort_food', 'food_world', 'modern_rural', 'hopeful'],
+    id: 'cognitive_complexity',
+    name: 'Cognitive Complexity',
+    description: 'Love for complex, puzzle-like narratives',
+    contributingTraits: ['nonlinear', 'time_loop', 'time_travel', 'multiple_timelines', 'achronological', 'mystery_box', 'investigation_loop', 'psychological_warfare'],
   },
+  {
+    id: 'reality_warp',
+    name: 'Reality Warp',
+    description: 'Affinity for surreal, reality-bending content',
+    contributingTraits: ['denpa', 'meta', 'absurd', 'unreliable_narrator', 'memory_manipulation', 'parallel_worlds', 'fourth_wall', 'abstract_symbolism'],
+  },
+  // Legacy combined index for backward compatibility
   {
     id: 'mindfuck_index',
     name: 'Mindfuck Index',
     description: 'Love for mind-bending narratives',
     contributingTraits: ['mindfuck', 'nonlinear', 'time_loop', 'time_travel', 'meta', 'denpa', 'unreliable_narrator', 'psychological', 'memory_manipulation', 'parallel_worlds', 'achronological'],
+  },
+  
+  // ============================================================================
+  // ORIGINAL INDICES (kept)
+  // ============================================================================
+  {
+    id: 'cozy_index',
+    name: 'Cozy Index',
+    description: 'Your comfort content affinity',
+    contributingTraits: ['wholesome', 'cozy', 'chill', 'warm', 'cute', 'slice_of_life', 'comfort_food', 'food_world', 'modern_rural', 'hopeful'],
   },
   {
     id: 'action_density',
@@ -56,7 +93,7 @@ export const DERIVED_INDICES: DerivedIndexDef[] = [
     id: 'systems_fantasy',
     name: 'Systems Fantasy',
     description: 'Love for magic systems and RPG mechanics',
-    contributingTraits: ['magic_system', 'rpg_mechanics', 'skill_trees', 'cultivation_power', 'isekai', 'training_loop', 'monster_taming', 'dungeon'],
+    contributingTraits: ['magic_system', 'rpg_mechanics', 'skill_trees', 'cultivation_power', 'isekai', 'training_loop', 'monster_taming'],
   },
   {
     id: 'emotional_damage_quotient',
@@ -81,6 +118,46 @@ export const DERIVED_INDICES: DerivedIndexDef[] = [
     name: 'Epic Scale',
     description: 'Love for grand, large-scale stories',
     contributingTraits: ['epic', 'war', 'space_opera', 'fantasy_medieval', 'kaiju_scale', 'gods', 'serialized'],
+  },
+  
+  // ============================================================================
+  // NEW INDICES (ChatGPT suggestions)
+  // ============================================================================
+  {
+    id: 'comfort_density',
+    name: 'Comfort Density',
+    description: 'Cozy content relative to total viewing - "comfort era" detection',
+    contributingTraits: ['cozy', 'wholesome', 'warm', 'chill', 'comfort_food', 'slice_of_life'],
+  },
+  {
+    id: 'tension_appetite',
+    name: 'Tension Appetite',
+    description: 'Affinity for suspense and psychological pressure',
+    contributingTraits: ['tense', 'paranoid', 'thriller', 'psychological', 'anxiety', 'survival', 'death_game_engine'],
+  },
+  {
+    id: 'romantic_voltage',
+    name: 'Romantic Voltage',
+    description: 'Intensity of romantic content preferences',
+    contributingTraits: ['romance', 'romantic_vibes', 'love_triangle', 'forbidden_romance', 'enemies_to_lovers', 'slow_burn', 'drama'],
+  },
+  {
+    id: 'wonder_index',
+    name: 'Wonder Index',
+    description: 'Affinity for awe, exploration, and magical worlds',
+    contributingTraits: ['awe', 'fantasy', 'adventure', 'quest_engine', 'fantasy_medieval', 'alien_planet', 'space_setting'],
+  },
+  {
+    id: 'absurdism_quotient',
+    name: 'Absurdism Quotient',
+    description: 'Love for surreal, absurd, and meta humor',
+    contributingTraits: ['absurd', 'parody', 'surreal_comedy', 'meta_comedy', 'chaotic', 'satirical', 'meta'],
+  },
+  {
+    id: 'cruelty_index',
+    name: 'Cruelty Index',
+    description: 'Exposure to cruel, suffering-focused content',
+    contributingTraits: ['torture', 'abuse_themes', 'bullying', 'humiliation', 'despair', 'psychological_abuse'],
   },
 ];
 
@@ -152,11 +229,19 @@ export function computeDerivedIndices(profile: TraitProfile): DerivedIndex[] {
 // "YOU HAVE A TYPE" AUTO-DETECTION
 // ============================================================================
 
+export interface TasteTypeDriver {
+  traitId: string;
+  traitName: string;
+  score: number;
+}
+
 export interface TasteType {
   id: string;
   name: string;
   description: string;
   matchScore: number; // 0-100
+  drivers: TasteTypeDriver[]; // Top 3 traits that triggered this type
+  summary: string; // 1-sentence explanation
 }
 
 const TASTE_TYPES: Array<{
@@ -291,16 +376,19 @@ const TASTE_TYPES: Array<{
 
 /**
  * Detect user's taste types based on their trait profile and derived indices
+ * Now includes driver attribution with top 3 traits and 1-sentence summary
  */
 export function detectTasteTypes(
   profile: TraitProfile,
   derivedIndices: DerivedIndex[]
 ): TasteType[] {
-  // Build trait score lookup
+  // Build trait score lookup with names
   const traitScores = new Map<string, number>();
+  const traitNames = new Map<string, string>();
   for (const channel of Object.values(profile.channels)) {
     for (const trait of channel) {
       traitScores.set(trait.traitId, trait.normalizedScore);
+      traitNames.set(trait.traitId, trait.name);
     }
   }
   
@@ -316,20 +404,26 @@ export function detectTasteTypes(
     let matchScore = 0;
     let totalRequirements = 0;
     let allRequirementsMet = true;
+    const drivers: TasteTypeDriver[] = [];
     
-    // Check trait requirements
+    // Check trait requirements and collect drivers
     for (const req of typeDef.requirements) {
       const score = traitScores.get(req.traitId) || 0;
       totalRequirements++;
       
       if (score >= req.minScore) {
         matchScore += score;
+        drivers.push({
+          traitId: req.traitId,
+          traitName: traitNames.get(req.traitId) || req.traitId.replace(/_/g, ' '),
+          score: Math.round(score),
+        });
       } else {
         allRequirementsMet = false;
       }
     }
     
-    // Check index requirements
+    // Check index requirements and add to drivers
     if (typeDef.indices) {
       for (const req of typeDef.indices) {
         const score = indexScores.get(req.indexId) || 0;
@@ -337,6 +431,11 @@ export function detectTasteTypes(
         
         if (score >= req.minScore) {
           matchScore += score;
+          drivers.push({
+            traitId: req.indexId,
+            traitName: req.indexId.replace(/_/g, ' '),
+            score: Math.round(score),
+          });
         } else {
           allRequirementsMet = false;
         }
@@ -344,11 +443,21 @@ export function detectTasteTypes(
     }
     
     if (allRequirementsMet && totalRequirements > 0) {
+      // Sort drivers by score and take top 3
+      drivers.sort((a, b) => b.score - a.score);
+      const topDrivers = drivers.slice(0, 3);
+      
+      // Generate summary sentence
+      const driverList = topDrivers.map(d => `${d.traitName} (${d.score})`).join(', ');
+      const summary = `Driven by: ${driverList}`;
+      
       detectedTypes.push({
         id: typeDef.id,
         name: typeDef.name,
         description: typeDef.description,
         matchScore: Math.round(matchScore / totalRequirements),
+        drivers: topDrivers,
+        summary,
       });
     }
   }
@@ -480,4 +589,313 @@ export function getOppositeRecommendations(profile: TraitProfile, derivedIndices
   }
   
   return recommendations;
+}
+
+// ============================================================================
+// CONTRADICTION ENGINE
+// Detects interesting contradictions in taste profile
+// ============================================================================
+
+export type ContradictionType = 'tonal' | 'preference' | 'structural';
+
+export interface Contradiction {
+  type: ContradictionType;
+  name: string;
+  description: string;
+  severity: number; // 0-100, how strong the contradiction is
+  traits: { high: string[]; low?: string[] };
+}
+
+// Tonal contradiction pairs (watching both extremes)
+const TONAL_CONTRADICTION_PAIRS: Array<{
+  id: string;
+  name: string;
+  description: string;
+  highTraits: string[];
+  lowTraits: string[];
+  threshold: number;
+}> = [
+  {
+    id: 'cozy_horror',
+    name: 'Cozy Horror Fan',
+    description: 'You watch both wholesome comfort AND disturbing horror',
+    highTraits: ['cozy', 'wholesome', 'warm'],
+    lowTraits: ['horror', 'creepy', 'disturbing'],
+    threshold: 30,
+  },
+  {
+    id: 'romance_gore',
+    name: 'Romance + Gore',
+    description: 'You enjoy both romantic content AND violent gore',
+    highTraits: ['romance', 'romantic_vibes', 'slow_burn'],
+    lowTraits: ['gore_level', 'violence_level', 'torture'],
+    threshold: 30,
+  },
+  {
+    id: 'absurd_tragic',
+    name: 'Absurd + Tragic',
+    description: 'You appreciate both absurd comedy AND deep tragedy',
+    highTraits: ['absurd', 'chaotic', 'parody'],
+    lowTraits: ['tragic', 'emotional_damage', 'tearjerker'],
+    threshold: 25,
+  },
+  {
+    id: 'chill_tense',
+    name: 'Chill + Tense',
+    description: 'You watch both low-stakes chill content AND high-tension thrillers',
+    highTraits: ['chill', 'cozy', 'slice_of_life'],
+    lowTraits: ['tense', 'thriller', 'paranoid'],
+    threshold: 30,
+  },
+  {
+    id: 'cute_dark',
+    name: 'Cute + Dark',
+    description: 'You enjoy both cute/moe content AND dark themes',
+    highTraits: ['cute', 'wholesome', 'warm'],
+    lowTraits: ['dark', 'grim', 'edgy'],
+    threshold: 30,
+  },
+  {
+    id: 'simple_complex',
+    name: 'Simple + Complex',
+    description: 'You watch both episodic comfort AND complex narratives',
+    highTraits: ['episodic', 'sol_routine', 'chill'],
+    lowTraits: ['nonlinear', 'mindfuck', 'psychological'],
+    threshold: 25,
+  },
+];
+
+/**
+ * Detect tonal contradictions - when user watches polar opposite vibes
+ */
+export function detectTonalContradictions(profile: TraitProfile): Contradiction[] {
+  const contradictions: Contradiction[] = [];
+  
+  const traitScores = new Map<string, number>();
+  for (const channel of Object.values(profile.channels)) {
+    for (const trait of channel) {
+      traitScores.set(trait.traitId, trait.normalizedScore);
+    }
+  }
+  
+  for (const pair of TONAL_CONTRADICTION_PAIRS) {
+    // Calculate average score for both sides
+    const highAvg = pair.highTraits.reduce((sum, t) => sum + (traitScores.get(t) || 0), 0) / pair.highTraits.length;
+    const lowAvg = pair.lowTraits.reduce((sum, t) => sum + (traitScores.get(t) || 0), 0) / pair.lowTraits.length;
+    
+    // Both sides must be above threshold
+    if (highAvg >= pair.threshold && lowAvg >= pair.threshold) {
+      const severity = Math.round((highAvg + lowAvg) / 2);
+      contradictions.push({
+        type: 'tonal',
+        name: pair.name,
+        description: pair.description,
+        severity,
+        traits: {
+          high: pair.highTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold),
+          low: pair.lowTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold),
+        },
+      });
+    }
+  }
+  
+  // Sort by severity
+  contradictions.sort((a, b) => b.severity - a.severity);
+  return contradictions;
+}
+
+// Preference mismatch: traits you see often but don't rate highly
+export interface PreferenceMismatch extends Contradiction {
+  exposureScore: number;  // How much you see it (before engagement weighting)
+  enjoymentScore: number; // How much you like it (after engagement weighting)
+  mismatchRatio: number;  // exposure / enjoyment
+}
+
+// Traits to track for preference mismatch detection
+const PREFERENCE_MISMATCH_TRAITS = [
+  'fanservice', 'ecchi', 'harem', 'isekai', 'action', 'romance',
+  'psychological', 'thriller', 'gore_level', 'violence_level',
+  'battle_shounen', 'slice_of_life', 'mecha', 'sports',
+];
+
+// Mechanic traits for structural contradictions
+const STRUCTURAL_MISMATCH_TRAITS = [
+  'nonlinear', 'episodic', 'slow_burn', 'dense_worldbuilding',
+  'complex_plot', 'simple_plot', 'time_loop', 'mystery',
+];
+
+/**
+ * Detect preference mismatches - traits you see often but don't rate highly
+ * Requires exposure/enjoyment score pairs from separate scoring passes
+ */
+export function detectPreferenceMismatches(
+  exposureScores: Map<string, number>,  // Scores without engagement weighting
+  enjoymentScores: Map<string, number>   // Scores with engagement weighting
+): PreferenceMismatch[] {
+  const mismatches: PreferenceMismatch[] = [];
+  
+  for (const traitId of PREFERENCE_MISMATCH_TRAITS) {
+    const exposure = exposureScores.get(traitId) || 0;
+    const enjoyment = enjoymentScores.get(traitId) || 0;
+    
+    // Mismatch: high exposure but low enjoyment
+    if (exposure >= 40 && enjoyment < exposure * 0.6) {
+      const mismatchRatio = exposure / Math.max(enjoyment, 1);
+      mismatches.push({
+        type: 'preference',
+        name: `${traitId.replace(/_/g, ' ')} Mismatch`,
+        description: `You encounter ${traitId.replace(/_/g, ' ')} often, but consistently rate it lower`,
+        severity: Math.round((exposure - enjoyment) * 0.8),
+        traits: { high: [traitId] },
+        exposureScore: Math.round(exposure),
+        enjoymentScore: Math.round(enjoyment),
+        mismatchRatio: Math.round(mismatchRatio * 10) / 10,
+      });
+    }
+  }
+  
+  // Sort by severity (biggest mismatches first)
+  mismatches.sort((a, b) => b.severity - a.severity);
+  return mismatches.slice(0, 5); // Top 5 mismatches
+}
+
+/**
+ * Detect structural contradictions - complex vs simple, respect vs enjoy
+ * Same method as preference but focused on mechanic/structure traits
+ */
+export function detectStructuralContradictions(
+  exposureScores: Map<string, number>,
+  enjoymentScores: Map<string, number>
+): Contradiction[] {
+  const contradictions: Contradiction[] = [];
+  
+  // Check for "tries complex but rates simple higher"
+  const complexExposure = ['nonlinear', 'complex_plot', 'dense_worldbuilding', 'time_loop']
+    .reduce((sum, t) => sum + (exposureScores.get(t) || 0), 0) / 4;
+  const complexEnjoyment = ['nonlinear', 'complex_plot', 'dense_worldbuilding', 'time_loop']
+    .reduce((sum, t) => sum + (enjoymentScores.get(t) || 0), 0) / 4;
+  
+  const simpleExposure = ['episodic', 'simple_plot', 'slice_of_life']
+    .reduce((sum, t) => sum + (exposureScores.get(t) || 0), 0) / 3;
+  const simpleEnjoyment = ['episodic', 'simple_plot', 'slice_of_life']
+    .reduce((sum, t) => sum + (enjoymentScores.get(t) || 0), 0) / 3;
+  
+  // Tries complex but enjoys simple more
+  if (complexExposure > 30 && simpleEnjoyment > complexEnjoyment + 15) {
+    contradictions.push({
+      type: 'structural',
+      name: 'Complexity Mismatch',
+      description: 'You try complex narratives, but your ratings peak on simpler pacing',
+      severity: Math.round(complexExposure - complexEnjoyment + simpleEnjoyment - simpleExposure),
+      traits: { 
+        high: ['nonlinear', 'complex_plot'],
+        low: ['episodic', 'simple_plot'],
+      },
+    });
+  }
+  
+  // Opposite: tolerates slow pacing better than most
+  const slowExposure = (exposureScores.get('slow_burn') || 0);
+  const slowEnjoyment = (enjoymentScores.get('slow_burn') || 0);
+  
+  if (slowExposure > 25 && slowEnjoyment > slowExposure * 1.1) {
+    contradictions.push({
+      type: 'structural',
+      name: 'Patience Virtue',
+      description: 'You tolerate slower pacing better than most people',
+      severity: Math.round(slowEnjoyment - slowExposure),
+      traits: { high: ['slow_burn'] },
+    });
+  }
+  
+  return contradictions;
+}
+
+/**
+ * Detect all contradictions (tonal, preference, structural)
+ * Returns a comprehensive contradiction analysis
+ */
+export function detectAllContradictions(
+  profile: TraitProfile,
+  derivedIndices: DerivedIndex[],
+  exposureScores?: Map<string, number>,
+  enjoymentScores?: Map<string, number>
+): {
+  tonal: Contradiction[];
+  preference: PreferenceMismatch[];
+  structural: Contradiction[];
+  summary: string;
+  contradictionHeat: number; // 0-100, overall contradiction level
+  personalityLabel: string;  // Human-readable contradiction personality
+} {
+  const tonalContradictions = detectTonalContradictions(profile);
+  
+  // Preference and structural contradictions require exposure/enjoyment data
+  const preferenceContradictions = exposureScores && enjoymentScores
+    ? detectPreferenceMismatches(exposureScores, enjoymentScores)
+    : [];
+  const structuralContradictions = exposureScores && enjoymentScores
+    ? detectStructuralContradictions(exposureScores, enjoymentScores)
+    : [];
+  
+  // Calculate contradiction heat (how contradictory the profile is overall)
+  const allContradictions = [...tonalContradictions, ...preferenceContradictions, ...structuralContradictions];
+  const totalSeverity = allContradictions.reduce((sum, c) => sum + c.severity, 0);
+  const avgSeverity = allContradictions.length > 0 ? totalSeverity / allContradictions.length : 0;
+  const contradictionHeat = Math.min(100, Math.round(avgSeverity + allContradictions.length * 8));
+  
+  // Map heat to personality label
+  const personalityLabel = getContradictionPersonality(contradictionHeat);
+  
+  // Generate summary based on findings
+  let summary = 'No significant contradictions detected';
+  if (allContradictions.length > 0) {
+    const topContradiction = allContradictions.sort((a, b) => b.severity - a.severity)[0];
+    if (allContradictions.length === 1) {
+      summary = `Your taste has one interesting contradiction: ${topContradiction.name}`;
+    } else {
+      summary = `You're a ${personalityLabel} watcher with ${allContradictions.length} contradictions. Most notable: ${topContradiction.name}`;
+    }
+  } else {
+    summary = `You're a ${personalityLabel} watcher with consistent taste patterns.`;
+  }
+  
+  return {
+    tonal: tonalContradictions,
+    preference: preferenceContradictions,
+    structural: structuralContradictions,
+    summary,
+    contradictionHeat,
+    personalityLabel,
+  };
+}
+
+/**
+ * Convert contradiction heat to a personality label
+ * 0-20: Stable Taste, 21-45: Dual Range, 46-70: Chaotic Palette, 71-100: Contradiction Engine
+ */
+function getContradictionPersonality(heat: number): string {
+  if (heat <= 20) return 'Stable Taste';
+  if (heat <= 45) return 'Dual Range';
+  if (heat <= 70) return 'Chaotic Palette';
+  return 'Contradiction Engine';
+}
+
+// ============================================================================
+// TASTE TYPE MUTUAL EXCLUSIVITY RESOLUTION
+// Prevents overlapping types from all firing at once
+// ============================================================================
+
+/**
+ * Resolve overlapping taste types - cap at top 3 and suppress overlapping ones
+ */
+export function resolveOverlappingTypes(types: TasteType[], maxTypes: number = 3): TasteType[] {
+  if (types.length <= maxTypes) return types;
+  
+  // Already sorted by matchScore, take top N
+  const selected = types.slice(0, maxTypes);
+  
+  // Could add Jaccard similarity check here to further suppress overlapping types
+  // For now, just return top N
+  return selected;
 }

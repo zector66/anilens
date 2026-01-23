@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { LoginButton } from '@/components/auth/login-button';
@@ -236,7 +236,20 @@ interface DashboardProps {
 function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { weatherEnabled, weatherData, weatherIntensity, weatherOverride, effectiveTheme } = useUI();
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownOpen && !(event.target as Element).closest('.dropdown-container')) {
+        setDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
   
   // Determine effective weather condition
   const effectiveWeather = weatherOverride || weatherData?.condition || 'clear';
@@ -341,9 +354,9 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
             </button>
 
             {/* Profile Dropdown */}
-            <div className="relative group">
-              <Link 
-                href={user?.name ? `/u/${user.name}` : '#'}
+            <div className="relative dropdown-container">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2.5 h-10 pl-1.5 pr-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10 hover:border-purple-500/50"
               >
                 {user?.avatar?.medium ? (
@@ -359,10 +372,12 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
                 )}
                 <span className="text-sm font-semibold text-white hidden md:inline">{user?.name}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden md:block" />
-              </Link>
+              </button>
               
               {/* Dropdown Menu */}
-              <div className="absolute right-0 top-full mt-2 w-48 py-2 rounded-xl bg-[#1a1a24] border border-white/10 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className={`absolute right-0 top-full mt-2 w-48 py-2 rounded-xl bg-[#1a1a24] border border-white/10 shadow-xl transition-all duration-200 z-50 ${
+                dropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+              }`}>
                 <Link 
                   href={user?.name ? `/u/${user.name}` : '#'}
                   className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
@@ -386,7 +401,10 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
                 </button>
                 <div className="border-t border-white/10 my-2" />
                 <button 
-                  onClick={logout}
+                  onClick={() => {
+                    logout();
+                    setDropdownOpen(false);
+                  }}
                   className="flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors w-full"
                 >
                   <LogOut className="w-4 h-4" />

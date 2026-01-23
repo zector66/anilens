@@ -36,12 +36,21 @@ export type TraitCategory =
 
 export type ScoringChannel = 'identity' | 'vibe' | 'structure' | 'intensity';
 
+// Role determines how a trait functions in the system
+export type TraitRole = 'core' | 'modifier' | 'mechanic' | 'warning';
+
+// Polarity for future "likes vs tolerates" analysis
+export type TraitPolarity = 'positive' | 'negative' | 'neutral';
+
 export interface TraitDefinition {
   id: string;
   name: string;
   category: TraitCategory;
   channel: ScoringChannel;
   description?: string;
+  role?: TraitRole;           // core = identity, modifier = flavor, mechanic = structure, warning = content
+  diminishRate?: number;      // Per-trait diminishing rate (default 0.15). Broad traits higher, rare traits lower.
+  polarity?: TraitPolarity;   // For future preference vs tolerance analysis
 }
 
 // ============================================================================
@@ -49,41 +58,42 @@ export interface TraitDefinition {
 // ============================================================================
 
 export const GENRE_DNA_TRAITS: TraitDefinition[] = [
-  { id: 'action', name: 'Action', category: 'genre_dna', channel: 'identity' },
-  { id: 'adventure', name: 'Adventure', category: 'genre_dna', channel: 'identity' },
-  { id: 'comedy', name: 'Comedy', category: 'genre_dna', channel: 'identity' },
-  { id: 'drama', name: 'Drama', category: 'genre_dna', channel: 'identity' },
-  { id: 'romance', name: 'Romance', category: 'genre_dna', channel: 'identity' },
-  { id: 'slice_of_life', name: 'Slice of Life', category: 'genre_dna', channel: 'identity' },
-  { id: 'fantasy', name: 'Fantasy', category: 'genre_dna', channel: 'identity' },
-  { id: 'sci_fi', name: 'Sci-Fi', category: 'genre_dna', channel: 'identity' },
-  { id: 'supernatural', name: 'Supernatural', category: 'genre_dna', channel: 'identity' },
-  { id: 'mystery', name: 'Mystery', category: 'genre_dna', channel: 'identity' },
-  { id: 'thriller', name: 'Thriller', category: 'genre_dna', channel: 'identity' },
-  { id: 'horror', name: 'Horror', category: 'genre_dna', channel: 'identity' },
-  { id: 'psychological', name: 'Psychological', category: 'genre_dna', channel: 'identity' },
-  { id: 'crime', name: 'Crime', category: 'genre_dna', channel: 'identity' },
-  { id: 'sports', name: 'Sports', category: 'genre_dna', channel: 'identity' },
-  { id: 'mecha', name: 'Mecha', category: 'genre_dna', channel: 'identity' },
-  { id: 'music', name: 'Music', category: 'genre_dna', channel: 'identity' },
-  { id: 'mahou_shoujo', name: 'Mahou Shoujo', category: 'genre_dna', channel: 'identity' },
-  { id: 'ecchi', name: 'Ecchi', category: 'genre_dna', channel: 'identity' },
-  { id: 'historical', name: 'Historical', category: 'genre_dna', channel: 'identity' },
-  { id: 'military', name: 'Military', category: 'genre_dna', channel: 'identity' },
-  { id: 'war', name: 'War', category: 'genre_dna', channel: 'identity' },
-  { id: 'political', name: 'Political', category: 'genre_dna', channel: 'identity' },
-  { id: 'superhero', name: 'Superhero', category: 'genre_dna', channel: 'identity' },
-  { id: 'post_apocalyptic', name: 'Post-Apocalyptic', category: 'genre_dna', channel: 'identity' },
-  { id: 'dystopian', name: 'Dystopian', category: 'genre_dna', channel: 'identity' },
-  { id: 'cyberpunk', name: 'Cyberpunk', category: 'genre_dna', channel: 'identity' },
-  { id: 'steampunk', name: 'Steampunk', category: 'genre_dna', channel: 'identity' },
-  { id: 'space_opera', name: 'Space Opera', category: 'genre_dna', channel: 'identity' },
-  { id: 'western', name: 'Western', category: 'genre_dna', channel: 'identity' },
-  { id: 'noir', name: 'Noir', category: 'genre_dna', channel: 'identity' },
-  { id: 'survival', name: 'Survival', category: 'genre_dna', channel: 'identity' },
-  { id: 'game_competition', name: 'Game/Competition', category: 'genre_dna', channel: 'identity' },
-  { id: 'isekai', name: 'Isekai', category: 'genre_dna', channel: 'identity' },
-  { id: 'cultivation', name: 'Cultivation', category: 'genre_dna', channel: 'identity' },
+  // Broad genres diminish faster (0.25), specific genres slower (0.10-0.15)
+  { id: 'action', name: 'Action', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.25 },
+  { id: 'adventure', name: 'Adventure', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
+  { id: 'comedy', name: 'Comedy', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.25 },
+  { id: 'drama', name: 'Drama', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.25 },
+  { id: 'romance', name: 'Romance', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
+  { id: 'slice_of_life', name: 'Slice of Life', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.20 },
+  { id: 'fantasy', name: 'Fantasy', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
+  { id: 'sci_fi', name: 'Sci-Fi', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.18 },
+  { id: 'supernatural', name: 'Supernatural', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.20 },
+  { id: 'mystery', name: 'Mystery', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.15 },
+  { id: 'thriller', name: 'Thriller', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.15 },
+  { id: 'horror', name: 'Horror', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'psychological', name: 'Psychological', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'crime', name: 'Crime', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'sports', name: 'Sports', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'mecha', name: 'Mecha', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
+  { id: 'music', name: 'Music', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
+  { id: 'mahou_shoujo', name: 'Mahou Shoujo', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.08 },
+  { id: 'ecchi', name: 'Ecchi', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.15, polarity: 'negative' },
+  { id: 'historical', name: 'Historical', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'military', name: 'Military', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'war', name: 'War', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'political', name: 'Political', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
+  { id: 'superhero', name: 'Superhero', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'post_apocalyptic', name: 'Post-Apocalyptic', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
+  { id: 'dystopian', name: 'Dystopian', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
+  { id: 'cyberpunk', name: 'Cyberpunk', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.08 },
+  { id: 'steampunk', name: 'Steampunk', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.08 },
+  { id: 'space_opera', name: 'Space Opera', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.08 },
+  { id: 'western', name: 'Western', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.06 },
+  { id: 'noir', name: 'Noir', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.08 },
+  { id: 'survival', name: 'Survival', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'game_competition', name: 'Game/Competition', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.12 },
+  { id: 'isekai', name: 'Isekai', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.18 },
+  { id: 'cultivation', name: 'Cultivation', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.10 },
 ];
 
 // ============================================================================
@@ -91,32 +101,33 @@ export const GENRE_DNA_TRAITS: TraitDefinition[] = [
 // ============================================================================
 
 export const TONE_VIBE_TRAITS: TraitDefinition[] = [
-  { id: 'wholesome', name: 'Wholesome/Healing', category: 'tone_vibe', channel: 'vibe', description: 'Iyashikei' },
-  { id: 'cozy', name: 'Cozy/Comfort', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'chill', name: 'Chill/Low Stakes', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'warm', name: 'Warm/Heartfelt', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'hopeful', name: 'Hopeful', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'bittersweet', name: 'Bittersweet', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'melancholic', name: 'Melancholic', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'sad', name: 'Sad/Depressing', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'tragic', name: 'Tragic', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'dark', name: 'Dark', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'grim', name: 'Grim', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'edgy', name: 'Edgy', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'gritty', name: 'Gritty/Realistic', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'tense', name: 'Tense', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'paranoid', name: 'Paranoid', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'creepy', name: 'Creepy', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'disturbing', name: 'Disturbing', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'hype', name: 'Hype/Adrenaline', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'epic', name: 'Epic/Grand', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'romantic_vibes', name: 'Romantic Vibes', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'cute', name: 'Cute/Moe', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'chaotic', name: 'Chaotic', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'absurd', name: 'Absurd/Surreal', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'satirical', name: 'Satirical', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'meta', name: 'Meta/Self-aware', category: 'tone_vibe', channel: 'vibe' },
-  { id: 'cool_factor', name: 'Cool Factor', category: 'tone_vibe', channel: 'vibe', description: 'Style-driven swagger' },
+  // Modifiers that color the experience - moderate diminishing
+  { id: 'wholesome', name: 'Wholesome/Healing', category: 'tone_vibe', channel: 'vibe', description: 'Iyashikei', role: 'modifier', diminishRate: 0.15, polarity: 'positive' },
+  { id: 'cozy', name: 'Cozy/Comfort', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15, polarity: 'positive' },
+  { id: 'chill', name: 'Chill/Low Stakes', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.18 },
+  { id: 'warm', name: 'Warm/Heartfelt', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15, polarity: 'positive' },
+  { id: 'hopeful', name: 'Hopeful', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15 },
+  { id: 'bittersweet', name: 'Bittersweet', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'melancholic', name: 'Melancholic', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'sad', name: 'Sad/Depressing', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'tragic', name: 'Tragic', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.10 },
+  { id: 'dark', name: 'Dark', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15 },
+  { id: 'grim', name: 'Grim', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'edgy', name: 'Edgy', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15 },
+  { id: 'gritty', name: 'Gritty/Realistic', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'tense', name: 'Tense', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15 },
+  { id: 'paranoid', name: 'Paranoid', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.10 },
+  { id: 'creepy', name: 'Creepy', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.10 },
+  { id: 'disturbing', name: 'Disturbing', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.08 },
+  { id: 'hype', name: 'Hype/Adrenaline', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.20 },
+  { id: 'epic', name: 'Epic/Grand', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.15 },
+  { id: 'romantic_vibes', name: 'Romantic Vibes', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.18 },
+  { id: 'cute', name: 'Cute/Moe', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.18, polarity: 'positive' },
+  { id: 'chaotic', name: 'Chaotic', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.12 },
+  { id: 'absurd', name: 'Absurd/Surreal', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.10 },
+  { id: 'satirical', name: 'Satirical', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.08 },
+  { id: 'meta', name: 'Meta/Self-aware', category: 'tone_vibe', channel: 'vibe', role: 'modifier', diminishRate: 0.08 },
+  { id: 'cool_factor', name: 'Cool Factor', category: 'tone_vibe', channel: 'vibe', description: 'Style-driven swagger', role: 'modifier', diminishRate: 0.15 },
 ];
 
 // ============================================================================
@@ -330,18 +341,22 @@ export const COMEDY_TYPE_TRAITS: TraitDefinition[] = [
 // ============================================================================
 
 export const CONTENT_INTENSITY_TRAITS: TraitDefinition[] = [
-  { id: 'violence_level', name: 'Violence Level', category: 'content_intensity', channel: 'intensity' },
-  { id: 'gore_level', name: 'Gore Level', category: 'content_intensity', channel: 'intensity' },
-  { id: 'body_horror', name: 'Body Horror', category: 'content_intensity', channel: 'intensity' },
-  { id: 'torture', name: 'Torture', category: 'content_intensity', channel: 'intensity' },
-  { id: 'suicide_themes', name: 'Suicide Themes', category: 'content_intensity', channel: 'intensity' },
-  { id: 'bullying', name: 'Bullying', category: 'content_intensity', channel: 'intensity' },
-  { id: 'sexual_content', name: 'Sexual Content Level', category: 'content_intensity', channel: 'intensity' },
-  { id: 'nudity', name: 'Nudity', category: 'content_intensity', channel: 'intensity' },
-  { id: 'fetish_density', name: 'Fetish Density', category: 'content_intensity', channel: 'intensity' },
-  { id: 'substance_use', name: 'Substance Use', category: 'content_intensity', channel: 'intensity' },
-  { id: 'abuse_themes', name: 'Abuse/Trauma Themes', category: 'content_intensity', channel: 'intensity' },
-  { id: 'psychological_abuse', name: 'Psychological Abuse', category: 'content_intensity', channel: 'intensity' },
+  // Warning traits - low diminish rate since these are significant signals
+  { id: 'violence_level', name: 'Violence Level', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.12, polarity: 'negative' },
+  { id: 'gore_level', name: 'Gore Level', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.08, polarity: 'negative' },
+  { id: 'body_horror', name: 'Body Horror', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.06, polarity: 'negative' },
+  { id: 'torture', name: 'Torture', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.05, polarity: 'negative' },
+  { id: 'suicide_themes', name: 'Suicide Themes', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.05, polarity: 'negative' },
+  { id: 'bullying', name: 'Bullying', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.08, polarity: 'negative' },
+  { id: 'sexual_content', name: 'Sexual Content Level', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.10, polarity: 'negative' },
+  { id: 'nudity', name: 'Nudity', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.12, polarity: 'negative' },
+  { id: 'fetish_density', name: 'Fetish Density', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.08, polarity: 'negative' },
+  { id: 'substance_use', name: 'Substance Use', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.08, polarity: 'negative' },
+  { id: 'abuse_themes', name: 'Abuse/Trauma Themes', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.05, polarity: 'negative' },
+  { id: 'psychological_abuse', name: 'Psychological Abuse', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.05, polarity: 'negative' },
+  // NEW: Cruelty-specific traits for better differentiation
+  { id: 'humiliation', name: 'Humiliation', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.05, polarity: 'negative' },
+  { id: 'despair', name: 'Despair', category: 'content_intensity', channel: 'intensity', role: 'warning', diminishRate: 0.06, polarity: 'negative' },
 ];
 
 // ============================================================================

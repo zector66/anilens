@@ -6,8 +6,46 @@
  * - Weight-based signal prioritization
  */
 
-import { ALL_TRAITS, TRAIT_BY_ID, type ScoringChannel } from './trait-universe';
-import { getTagDefinition, isDefiningTag } from './tag-mappings';
+import { ALL_TRAITS, TRAIT_BY_ID, type ScoringChannel, type TraitDefinition } from './trait-universe';
+import { getTagDefinition, isDefiningTag, ALL_TAG_DEFINITIONS } from './tag-mappings';
+
+// ============================================================================
+// PRECOMPILED TAG→TRAIT LOOKUP MAP (Performance optimization)
+// ============================================================================
+
+interface TraitContribution {
+  traitId: string;
+  weight: number;
+  diminishRate: number;
+}
+
+// Build lookup map once at module load for O(1) tag→trait lookups
+const TAG_TRAIT_MAP: Map<string, TraitContribution[]> = new Map();
+
+function buildTagTraitMap(): void {
+  for (const tagDef of ALL_TAG_DEFINITIONS) {
+    const contributions: TraitContribution[] = [];
+    for (const mapping of tagDef.mappings) {
+      const traitDef = TRAIT_BY_ID.get(mapping.traitId);
+      if (traitDef) {
+        contributions.push({
+          traitId: mapping.traitId,
+          weight: mapping.weight,
+          diminishRate: traitDef.diminishRate ?? 0.15,
+        });
+      }
+    }
+    TAG_TRAIT_MAP.set(tagDef.tagName.toLowerCase(), contributions);
+  }
+}
+
+// Initialize on module load
+buildTagTraitMap();
+
+// Fast lookup function
+function getTraitContributions(tagName: string): TraitContribution[] {
+  return TAG_TRAIT_MAP.get(tagName.toLowerCase()) || [];
+}
 
 // ============================================================================
 // TYPES
@@ -18,6 +56,14 @@ export interface MediaTagInput {
   rank?: number; // 0-100, how relevant the tag is to this media
 }
 
+// Explainability: Top contributors per trait
+export interface TraitContributor {
+  mediaId?: number;
+  title?: string;
+  contribution: number;
+  tagsUsed: { name: string; rank: number }[];
+}
+
 export interface TraitScore {
   traitId: string;
   name: string;
@@ -26,6 +72,9 @@ export interface TraitScore {
   rawScore: number;       // Accumulated weighted score
   normalizedScore: number; // 0-100 within channel
   contributingTags: string[]; // Tags that contributed to this trait
+  topContributors?: TraitContributor[]; // Top 3 media that contributed most
+  confidence: number;     // 0-1, based on sample size and consistency
+  role?: 'core' | 'modifier' | 'mechanic' | 'warning';
 }
 
 export interface ChannelScores {
@@ -39,6 +88,16 @@ export interface TraitProfile {
   channels: ChannelScores;
   topTraits: TraitScore[];  // Top traits across all channels
   totalMediaCount: number;
+  profileMeta: ProfileMeta;  // Edge case handling metadata
+}
+
+// Edge case handling metadata
+export interface ProfileMeta {
+  sampleSize: 'tiny' | 'small' | 'medium' | 'large' | 'massive';
+  ratingSignalStrength: 'none' | 'weak' | 'normal' | 'strong';
+  maxScoreCap: number;      // Applied cap based on sample size
+  warnings: string[];       // UI hints for the user
+  isEarlyProfile: boolean;  // < 15 titles
 }
 
 // ============================================================================
@@ -57,34 +116,124 @@ function getDiminishingWeight(hitCount: number): number {
 }
 
 // ============================================================================
+// EDGE CASE HANDLING UTILITIES
+// ============================================================================
+
+/**
+ * Calculate max score cap based on sample size
+ * Prevents "100% THIS" on tiny samples
+ */
+function calculateSampleCap(totalMediaCount: number): number {
+  if (totalMediaCount >= 15) return 100; // Full confidence
+  // Formula: max = 55 + totalMediaCount * 2
+  // 5 shows → 65, 10 shows → 75, 15 shows → 85+
+  return Math.min(55 + totalMediaCount * 3, 100);
+}
+
+/**
+ * Classify sample size for UI hints
+ */
+function classifySampleSize(count: number): ProfileMeta['sampleSize'] {
+  if (count <= 5) return 'tiny';
+  if (count <= 15) return 'small';
+  if (count <= 100) return 'medium';
+  if (count <= 1000) return 'large';
+  return 'massive';
+}
+
+/**
+ * Detect rating signal strength from score variance
+ */
+function detectRatingSignal(scores: number[]): ProfileMeta['ratingSignalStrength'] {
+  if (scores.length === 0) return 'none';
+  
+  const validScores = scores.filter(s => s > 0);
+  if (validScores.length === 0) return 'none';
+  
+  const mean = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+  const variance = validScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / validScores.length;
+  const stdDev = Math.sqrt(variance);
+  
+  // Low variance means all scores are similar (no preference signal)
+  if (stdDev < 0.5) return 'none';
+  if (stdDev < 1.0) return 'weak';
+  if (stdDev < 2.0) return 'normal';
+  return 'strong';
+}
+
+/**
+ * Cap rewatch effect to prevent spam domination
+ * Formula: 1 + min(rewatches, 3) * 0.15
+ */
+export function calculateRewatchFactor(rewatchCount: number): number {
+  return 1 + Math.min(rewatchCount, 3) * 0.15;
+}
+
+/**
+ * Calculate rare trait floor for massive libraries
+ * Prevents "denpa/noir/time_loop" from sinking into nothing
+ */
+function calculateRareTraitFloor(
+  rawScore: number, 
+  hitCount: number, 
+  diminishRate: number,
+  totalMediaCount: number
+): number {
+  // Only apply floor for massive libraries with rare traits
+  if (totalMediaCount < 500) return rawScore;
+  if (diminishRate > 0.10) return rawScore; // Not a rare trait
+  if (hitCount < 6) return rawScore; // Not enough occurrences to preserve
+  
+  // Floor: ensure rare trait maintains at least 30% of its peak potential
+  const peakScore = hitCount * 3; // Rough estimate of peak contribution
+  const floor = peakScore * 0.3;
+  
+  return Math.max(rawScore, floor);
+}
+
+// ============================================================================
 // TRAIT ACCUMULATOR
 // Tracks raw scores with diminishing returns
 // ============================================================================
+
+interface MediaContribution {
+  mediaId?: number;
+  title?: string;
+  contribution: number;
+  tags: { name: string; rank: number }[];
+}
 
 interface TraitAccumulator {
   traitId: string;
   hitCount: number;        // How many times this trait was reinforced
   rawScore: number;        // Accumulated score with diminishing returns
   contributingTags: Set<string>;
+  mediaContributions: MediaContribution[]; // Track per-media contributions for explainability
+  diminishRate: number;    // Per-trait diminishing rate
 }
 
 class TraitScorer {
   private accumulators: Map<string, TraitAccumulator> = new Map();
+  private currentMediaId?: number;
+  private currentMediaTitle?: string;
+  private currentMediaTags: { name: string; rank: number }[] = [];
   
   constructor() {
-    // Initialize accumulators for all traits
+    // Initialize accumulators for all traits with per-trait diminish rates
     for (const trait of ALL_TRAITS) {
       this.accumulators.set(trait.id, {
         traitId: trait.id,
         hitCount: 0,
         rawScore: 0,
         contributingTags: new Set(),
+        mediaContributions: [],
+        diminishRate: trait.diminishRate ?? 0.15, // Default 0.15 if not specified
       });
     }
   }
   
   /**
-   * Add a tag's contribution to traits
+   * Add a tag's contribution to traits (uses per-trait diminishing rates)
    * @param tag - The tag name from AniList
    * @param tagRank - The tag's relevance to the media (0-100, default 50)
    * @param engagementWeight - How much the user engaged with this media (0-1)
@@ -99,12 +248,16 @@ class TraitScorer {
     // Defining tags get a boost
     const definingBoost = isDefiningTag(tag) ? 1.5 : 1;
     
+    // Track this tag for current media
+    this.currentMediaTags.push({ name: tag, rank: tagRank });
+    
     for (const mapping of tagDef.mappings) {
       const acc = this.accumulators.get(mapping.traitId);
       if (!acc) continue;
       
-      // Calculate contribution with diminishing returns
-      const diminishing = getDiminishingWeight(acc.hitCount);
+      // Calculate contribution with PER-TRAIT diminishing returns
+      // Formula: 1 / (1 + diminishRate * hitCount)
+      const diminishing = 1 / (1 + acc.diminishRate * acc.hitCount);
       const contribution = mapping.weight * diminishing * rankModifier * definingBoost * engagementWeight;
       
       acc.rawScore += contribution;
@@ -114,19 +267,49 @@ class TraitScorer {
   }
   
   /**
-   * Add multiple tags from a media entry
+   * Add multiple tags from a media entry with explainability tracking
    */
-  addMediaTags(tags: MediaTagInput[], engagementWeight: number = 1): void {
+  addMediaTags(
+    tags: MediaTagInput[], 
+    engagementWeight: number = 1,
+    mediaInfo?: { id?: number; title?: string }
+  ): void {
+    // Store current media context for contribution tracking
+    this.currentMediaId = mediaInfo?.id;
+    this.currentMediaTitle = mediaInfo?.title;
+    this.currentMediaTags = [];
+    
+    // Collect contributions per trait for this media
+    const preScores = new Map<string, number>();
+    for (const [id, acc] of Array.from(this.accumulators.entries())) {
+      preScores.set(id, acc.rawScore);
+    }
+    
+    // Add all tags
     for (const tag of tags) {
       this.addTag(tag.name, tag.rank ?? 50, engagementWeight);
+    }
+    
+    // Record contributions for explainability (top traits only)
+    for (const [id, acc] of Array.from(this.accumulators.entries())) {
+      const contribution = acc.rawScore - (preScores.get(id) || 0);
+      if (contribution > 0.5) { // Only track meaningful contributions
+        acc.mediaContributions.push({
+          mediaId: this.currentMediaId,
+          title: this.currentMediaTitle,
+          contribution,
+          tags: [...this.currentMediaTags],
+        });
+      }
     }
   }
   
   /**
-   * Get normalized scores by channel
+   * Get normalized scores by channel with explainability data
    * Normalizes within each channel so top trait = 100
+   * Applies edge case handling: sample dampening + rare trait preservation
    */
-  getChannelScores(): ChannelScores {
+  getChannelScores(totalMediaCount: number = 1): ChannelScores {
     const channels: ChannelScores = {
       identity: [],
       vibe: [],
@@ -134,25 +317,55 @@ class TraitScorer {
       intensity: [],
     };
     
+    // Calculate sample cap for early profiles
+    const sampleCap = calculateSampleCap(totalMediaCount);
+    
     // Group accumulators by channel
     for (const [traitId, acc] of Array.from(this.accumulators.entries())) {
       const traitDef = TRAIT_BY_ID.get(traitId);
       if (!traitDef || acc.rawScore === 0) continue;
+      
+      // Apply rare trait floor for massive libraries
+      const adjustedRawScore = calculateRareTraitFloor(
+        acc.rawScore,
+        acc.hitCount,
+        acc.diminishRate,
+        totalMediaCount
+      );
+      
+      // Sort media contributions by contribution amount and take top 3
+      const sortedContributions = [...acc.mediaContributions]
+        .sort((a, b) => b.contribution - a.contribution)
+        .slice(0, 3);
+      
+      // Calculate confidence based on sample size and consistency
+      // More hits = more confident, but cap at reasonable levels
+      const sampleConfidence = Math.min(acc.hitCount / 10, 1); // Max confidence at 10+ hits
+      const sizeConfidence = Math.min(totalMediaCount / 20, 1); // Max confidence at 20+ media
+      const confidence = Math.round((sampleConfidence * 0.7 + sizeConfidence * 0.3) * 100) / 100;
       
       const score: TraitScore = {
         traitId,
         name: traitDef.name,
         category: traitDef.category,
         channel: traitDef.channel,
-        rawScore: acc.rawScore,
+        rawScore: adjustedRawScore,
         normalizedScore: 0, // Will be computed after
         contributingTags: Array.from(acc.contributingTags),
+        topContributors: sortedContributions.map(c => ({
+          mediaId: c.mediaId,
+          title: c.title,
+          contribution: Math.round(c.contribution * 100) / 100,
+          tagsUsed: c.tags,
+        })),
+        confidence,
+        role: traitDef.role,
       };
       
       channels[traitDef.channel].push(score);
     }
     
-    // Normalize each channel independently
+    // Normalize each channel independently with sample dampening
     for (const channel of Object.keys(channels) as ScoringChannel[]) {
       const scores = channels[channel];
       if (scores.length === 0) continue;
@@ -160,11 +373,13 @@ class TraitScorer {
       // Find max raw score in this channel
       const maxScore = Math.max(...scores.map(s => s.rawScore));
       
-      // Normalize to 0-100
+      // Normalize to 0-100, then apply sample cap
       for (const score of scores) {
-        score.normalizedScore = maxScore > 0 
+        const baseNormalized = maxScore > 0 
           ? Math.round((score.rawScore / maxScore) * 100)
           : 0;
+        // Apply sample dampening: cap max score for tiny samples
+        score.normalizedScore = Math.min(baseNormalized, sampleCap);
       }
       
       // Sort by normalized score descending
@@ -177,8 +392,8 @@ class TraitScorer {
   /**
    * Get top traits across all channels
    */
-  getTopTraits(limit: number = 10): TraitScore[] {
-    const channels = this.getChannelScores();
+  getTopTraits(limit: number = 10, totalMediaCount: number = 1): TraitScore[] {
+    const channels = this.getChannelScores(totalMediaCount);
     const allScores: TraitScore[] = [
       ...channels.identity,
       ...channels.vibe,
@@ -191,6 +406,31 @@ class TraitScorer {
     
     return allScores.slice(0, limit);
   }
+  
+  /**
+   * Get top traits by role (for cleaner UI display)
+   */
+  getTraitsByRole(totalMediaCount: number = 1): {
+    core: TraitScore[];
+    modifier: TraitScore[];
+    mechanic: TraitScore[];
+    warning: TraitScore[];
+  } {
+    const channels = this.getChannelScores(totalMediaCount);
+    const allScores = [
+      ...channels.identity,
+      ...channels.vibe,
+      ...channels.structure,
+      ...channels.intensity,
+    ];
+    
+    return {
+      core: allScores.filter(t => t.role === 'core').sort((a, b) => b.normalizedScore - a.normalizedScore),
+      modifier: allScores.filter(t => t.role === 'modifier').sort((a, b) => b.normalizedScore - a.normalizedScore),
+      mechanic: allScores.filter(t => t.role === 'mechanic').sort((a, b) => b.normalizedScore - a.normalizedScore),
+      warning: allScores.filter(t => t.role === 'warning').sort((a, b) => b.normalizedScore - a.normalizedScore),
+    };
+  }
 }
 
 // ============================================================================
@@ -199,23 +439,56 @@ class TraitScorer {
 
 /**
  * Compute trait profile from a list of media entries with their tags
+ * Includes edge case handling metadata for UI hints
  */
 export function computeTraitProfile(
   mediaEntries: Array<{
     tags: MediaTagInput[];
     engagementWeight: number;
+    score?: number; // User's rating (0-10)
   }>
 ): TraitProfile {
   const scorer = new TraitScorer();
+  const totalMediaCount = mediaEntries.length;
   
   for (const entry of mediaEntries) {
     scorer.addMediaTags(entry.tags, entry.engagementWeight);
   }
   
+  // Detect rating signal strength
+  const scores = mediaEntries.map(e => e.score ?? 0);
+  const ratingSignalStrength = detectRatingSignal(scores);
+  
+  // Build profile metadata for edge case handling
+  const sampleSize = classifySampleSize(totalMediaCount);
+  const maxScoreCap = calculateSampleCap(totalMediaCount);
+  const isEarlyProfile = totalMediaCount < 15;
+  
+  // Generate warnings for UI
+  const warnings: string[] = [];
+  if (isEarlyProfile) {
+    warnings.push(`Early profile — accuracy increases after ${15 - totalMediaCount} more titles.`);
+  }
+  if (ratingSignalStrength === 'none') {
+    warnings.push('No rating data available. Profile based on viewing history only.');
+  } else if (ratingSignalStrength === 'weak') {
+    warnings.push('Limited rating variance. Preference-based insights may be less accurate.');
+  }
+  if (sampleSize === 'massive') {
+    warnings.push('Massive library detected. Rare traits have been preserved.');
+  }
+  
   return {
-    channels: scorer.getChannelScores(),
-    topTraits: scorer.getTopTraits(15),
-    totalMediaCount: mediaEntries.length,
+    channels: scorer.getChannelScores(totalMediaCount),
+    topTraits: scorer.getTopTraits(15, totalMediaCount),
+    totalMediaCount,
+    profileMeta: {
+      sampleSize,
+      ratingSignalStrength,
+      maxScoreCap,
+      warnings,
+      isEarlyProfile,
+    },
   };
 }
 

@@ -19,6 +19,8 @@ export {
   type TraitDefinition,
   type TraitCategory,
   type ScoringChannel,
+  type TraitRole,
+  type TraitPolarity,
 } from '../trait-universe';
 
 // Tag types and mappings
@@ -40,11 +42,14 @@ export {
   computeMediaTraits,
   formatTraitProfile,
   matchMediaToProfile,
+  calculateRewatchFactor,
   type MediaTagInput,
   type TraitScore,
+  type TraitContributor,
   type ChannelScores,
   type TraitProfile,
   type TraitMatchResult,
+  type ProfileMeta,
 } from '../trait-scoring-engine';
 
 // Derived traits and user type detection
@@ -55,12 +60,38 @@ export {
   computeStressDiet,
   detectComfortLoop,
   getOppositeRecommendations,
+  // Contradiction Engine
+  detectTonalContradictions,
+  detectPreferenceMismatches,
+  detectStructuralContradictions,
+  detectAllContradictions,
+  // Mutual exclusivity resolution
+  resolveOverlappingTypes,
+  // Types
   type DerivedIndex,
   type TasteType,
+  type TasteTypeDriver,
   type StressDiet,
   type ComfortLoop,
   type OppositeRecommendation,
+  type Contradiction,
+  type ContradictionType,
+  type PreferenceMismatch,
 } from '../derived-traits';
+
+// Taste evolution tracking
+export {
+  createSnapshot,
+  calculateDeltas,
+  analyzeEvolution,
+  serializeSnapshot,
+  deserializeSnapshot,
+  type TasteSnapshot,
+  type TasteDelta,
+  type TasteEvolution,
+  type EvolutionPhase,
+  type TasteSnapshotStorage,
+} from '../taste-evolution';
 
 // Individual trait category exports
 export * from '../trait-universe';
