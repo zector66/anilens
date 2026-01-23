@@ -119,7 +119,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const currentList = activeTab === 'ANIME' ? animeList : mangaList;
   
   // Check if we have cached data - don't show loading screen if data exists
-  const hasData = currentList !== undefined;
+  // Also check if data is not null (null means error state)
+  const hasData = currentList !== undefined && currentList !== null;
 
   // Opponent Data Fetching
   const { 
@@ -287,7 +288,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     markAsBooted();
   }
 
-  if (error || !currentList) {
+  // Only show error if we have an actual error AND we're not loading AND no cached data
+  if (error && !isLoading && !hasData) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mb-4">
@@ -297,6 +299,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <p className="text-gray-400 text-sm">Please try refreshing the page</p>
       </div>
     );
+  }
+  
+  // If we're still loading and have no data, show loading state
+  if (isLoading && !hasData) {
+    return null; // Let the loading screen above handle this
   }
 
   if (!tasteProfile) {
