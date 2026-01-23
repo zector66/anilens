@@ -24,20 +24,27 @@ export function useAnimeList(userId: number) {
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     retry: 2,
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Use cached data if available
+    refetchOnMount: 'always', // Always check cache first, then decide if refetch needed
   });
 }
 
 export function useMangaList(userId: number) {
   return useQuery({
     queryKey: ['mangaList', userId],
-    queryFn: () => anilistClient.getMangaList(userId),
-    enabled: !!userId,
+    queryFn: async () => {
+      console.log('[useMangaList] queryFn triggered for userId:', userId);
+      if (!userId || userId <= 0) {
+        throw new Error('Invalid userId');
+      }
+      return anilistClient.getMangaList(userId);
+    },
+    enabled: !!userId && userId > 0,
     staleTime: 15 * 60 * 1000, // 15 minutes
     gcTime: 30 * 60 * 1000,
     retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: 'always', // Always check cache first, then decide if refetch needed
   });
 }
 

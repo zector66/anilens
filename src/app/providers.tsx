@@ -27,12 +27,12 @@ function saveQueryCache(client: QueryClient) {
     const queries = cache.getAll();
     
     // Only persist specific query keys that are expensive to refetch
-    const persistKeys = ['anime-list', 'manga-list', 'taste-profile', 'favorites'];
+    const persistKeys = ['animeList', 'mangaList', 'tasteProfile', 'favorites'];
     const dataToSave: Record<string, unknown> = {};
     
     queries.forEach((query) => {
       const key = query.queryKey[0];
-      if (typeof key === 'string' && persistKeys.some(pk => key.includes(pk))) {
+      if (typeof key === 'string' && persistKeys.includes(key)) {
         if (query.state.data && query.state.status === 'success') {
           dataToSave[JSON.stringify(query.queryKey)] = {
             data: query.state.data,
@@ -49,6 +49,7 @@ function saveQueryCache(client: QueryClient) {
         data: dataToSave,
       };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
+      console.log('[QueryCache] Saved', Object.keys(dataToSave).length, 'queries to cache');
     }
   } catch (e) {
     // Silently fail - caching is optional
