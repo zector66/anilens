@@ -58,6 +58,7 @@ import { anilistClient } from '@/lib/anilist-client';
 import { useQuery } from '@tanstack/react-query';
 import { AnalysisLoadingScreen } from '@/components/ui/analysis-loading-screen';
 import { HotTakesCard } from './hot-takes-card';
+import { TasteLabCard } from './taste-lab-card';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -1119,6 +1120,21 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             <h3 className="text-xl font-bold text-white">Hot Takes & Contrarian Index</h3>
           </div>
           <HotTakesCard profile={hotTakesProfile} type={activeTab} />
+        </div>
+      )}
+
+      {/* AniLens Lab - Taste Science */}
+      {tasteProfile && analyzedEntries.length > 10 && (
+        <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 via-cyan-500/10 to-green-500/10 border border-purple-500/20">
+          <TasteLabCard 
+            profile={tasteProfile} 
+            entries={analyzedEntries}
+            userStats={{ 
+              mean: tasteProfile.scorePatterns?.meanScore || 7, 
+              std: Math.sqrt(1 - (tasteProfile.scorePatterns?.consistency || 0.5)) * 2 + 0.5
+            }}
+            type={activeTab}
+          />
         </div>
       )}
 
