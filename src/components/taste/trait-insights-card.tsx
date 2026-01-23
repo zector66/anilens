@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
-import { detectAllContradictions } from '@/lib/derived-traits';
+import type { Contradiction } from '@/lib/derived-traits';
 import { 
   Brain, 
   AlertTriangle, 
   Sparkles, 
   TrendingUp, 
-  TrendingDown,
   ChevronDown,
   ChevronUp,
-  Info,
   Zap,
   Heart,
   Shield,
@@ -40,7 +38,7 @@ const PERSONALITY_COLORS: Record<string, string> = {
 };
 
 export function TraitInsightsCard() {
-  const { genome, loading } = useEnhancedGenome();
+  const { genome, traitStats, loading } = useEnhancedGenome();
   const [expandedSection, setExpandedSection] = useState<string | null>('types');
 
   if (loading) {
@@ -55,14 +53,19 @@ export function TraitInsightsCard() {
     );
   }
 
-  if (!genome?.traitProfile) {
+  if (!genome?.traitProfile || !traitStats) {
     return null;
   }
 
   const { traitProfile, derivedIndices, tasteTypes, topTraitsByChannel } = genome;
   
-  // Get contradictions with personality label
-  const contradictionResult = detectAllContradictions(traitProfile, derivedIndices || []);
+  // Use pre-computed contradictions from traitStats
+  const contradictionResult = traitStats.contradictions;
+  // Combine all contradiction types into one array
+  const allContradictions = [
+    ...contradictionResult.tonal,
+    ...contradictionResult.structural,
+  ];
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -99,10 +102,10 @@ export function TraitInsightsCard() {
           </div>
         </div>
         
-        {contradictionResult.contradictions.length > 0 && (
+        {allContradictions.length > 0 && (
           <div className="mt-4 space-y-2">
             <p className="text-gray-400 text-xs uppercase tracking-wide">Detected Contradictions</p>
-            {contradictionResult.contradictions.slice(0, 3).map((c, i) => (
+            {allContradictions.slice(0, 3).map((c: Contradiction, i: number) => (
               <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/10">
                 <p className="text-white text-sm">{c.description}</p>
                 <p className="text-gray-500 text-xs mt-1">
