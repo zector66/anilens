@@ -60,6 +60,7 @@ import { AnalysisLoadingScreen, hasBootedThisSession, markAsBooted } from '@/com
 import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
+import { TraitInsightsCard } from './trait-insights-card';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -645,6 +646,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </div>
         </div>
       )}
+
+      {/* NEW: Trait System Insights */}
+      <TraitInsightsCard />
 
       {/* Personality Traits */}
       <div>
