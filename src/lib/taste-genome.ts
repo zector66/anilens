@@ -1,18 +1,41 @@
 /**
- * TASTE GENOME v2
+ * TASTE GENOME v3
  * 
  * A user's taste compressed into a fixed-length vector fingerprint.
+ * Now enhanced with the Trait Universe system for deeper taste analysis.
  * 
- * FIXES from v1:
+ * FEATURES:
  * ✅ Contribution uses baseline-delta (not self-normalized z-score)
  * ✅ Centered vectors for similarity calculation
  * ✅ Predictor averages within groups (not sums)
  * ✅ Entropy only on genre/tag distributions
  * ✅ Uniqueness = distance from neutral baseline
  * ✅ Feature hashing for tags (64 buckets for long tail)
+ * ✅ NEW: Trait-based scoring with 4 channels (Identity, Vibe, Structure, Intensity)
+ * ✅ NEW: Derived indices (Darkness, Cozy, Mindfuck, etc.)
+ * ✅ NEW: "You have a type" auto-detection
+ * ✅ NEW: Stress diet and comfort loop analysis
  */
 
 import { TasteProfile, MediaListEntry } from '@/types/anilist';
+import {
+  TraitScorer,
+  computeTraitProfile,
+  type TraitProfile,
+  type TraitScore,
+  type ChannelScores,
+  type MediaTagInput,
+} from './trait-scoring-engine';
+import {
+  computeDerivedIndices,
+  detectTasteTypes,
+  computeStressDiet,
+  detectComfortLoop,
+  type DerivedIndex,
+  type TasteType,
+  type StressDiet,
+  type ComfortLoop,
+} from './derived-traits';
 
 // ============================================
 // GENOME STRUCTURE
@@ -31,6 +54,21 @@ export interface TasteGenome {
   entropy: number;           // Genre + tag distribution entropy only
   uniquenessScore: number;   // Distance from neutral baseline
   dominantTraits: string[];  // Top 3 by baseline-delta
+  
+  // NEW: Trait Universe integration
+  traitProfile?: TraitProfile;           // Full trait scores by channel
+  derivedIndices?: DerivedIndex[];       // Computed indices (Darkness, Cozy, etc.)
+  tasteTypes?: TasteType[];              // "You have a type" detection
+  stressDiet?: StressDiet;               // Recent viewing pattern analysis
+  comfortLoop?: ComfortLoop | null;      // Comfort loop detection
+  
+  // Top traits summary (for quick display)
+  topTraitsByChannel?: {
+    identity: TraitScore[];
+    vibe: TraitScore[];
+    structure: TraitScore[];
+    intensity: TraitScore[];
+  };
 }
 
 export interface GenomeDimension {
@@ -285,11 +323,113 @@ export function extractGenome(profile: TasteProfile): TasteGenome {
     centeredVector,
     dimensions,
     tagBuckets,
-    version: '2.0',
+    version: '3.0',
     generatedAt: new Date(),
     entropy,
     uniquenessScore,
     dominantTraits
+  };
+}
+
+// ============================================
+// TRAIT PROFILE EXTRACTION (NEW in v3)
+// ============================================
+
+/**
+ * Convert media entries to trait profile inputs
+ */
+function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
+  tags: MediaTagInput[];
+  engagementWeight: number;
+}> {
+  return entries
+    .filter(e => e.media && e.status === 'COMPLETED')
+    .map(entry => {
+      const media = entry.media!;
+      const score = entry.score || 5;
+      const repeats = entry.repeat || 0;
+      
+      // Engagement weight based on score and rewatches
+      const scoreWeight = Math.max(0, (score - 5) / 5); // 0 at 5, 1 at 10
+      const repeatBonus = Math.min(0.5, repeats * 0.15);
+      const engagementWeight = Math.max(0.1, scoreWeight + repeatBonus);
+      
+      // Convert media tags to trait input format
+      const tags: MediaTagInput[] = (media.tags || []).map(t => ({
+        name: t.name,
+        rank: t.rank
+      }));
+      
+      // Also add genres as pseudo-tags with high rank
+      for (const genre of media.genres || []) {
+        tags.push({ name: genre, rank: 85 });
+      }
+      
+      return { tags, engagementWeight };
+    });
+}
+
+/**
+ * Extract trait profile from media list entries
+ * This is the NEW trait-based analysis system
+ */
+export function extractTraitProfile(entries: MediaListEntry[]): TraitProfile {
+  const traitInputs = mediaEntriesToTraitInputs(entries);
+  return computeTraitProfile(traitInputs);
+}
+
+/**
+ * Get top traits per channel for display
+ */
+function getTopTraitsByChannel(profile: TraitProfile, topN: number = 5): TasteGenome['topTraitsByChannel'] {
+  return {
+    identity: profile.channels.identity.slice(0, topN),
+    vibe: profile.channels.vibe.slice(0, topN),
+    structure: profile.channels.structure.slice(0, topN),
+    intensity: profile.channels.intensity.slice(0, topN),
+  };
+}
+
+/**
+ * Extract ENHANCED genome with trait profile integration
+ * This combines the original genome vector with the new trait system
+ */
+export function extractEnhancedGenome(
+  profile: TasteProfile,
+  entries: MediaListEntry[],
+  options?: {
+    includeStressDiet?: boolean;
+    recentDays?: number;
+  }
+): TasteGenome {
+  // Get base genome
+  const baseGenome = extractGenome(profile);
+  
+  // Compute trait profile from entries
+  const traitProfile = extractTraitProfile(entries);
+  
+  // Compute derived indices
+  const derivedIndices = computeDerivedIndices(traitProfile);
+  
+  // Detect taste types ("You have a type") - needs both profile and indices
+  const tasteTypes = detectTasteTypes(traitProfile, derivedIndices);
+  
+  // Get top traits by channel for quick display
+  const topTraitsByChannel = getTopTraitsByChannel(traitProfile);
+  
+  // Compute stress diet and comfort loop
+  const stressDiet = computeStressDiet(traitProfile);
+  const comfortLoop = detectComfortLoop(traitProfile);
+  
+  return {
+    ...baseGenome,
+    version: '3.0',
+    traitProfile,
+    derivedIndices,
+    tasteTypes,
+    stressDiet,
+    comfortLoop,
+    topTraitsByChannel,
   };
 }
 
@@ -1056,8 +1196,21 @@ function calculateUniqueness(centeredVector: number[]): number {
 // EXPORTS
 // ============================================
 
+// Re-export trait system types for convenience
+export type {
+  TraitProfile,
+  TraitScore,
+  ChannelScores,
+  DerivedIndex,
+  TasteType,
+  StressDiet,
+  ComfortLoop,
+};
+
 export default {
   extractGenome,
+  extractEnhancedGenome,
+  extractTraitProfile,
   cosineSimilarity,
   euclideanDistance,
   compareDimensions,

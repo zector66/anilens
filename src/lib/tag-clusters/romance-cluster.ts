@@ -1,0 +1,26 @@
+import type { TagDefinition } from '../tag-types';
+
+export const ROMANCE_CLUSTER: TagDefinition[] = [
+  { tagName: 'Romance', type: 'primary', mappings: [{ traitId: 'romance', weight: 5 }, { traitId: 'romance_primary', weight: 4 }, { traitId: 'romantic_vibes', weight: 4 }] },
+  { tagName: 'Love Triangle', type: 'structural', mappings: [{ traitId: 'love_triangle', weight: 5 }, { traitId: 'romance', weight: 4 }, { traitId: 'drama', weight: 3 }, { traitId: 'anxiety', weight: 2 }] },
+  { tagName: 'Harem', type: 'primary', mappings: [{ traitId: 'harem', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'comedy', weight: 2 }, { traitId: 'ecchi', weight: 2 }] },
+  { tagName: 'Reverse Harem', type: 'primary', mappings: [{ traitId: 'reverse_harem', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'comedy', weight: 2 }] },
+  { tagName: 'Boys\' Love', type: 'primary', mappings: [{ traitId: 'bl', weight: 5 }, { traitId: 'romance', weight: 4 }, { traitId: 'drama', weight: 2 }] },
+  { tagName: 'Yuri', type: 'primary', mappings: [{ traitId: 'yuri', weight: 5 }, { traitId: 'romance', weight: 4 }, { traitId: 'drama', weight: 2 }] },
+  { tagName: 'Age Gap', type: 'flavor', mappings: [{ traitId: 'age_gap', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'drama', weight: 2 }] },
+  { tagName: 'Arranged Marriage', type: 'structural', mappings: [{ traitId: 'arranged_marriage', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'drama', weight: 3 }] },
+  { tagName: 'Childhood Friends', type: 'flavor', mappings: [{ traitId: 'childhood_friends', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'nostalgia', weight: 2 }] },
+  { tagName: 'Unrequited Love', type: 'structural', mappings: [{ traitId: 'unrequited', weight: 5 }, { traitId: 'romance', weight: 3 }, { traitId: 'emotional_damage', weight: 4 }, { traitId: 'melancholic', weight: 3 }] },
+  { tagName: 'Love Polygon', type: 'structural', mappings: [{ traitId: 'love_triangle', weight: 4 }, { traitId: 'romance', weight: 4 }, { traitId: 'drama', weight: 3 }] },
+  { tagName: 'Polyamory', type: 'structural', mappings: [{ traitId: 'poly', weight: 5 }, { traitId: 'romance', weight: 4 }] },
+  { tagName: 'Forbidden Love', type: 'structural', mappings: [{ traitId: 'forbidden_romance', weight: 5 }, { traitId: 'romance', weight: 4 }, { traitId: 'drama', weight: 4 }, { traitId: 'tragic', weight: 2 }] },
+  { tagName: 'Teacher/Student Relationship', type: 'structural', mappings: [{ traitId: 'forbidden_romance', weight: 4 }, { traitId: 'romance', weight: 4 }, { traitId: 'age_gap', weight: 3 }] },
+  { tagName: 'Primarily Female Cast', type: 'flavor', mappings: [{ traitId: 'cute', weight: 2 }] },
+  { tagName: 'Primarily Male Cast', type: 'flavor', mappings: [{ traitId: 'bl', weight: 1 }] },
+  { tagName: 'Female Protagonist', type: 'flavor', mappings: [] },
+  { tagName: 'Male Protagonist', type: 'flavor', mappings: [] },
+  { tagName: 'Shoujo', type: 'structural', mappings: [{ traitId: 'romance', weight: 3 }, { traitId: 'drama', weight: 2 }, { traitId: 'romantic_vibes', weight: 3 }] },
+  { tagName: 'Shounen', type: 'structural', mappings: [{ traitId: 'action', weight: 2 }, { traitId: 'hype', weight: 2 }, { traitId: 'training_loop', weight: 2 }] },
+  { tagName: 'Josei', type: 'structural', mappings: [{ traitId: 'romance', weight: 2 }, { traitId: 'adult_cast', weight: 3 }, { traitId: 'drama', weight: 2 }] },
+  { tagName: 'Seinen', type: 'structural', mappings: [{ traitId: 'adult_cast', weight: 2 }, { traitId: 'dark', weight: 1 }] },
+];
