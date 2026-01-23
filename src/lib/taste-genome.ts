@@ -136,6 +136,15 @@ function hashTag(tagName: string): number {
   return Math.abs(hash) % TAG_HASH_BUCKETS;
 }
 
+/**
+ * Safely convert affinity to 0-1 range (supports both 0-1 and 0-100 formats)
+ * This prevents normalization bugs when affinity values change format.
+ */
+function toUnit01(x: number): number {
+  if (!Number.isFinite(x)) return 0.5;
+  return x > 1 ? x / 100 : x; // If > 1, assume 0-100 scale; otherwise already 0-1
+}
+
 // ============================================
 // GENOME EXTRACTION (FIXED)
 // ============================================
@@ -149,7 +158,7 @@ export function extractGenome(profile: TasteProfile): TasteGenome {
   const genreMap = new Map(profile.genreAffinity.map(g => [g.genre, g.affinity]));
   for (const genre of GENOME_GENRES) {
     const affinity = genreMap.get(genre) || 0;
-    const normalized = clamp(affinity / 100, 0, 1);
+    const normalized = toUnit01(affinity);
     const baseline = BASELINES.genre;
     dimensions.push({
       name: genre,
@@ -165,7 +174,7 @@ export function extractGenome(profile: TasteProfile): TasteGenome {
   const tagMap = new Map(profile.tagAffinity.map(t => [t.tag, t.affinity]));
   for (const tag of GENOME_TAGS_CURATED) {
     const affinity = tagMap.get(tag) || 0;
-    const normalized = clamp(affinity / 100, 0, 1);
+    const normalized = toUnit01(affinity);
     const baseline = BASELINES.tag;
     dimensions.push({
       name: tag,
@@ -180,7 +189,7 @@ export function extractGenome(profile: TasteProfile): TasteGenome {
   // 3. Hash ALL user tags into 64 buckets (for long tail coverage)
   for (const tagData of profile.tagAffinity) {
     const bucket = hashTag(tagData.tag);
-    const weight = clamp(tagData.affinity / 100, 0, 1);
+    const weight = toUnit01(tagData.affinity);
     tagBuckets[bucket] = Math.max(tagBuckets[bucket], weight); // Max pooling
   }
   
@@ -445,7 +454,7 @@ export function predictEnjoyment(
   // Build lookup maps with NORMALIZED keys
   const genreMap = new Map(genome.dimensions.filter(d => d.category === 'genre').map(d => [normalizeTagKey(d.name), d.value]));
   const tagMap = new Map(genome.dimensions.filter(d => d.category === 'tag').map(d => [normalizeTagKey(d.name), d.value]));
-  const profileTagMap = new Map(profile.tagAffinity.map(t => [normalizeTagKey(t.tag), t.affinity / 100]));
+  const profileTagMap = new Map(profile.tagAffinity.map(t => [normalizeTagKey(t.tag), toUnit01(t.affinity)]));
   
   // Also keep original names for display
   const genreDisplayMap = new Map(genome.dimensions.filter(d => d.category === 'genre').map(d => [normalizeTagKey(d.name), d.name]));
@@ -955,7 +964,7 @@ export function identifyTasteInfluencers(
       const genreAffinity = profile.genreAffinity.find(g => g.genre === genre);
       if (genreAffinity && genreAffinity.count > 0) {
         // Impact = engagement × (1 / count) × affinity strength
-        const impact = engagementWeight * (1 / genreAffinity.count) * (genreAffinity.affinity / 100);
+        const impact = engagementWeight * (1 / genreAffinity.count) * toUnit01(genreAffinity.affinity);
         marginalImpact += impact;
         if (impact > 0.05) {
           shapedTraits.push({ trait: genre, type: 'genre', contribution: impact });
@@ -967,7 +976,7 @@ export function identifyTasteInfluencers(
     for (const tag of (media.tags || []).slice(0, 5)) {
       const tagAffinity = profile.tagAffinity.find(t => t.tag === tag.name);
       if (tagAffinity && tagAffinity.count > 0) {
-        const impact = engagementWeight * (tag.rank / 100) * (1 / tagAffinity.count) * (tagAffinity.affinity / 100);
+        const impact = engagementWeight * (tag.rank / 100) * (1 / tagAffinity.count) * toUnit01(tagAffinity.affinity);
         marginalImpact += impact;
         if (impact > 0.03) {
           shapedTraits.push({ trait: tag.name, type: 'tag', contribution: impact });
