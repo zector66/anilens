@@ -296,7 +296,6 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
             <Logo size="sm" />
             <div className="leading-tight hidden md:block">
               <div className="text-base font-bold text-white">AniLens</div>
-              <div className="text-[10px] text-white/40 tracking-wide uppercase">Taste Lab</div>
             </div>
           </Link>
 
