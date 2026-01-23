@@ -4,11 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { 
   Dna, Brain, Sparkles, AlertTriangle, History, 
   ChevronDown, ChevronUp, TrendingUp, TrendingDown,
-  Star, Zap, Heart, Eye
+  Zap, Heart
 } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { 
-  TasteGenome, 
   TasteContradiction, 
   TasteInfluencer,
   extractGenome,
@@ -37,8 +36,8 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
   );
   
   const influencers = useMemo(() => 
-    identifyTasteInfluencers(entries, profile, 10),
-    [entries, profile]
+    identifyTasteInfluencers(entries, profile, genome, 10),
+    [entries, profile, genome]
   );
 
   // Categorize contradictions
@@ -382,10 +381,12 @@ function ContradictionRow({ contradiction }: { contradiction: TasteContradiction
           </div>
         </div>
 
-        {/* Surprising Factors */}
-        {contradiction.surprisingFactors.length > 0 && (
+        {/* Why it was unexpected */}
+        {(contradiction.negativeFactors.length > 0 || contradiction.positiveFactors.length > 0) && (
           <div className="mt-2 text-xs text-gray-400 line-clamp-2">
-            {contradiction.surprisingFactors[0].expected}
+            {contradiction.negativeFactors.length > 0 
+              ? contradiction.negativeFactors[0].reason
+              : contradiction.positiveFactors[0]?.reason}
           </div>
         )}
       </div>

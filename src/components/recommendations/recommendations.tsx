@@ -7,6 +7,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useMedia } from '@/contexts/media-context';
 import { useModelSettings } from '@/hooks/use-model-settings';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
+import { extractGenome, predictEnjoyment, MediaFeatures, EnjoymentPrediction } from '@/lib/taste-genome';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
 import { OptimizedImage } from '@/components/ui/optimized-image';
@@ -48,6 +49,7 @@ interface ProcessedRec {
   title: string;
   coverImage: string;
   genres: string[];
+  tags: Array<{ name: string; rank: number }>;
   format: string;
   score: number;
   popularity: number;
@@ -55,6 +57,11 @@ interface ProcessedRec {
   reasons: Array<{ type: string; text: string; weight: number }>;
   matchScore: number;
   category: 'safe' | 'experimental' | 'hidden-gem' | 'opposite';
+  // Taste Genome predictions
+  predictedScore?: number;
+  probabilityOfLiking?: number;
+  predictionConfidence?: string;
+  predictionRisk?: 'SAFE' | 'MODERATE' | 'EXPERIMENTAL';
 }
 
 interface RecommendationCardProps {
@@ -139,15 +146,27 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
             </div>
           )}
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Predicted Score - The star feature */}
+            {rec.probabilityOfLiking !== undefined && (
+              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${
+                rec.probabilityOfLiking >= 75 ? 'bg-green-500/30 text-green-300' :
+                rec.probabilityOfLiking >= 50 ? 'bg-yellow-500/30 text-yellow-300' :
+                'bg-gray-500/30 text-gray-300'
+              }`}>
+                <Zap className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold">{rec.probabilityOfLiking}% chance you&apos;ll like</span>
+              </div>
+            )}
+            {rec.predictedScore !== undefined && (
+              <div className="flex items-center gap-1 text-cyan-400">
+                <span className="text-xs">Predicted:</span>
+                <span className="text-sm font-bold">{rec.predictedScore}/10</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 text-yellow-400">
               <Star className="w-4 h-4 fill-current drop-shadow-lg" />
               <span className="text-sm font-bold">{rec.score}%</span>
-            </div>
-            <span className="text-gray-400">•</span>
-            <div className="flex items-center gap-1.5 text-purple-400">
-              <TrendingUp className="w-4 h-4 drop-shadow-lg" />
-              <span className="text-sm font-bold">{rec.matchScore}% match</span>
             </div>
           </div>
         </div>
@@ -309,46 +328,65 @@ export function Recommendations({ userId }: RecommendationsProps) {
 
   if (!tasteProfile) return null;
 
+  // Extract taste genome for predictions
+  const genome = extractGenome(tasteProfile);
+  
+  // Calculate user score stats for prediction calibration
+  const userScoreStats = {
+    mean: tasteProfile.scorePatterns?.meanScore || 7,
+    std: Math.sqrt(1 - (tasteProfile.scorePatterns?.consistency || 0.5)) * 2 + 0.5
+  };
+
   // Cast to extended media type for accessing computed properties
   const extendedMedia = (recommendedMedia || []) as ExtendedMedia[];
 
-  // Debug: Log the first media item to see what we're getting
-  if (extendedMedia.length > 0) {
-    console.log('[Recommendations] Sample media item:', {
-      id: extendedMedia[0].id,
-      title: extendedMedia[0].title,
-      coverImage: extendedMedia[0].coverImage,
-      hasCoverImage: !!extendedMedia[0].coverImage,
-      coverImageKeys: extendedMedia[0].coverImage ? Object.keys(extendedMedia[0].coverImage) : []
-    });
-  }
-
-  // Process recommendations - they now come with match scores from the API
+  // Process recommendations with Taste Genome predictions
   const processedRecommendations = extendedMedia
     .map(media => {
       const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '';
+      
+      // Build media features for prediction
+      const mediaFeatures: MediaFeatures = {
+        genres: media.genres || [],
+        tags: (media.tags || []).map(t => ({ name: t.name, rank: t.rank })),
+        popularity: media.popularity || 10000,
+        meanScore: media.meanScore || 70,
+        format: media.format || 'TV',
+        seasonYear: media.seasonYear,
+        studios: media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name)
+      };
+      
+      // Get prediction from Taste Genome
+      let prediction: EnjoymentPrediction | null = null;
+      try {
+        prediction = predictEnjoyment(genome, tasteProfile, mediaFeatures, userScoreStats);
+      } catch (e) {
+        // Prediction failed, continue without it
+      }
+      
       return {
         id: media.id,
         title: getPreferredTitle(media.title),
         coverImage,
         genres: media.genres || [],
+        tags: mediaFeatures.tags,
         format: media.format || '',
         score: media.meanScore || 0,
         popularity: media.popularity || 0,
         reason: media._matchReason || 'Matches your taste profile',
         reasons: media._reasons || [],
         matchScore: media._matchScore || 70,
-        category: media._category || 'safe' as const
+        category: media._category || 'safe' as const,
+        // Taste Genome predictions
+        predictedScore: prediction?.predictedScore,
+        probabilityOfLiking: prediction?.probabilityOfLiking,
+        predictionConfidence: prediction?.confidenceLabel,
+        predictionRisk: prediction?.riskLevel
       };
     })
-    .filter(rec => {
-      if (!rec.coverImage) {
-        console.log('[Recommendations] Filtered out media without cover:', rec.id, rec.title);
-      }
-      return rec.coverImage;
-    }); // Filter out any recommendations without cover images
+    .filter(rec => rec.coverImage); // Filter out any recommendations without cover images
 
-  console.log('[Recommendations] Total processed:', processedRecommendations.length, 'out of', extendedMedia.length);
+  console.log('[Recommendations] Total processed:', processedRecommendations.length, 'with predictions');
 
   const topGenres = tasteProfile.genreAffinity.slice(0, 5);
   const topTags = tasteProfile.tagAffinity.slice(0, 5);
