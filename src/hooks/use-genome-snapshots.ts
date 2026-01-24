@@ -32,12 +32,6 @@ export function useGenomeSnapshots(
         status: response.status,
       });
       
-      // 204 No Content = cache miss, no snapshots exist (not an error)
-      if (response.status === 204) {
-        console.log("[SNAPSHOT CACHE MISS]");
-        return [];
-      }
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("[SNAPSHOT ERROR]", errorData);
@@ -48,6 +42,7 @@ export function useGenomeSnapshots(
       console.log("[SNAPSHOT DATA]", {
         count: data.snapshots?.length,
         hasSnapshots: !!data.snapshots,
+        isCacheMiss: data.snapshots?.length === 0,
       });
       return data.snapshots.map((s: GenomeSnapshot) => ({
         ...s,

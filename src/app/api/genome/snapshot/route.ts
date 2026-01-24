@@ -150,9 +150,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return 204 No Content if no snapshots exist (cache miss)
+    // Return 200 with empty array if no snapshots exist (cache miss)
+    // Avoid 204 to prevent JSON parsing issues on client
     if (!data || data.length === 0) {
-      return new NextResponse(null, { status: 204 });
+      return NextResponse.json({
+        snapshots: [],
+        count: 0
+      });
     }
 
     // Transform to camelCase for frontend

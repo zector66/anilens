@@ -60,11 +60,14 @@ export function useEnhancedGenome(options?: {
       recentDays: options?.recentDays ?? 30,
     });
 
-    // DEBUG: Detailed trait pipeline logging
-    console.log("[TRAIT PIPELINE]", {
+    // DEBUG: Comprehensive trait pipeline status
+    console.log('[useEnhancedGenome]', {
+      entries: entries?.length,
+      filteredEntries: filteredEntries?.length,
       hasGenome: !!genome,
       hasTraitProfile: !!genome?.traitProfile,
       hasDerived: !!genome?.derivedIndices,
+      topIdentity: genome?.traitProfile?.channels?.identity?.[0],
       channels: genome?.traitProfile ? {
         identity: genome.traitProfile.channels.identity.length,
         vibe: genome.traitProfile.channels.vibe.length,
@@ -98,6 +101,7 @@ export function useEnhancedGenome(options?: {
           contradictions: detectAllContradictions(traitProfile, derivedIndices),
         };
 
+        console.log('[traitStats build]', { ok: !!traitStats });
         return { genome, traitStats };
       } catch (e) {
         console.error("traitStats build failed:", e);

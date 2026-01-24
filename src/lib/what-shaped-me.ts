@@ -190,31 +190,45 @@ export function calculateWhatShapedMe(
   // Sort by global impact
   impacts.sort((a, b) => b.globalImpact - a.globalImpact);
   
-  // Normalize influence against top contributor (not full library)
-  // This makes the #1 title feel like the #1 title
-  const maxImpact = impacts[0]?.globalImpact || 1;
+  // Take top N for display
+  const topImpacts = impacts.slice(0, limit);
   
-  // Assign impact levels based on normalized influence
-  impacts.forEach((impact, index) => {
-    // Normalize to 0-100 scale relative to top contributor
-    const normalizedInfluence = (impact.globalImpact / maxImpact) * 100;
+  // Calculate influence as distribution - top N sum to 100%
+  // This makes influence percentages feel accurate and meaningful
+  const totalImpact = topImpacts.reduce((sum, m) => sum + m.globalImpact, 0);
+  
+  // Assign influence percentages and impact levels
+  topImpacts.forEach((impact, index) => {
+    // Influence as percentage of total (distribution model)
+    const influencePercent = totalImpact > 0 
+      ? (impact.globalImpact / totalImpact) * 100 
+      : 0;
     
+    // Store as normalized influence for display
+    impact.globalImpact = Math.round(influencePercent * 10) / 10;
+    
+    // Assign impact levels based on position and influence
     if (index < 3) {
       impact.impactLevel = 'defining';
-    } else if (normalizedInfluence >= 70) {
+    } else if (influencePercent >= 12) {
       impact.impactLevel = 'very_high';
-    } else if (normalizedInfluence >= 50) {
+    } else if (influencePercent >= 8) {
       impact.impactLevel = 'high';
-    } else if (normalizedInfluence >= 30) {
+    } else if (influencePercent >= 5) {
       impact.impactLevel = 'notable';
-    } else if (normalizedInfluence >= 15) {
+    } else if (influencePercent >= 3) {
       impact.impactLevel = 'moderate';
     } else {
       impact.impactLevel = 'minor';
     }
   });
   
-  return impacts.slice(0, limit);
+  console.log('[What Shaped Me] Distribution check:', {
+    totalInfluence: topImpacts.reduce((sum, m) => sum + m.globalImpact, 0),
+    top3: topImpacts.slice(0, 3).map(m => ({ title: m.title, influence: m.globalImpact })),
+  });
+  
+  return topImpacts;
 }
 
 /**

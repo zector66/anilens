@@ -445,6 +445,12 @@ export function extractEnhancedGenome(
   // Compute trait profile from entries
   const traitProfile = extractTraitProfile(entries);
   
+  console.log('[extractEnhancedGenome] traitProfile computed:', {
+    hasProfile: !!traitProfile,
+    identityCount: traitProfile?.channels?.identity?.length,
+    vibeCount: traitProfile?.channels?.vibe?.length,
+  });
+  
   // Compute derived indices
   const derivedIndices = computeDerivedIndices(traitProfile);
   
