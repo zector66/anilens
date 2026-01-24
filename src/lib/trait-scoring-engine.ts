@@ -75,6 +75,24 @@ export interface TraitScore {
   topContributors?: TraitContributor[]; // Top 3 media that contributed most
   confidence: number;     // 0-1, based on sample size and consistency
   role?: 'core' | 'modifier' | 'mechanic' | 'warning';
+  
+  // Exposure vs Enjoyment split (polarity becomes real)
+  exposureScore?: number;   // 0-100, how often you encounter this trait
+  enjoymentScore?: number;  // 0-100, how much you rate it when it appears
+  affinityDelta?: number;   // enjoymentScore - exposureScore (positive = loves, negative = tolerates)
+}
+
+/**
+ * Insight generated from exposure vs enjoyment mismatch
+ */
+export interface TraitAffinityInsight {
+  traitId: string;
+  traitName: string;
+  exposureScore: number;
+  enjoymentScore: number;
+  delta: number;
+  insight: 'loves' | 'tolerates' | 'neutral' | 'hidden_gem' | 'guilty_pleasure';
+  description: string;
 }
 
 export interface ChannelScores {
@@ -259,6 +277,12 @@ interface TraitAccumulator {
   contributingTags: Set<string>;
   mediaContributions: MediaContribution[]; // Track per-media contributions for explainability
   diminishRate: number;    // Per-trait diminishing rate
+  
+  // Exposure vs Enjoyment tracking
+  exposureScore: number;   // Pre-engagement: how often trait appears (tag occurrence only)
+  enjoymentScore: number;  // Post-engagement: weighted by user rating
+  ratingSum: number;       // Sum of ratings for computing average
+  ratedCount: number;      // Count of rated media for this trait
 }
 
 class TraitScorer {
@@ -277,6 +301,11 @@ class TraitScorer {
         contributingTags: new Set(),
         mediaContributions: [],
         diminishRate: trait.diminishRate ?? 0.15, // Default 0.15 if not specified
+        // Exposure vs Enjoyment
+        exposureScore: 0,
+        enjoymentScore: 0,
+        ratingSum: 0,
+        ratedCount: 0,
       });
     }
   }
@@ -317,16 +346,24 @@ class TraitScorer {
   
   /**
    * Add multiple tags from a media entry with explainability tracking
+   * Now also tracks exposure vs enjoyment for affinity insights
+   * 
+   * @param userRating - User's rating for this media (0-10). If provided, contributes to enjoyment score.
+   * @param userBaseline - User's average rating (for delta calculation). Default 7.
    */
   addMediaTags(
     tags: MediaTagInput[], 
     engagementWeight: number = 1,
-    mediaInfo?: { id?: number; title?: string }
+    mediaInfo?: { id?: number; title?: string; userRating?: number; userBaseline?: number }
   ): void {
     // Store current media context for contribution tracking
     this.currentMediaId = mediaInfo?.id;
     this.currentMediaTitle = mediaInfo?.title;
     this.currentMediaTags = [];
+    
+    const userRating = mediaInfo?.userRating;
+    const userBaseline = mediaInfo?.userBaseline ?? 7;
+    const hasRating = userRating !== undefined && userRating > 0;
     
     // Collect contributions per trait for this media
     const preScores = new Map<string, number>();
@@ -337,6 +374,25 @@ class TraitScorer {
     // Add all tags
     for (const tag of tags) {
       this.addTag(tag.name, tag.rank ?? 50, engagementWeight);
+    }
+    
+    // Update exposure and enjoyment scores per trait
+    for (const [id, acc] of Array.from(this.accumulators.entries())) {
+      const contribution = acc.rawScore - (preScores.get(id) || 0);
+      if (contribution > 0) {
+        // Exposure: simply how much this trait appeared (pre-engagement)
+        acc.exposureScore += contribution;
+        
+        // Enjoyment: weighted by rating relative to baseline
+        if (hasRating) {
+          // Rating above baseline = positive enjoyment signal
+          // Rating below baseline = negative enjoyment signal
+          const ratingMultiplier = (userRating - userBaseline + 3) / 6; // Normalize to ~0.5-1.5 range
+          acc.enjoymentScore += contribution * Math.max(0.1, ratingMultiplier);
+          acc.ratingSum += userRating;
+          acc.ratedCount++;
+        }
+      }
     }
     
     // Record contributions for explainability (top traits only)
@@ -393,6 +449,16 @@ class TraitScorer {
       const sizeConfidence = Math.min(totalMediaCount / 20, 1); // Max confidence at 20+ media
       const confidence = Math.round((sampleConfidence * 0.7 + sizeConfidence * 0.3) * 100) / 100;
       
+      // Compute exposure and enjoyment scores (normalized to 0-100)
+      const maxExposure = Math.max(1, acc.exposureScore);
+      const normalizedExposure = Math.round((acc.exposureScore / maxExposure) * 100);
+      const normalizedEnjoyment = acc.ratedCount > 0 
+        ? Math.round((acc.enjoymentScore / acc.exposureScore) * 100) // Ratio-based
+        : undefined;
+      const affinityDelta = normalizedEnjoyment !== undefined 
+        ? normalizedEnjoyment - normalizedExposure 
+        : undefined;
+      
       const score: TraitScore = {
         traitId,
         name: traitDef.name,
@@ -409,6 +475,10 @@ class TraitScorer {
         })),
         confidence,
         role: traitDef.role,
+        // Exposure vs Enjoyment
+        exposureScore: normalizedExposure,
+        enjoymentScore: normalizedEnjoyment,
+        affinityDelta,
       };
       
       channels[traitDef.channel].push(score);
@@ -483,6 +553,67 @@ class TraitScorer {
 }
 
 // ============================================================================
+// AFFINITY INSIGHTS - "Loves vs Tolerates" Analysis
+// ============================================================================
+
+/**
+ * Generate affinity insights from exposure vs enjoyment deltas
+ * Returns insights like "You watch romance often but rate it lower than baseline"
+ */
+export function generateAffinityInsights(
+  traitScores: TraitScore[],
+  minExposure: number = 20 // Only analyze traits with significant exposure
+): TraitAffinityInsight[] {
+  const insights: TraitAffinityInsight[] = [];
+  
+  for (const trait of traitScores) {
+    if (!trait.exposureScore || trait.exposureScore < minExposure) continue;
+    if (trait.enjoymentScore === undefined || trait.affinityDelta === undefined) continue;
+    
+    const delta = trait.affinityDelta;
+    let insight: TraitAffinityInsight['insight'];
+    let description: string;
+    
+    if (delta > 30) {
+      // High enjoyment relative to exposure = hidden gem
+      insight = 'hidden_gem';
+      description = `You rarely encounter ${trait.name}, but when you do, you rate it very highly.`;
+    } else if (delta > 15) {
+      // Moderately higher enjoyment = loves
+      insight = 'loves';
+      description = `You genuinely enjoy ${trait.name} content - your ratings show real appreciation.`;
+    } else if (delta < -30) {
+      // Low enjoyment despite high exposure = tolerates
+      insight = 'tolerates';
+      description = `You watch a lot of ${trait.name} content, but rate it below your average.`;
+    } else if (delta < -15) {
+      // Moderately lower enjoyment = guilty pleasure
+      insight = 'guilty_pleasure';
+      description = `You keep watching ${trait.name} despite rating it lower - a guilty pleasure?`;
+    } else {
+      // Neutral alignment
+      insight = 'neutral';
+      description = `Your ${trait.name} consumption matches your enjoyment level.`;
+    }
+    
+    insights.push({
+      traitId: trait.traitId,
+      traitName: trait.name,
+      exposureScore: trait.exposureScore,
+      enjoymentScore: trait.enjoymentScore,
+      delta,
+      insight,
+      description,
+    });
+  }
+  
+  // Sort by absolute delta (most interesting insights first)
+  insights.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  
+  return insights;
+}
+
+// ============================================================================
 // PUBLIC API
 // ============================================================================
 
@@ -495,13 +626,24 @@ export function computeTraitProfile(
     tags: MediaTagInput[];
     engagementWeight: number;
     score?: number; // User's rating (0-10)
-  }>
+  }>,
+  userBaseline?: number // User's average rating for delta calculation
 ): TraitProfile {
   const scorer = new TraitScorer();
   const totalMediaCount = mediaEntries.length;
   
+  // Calculate user baseline if not provided
+  const validScores = mediaEntries.map(e => e.score).filter((s): s is number => s !== undefined && s > 0);
+  const computedBaseline = validScores.length > 0 
+    ? validScores.reduce((a, b) => a + b, 0) / validScores.length 
+    : 7;
+  const baseline = userBaseline ?? computedBaseline;
+  
   for (const entry of mediaEntries) {
-    scorer.addMediaTags(entry.tags, entry.engagementWeight);
+    scorer.addMediaTags(entry.tags, entry.engagementWeight, {
+      userRating: entry.score,
+      userBaseline: baseline,
+    });
   }
   
   // Detect rating signal strength
