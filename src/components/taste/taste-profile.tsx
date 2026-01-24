@@ -61,6 +61,7 @@ import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
 import { TraitInsightsCard } from './trait-insights-card';
+import { WhatShapedMeCard } from './what-shaped-me-card';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
@@ -103,7 +104,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   };
 
   // NEW: Get trait-based stats from enhanced genome
-  const { traitStats } = useEnhancedGenome();
+  const { traitStats, genome } = useEnhancedGenome();
   
   const toggleStatusFilter = (status: string) => {
     setStatusFilters(prev => {
@@ -1221,7 +1222,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       )}
 
-      {/* AniLens Lab - Taste Science */}
+      {/* What Shaped Me - New Trait System Attribution */}
+      {genome?.traitProfile && analyzedEntries.length > 10 && (
+        <WhatShapedMeCard 
+          traitProfile={genome.traitProfile}
+          entries={analyzedEntries}
+          type={activeTab}
+        />
+      )}
+
+      {/* AniLens Lab - Taste Science (Legacy) */}
       {tasteProfile && analyzedEntries.length > 10 && (
         <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 via-cyan-500/10 to-green-500/10 border border-purple-500/20">
           <TasteLabCard 

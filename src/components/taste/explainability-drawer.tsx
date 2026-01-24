@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, HelpCircle, TrendingUp, Film, Tag, AlertTriangle } from 'lucide-react';
+import { X, HelpCircle, Film, Tag, AlertTriangle } from 'lucide-react';
 import type { TraitScore, TraitContributor } from '@/lib/trait-scoring-engine';
 
 interface ExplainabilityDrawerProps {
@@ -49,7 +49,7 @@ export function ExplainabilityDrawer({
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">Why "{title}"?</h3>
+            <h3 className="text-lg font-semibold text-white">Why &ldquo;{title}&rdquo;?</h3>
           </div>
           <button 
             onClick={onClose}
@@ -133,9 +133,14 @@ export function ExplainabilityDrawer({
                       <span className="text-xs text-gray-500 w-4">{i + 1}.</span>
                       <span className="text-sm text-white truncate">{contributor.title || 'Unknown'}</span>
                     </div>
-                    <span className="text-xs text-purple-400 font-medium ml-2">
-                      +{contributor.contribution.toFixed(1)}
-                    </span>
+                    <div className="flex flex-col items-end ml-2">
+                      <span className="text-sm text-purple-400 font-bold">
+                        {Math.round((contributor.shareOfTrait || 0) * 100)}%
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        of trait
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
