@@ -60,6 +60,15 @@ export function useEnhancedGenome(options?: {
     // Get taste profile first (still needed for behavioral metrics)
     const tasteProfile = TasteAnalyzer.analyzeTaste(filteredEntries, 'ANIME');
     
+    // LOG #1: Confirm extractEnhancedGenome exists (detect circular dependency)
+    console.log('[EnhancedGenome] extractEnhancedGenome typeof:', typeof extractEnhancedGenome);
+    
+    // LOG #2: Confirm code path is reached
+    console.log('[EnhancedGenome] ABOUT TO BUILD GENOME', {
+      entries: filteredEntries?.length,
+      hasTasteProfile: !!tasteProfile,
+    });
+    
     // Extract enhanced genome with trait data - CATCH CRASHES
     let genome: TasteGenome | null = null;
     try {
@@ -68,18 +77,15 @@ export function useEnhancedGenome(options?: {
         recentDays: options?.recentDays ?? 30,
       });
       
-      console.log('[GENOME BUILT]', {
+      console.log('[EnhancedGenome] BUILT GENOME', {
         version: genome?.version,
         hasTraitProfile: !!genome?.traitProfile,
         hasDerived: !!genome?.derivedIndices,
       });
     } catch (err) {
-      const error = err as Error;
-      console.error('[GENOME BUILD FAILED]', {
-        message: error.message,
-        stack: error.stack,
-        entriesCount: filteredEntries.length,
-      });
+      // LOG #3: Catch + print full error stack
+      console.error('[EnhancedGenome] GENOME BUILD FAILED', err);
+      console.error('[EnhancedGenome] ERROR STACK', (err as Error)?.stack);
       // Return null genome but don't crash the app
       return { genome: null, traitStats: null };
     }
@@ -143,6 +149,17 @@ export function useEnhancedGenome(options?: {
     console.warn("TraitStats null -> FALLING BACK TO LEGACY (no traitProfile)");
     return { genome, traitStats: null };
   }, [entries, entryKey, options?.includeStressDiet, options?.recentDays]);
+
+  // LOG #4: Final hook return payload
+  console.log('[EnhancedGenome] RETURNING', {
+    loading,
+    entries: entries?.length,
+    hasGenome: !!result.genome,
+    genomeVersion: result.genome?.version,
+    hasTraitProfile: !!result.genome?.traitProfile,
+    hasDerived: !!result.genome?.derivedIndices?.length,
+    hasTraitStats: !!result.traitStats,
+  });
 
   return { genome: result.genome, traitStats: result.traitStats, loading };
 }
