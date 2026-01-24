@@ -374,10 +374,20 @@ function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
       const tags: MediaTagInput[] = (media.tags || [])
         .filter(t => !t.isGeneralSpoiler && !t.isMediaSpoiler)
         .filter(t => media.type !== 'MANGA' || (t.rank ?? 50) >= MANGA_TAG_RANK_FILTER)
-        .map(t => ({
-          name: t.name,
-          rank: t.rank,
-        }));
+        .map(t => {
+          // DEBUG: Log first few tags to check normalization
+          if (Math.random() < 0.01) { // 1% sample
+            console.log("[mediaEntriesToTraitInputs] tag:", {
+              original: t.name,
+              normalized: t.name.toLowerCase(),
+              rank: t.rank,
+            });
+          }
+          return {
+            name: t.name,
+            rank: t.rank,
+          };
+        });
 
       // Also add genres as pseudo-tags with high rank
       for (const genre of media.genres || []) {
@@ -394,7 +404,15 @@ function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
  */
 export function extractTraitProfile(entries: MediaListEntry[]): TraitProfile {
   const traitInputs = mediaEntriesToTraitInputs(entries);
-  return computeTraitProfile(traitInputs);
+  console.log("[extractTraitProfile] traitInputs count:", traitInputs.length);
+  const profile = computeTraitProfile(traitInputs);
+  console.log("[extractTraitProfile] profile channels:", {
+    identity: profile.channels.identity.length,
+    vibe: profile.channels.vibe.length,
+    structure: profile.channels.structure.length,
+    intensity: profile.channels.intensity.length,
+  });
+  return profile;
 }
 
 /**

@@ -60,21 +60,25 @@ export function useEnhancedGenome(options?: {
       recentDays: options?.recentDays ?? 30,
     });
 
-    // DEBUG: Confirm trait system is running
-    console.log("genome.version:", genome?.version);
-    console.log("traitProfile exists?", !!genome?.traitProfile);
-    console.log("derivedIndices exists?", !!genome?.derivedIndices);
-    console.log("trait counts:", {
-      identity: genome?.traitProfile?.channels.identity.length,
-      vibe: genome?.traitProfile?.channels.vibe.length,
-      structure: genome?.traitProfile?.channels.structure.length,
-      intensity: genome?.traitProfile?.channels.intensity.length,
+    // DEBUG: Detailed trait pipeline logging
+    console.log("[TRAIT PIPELINE]", {
+      hasGenome: !!genome,
+      hasTraitProfile: !!genome?.traitProfile,
+      hasDerived: !!genome?.derivedIndices,
+      channels: genome?.traitProfile ? {
+        identity: genome.traitProfile.channels.identity.length,
+        vibe: genome.traitProfile.channels.vibe.length,
+        structure: genome.traitProfile.channels.structure.length,
+        intensity: genome.traitProfile.channels.intensity.length,
+      } : null,
+      version: genome?.version,
     });
 
     // If we have a trait profile, compute legacy-compatible stats from it
-    if (genome?.traitProfile && genome?.derivedIndices) {
+    // Don't hard-gate on derivedIndices - make it optional to prevent cascade failures
+    if (genome?.traitProfile) {
       const traitProfile = genome.traitProfile;
-      const derivedIndices = genome.derivedIndices;
+      const derivedIndices = genome.derivedIndices ?? [];
 
       try {
         const traitStats: TraitBasedStats = {
@@ -102,7 +106,7 @@ export function useEnhancedGenome(options?: {
       }
     }
 
-    console.warn("TraitStats null -> FALLING BACK TO LEGACY (no traitProfile or derivedIndices)");
+    console.warn("TraitStats null -> FALLING BACK TO LEGACY (no traitProfile)");
     return { genome, traitStats: null };
   }, [entries, entryKey, options?.includeStressDiet, options?.recentDays]);
 
