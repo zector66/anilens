@@ -60,8 +60,14 @@ export interface MediaTagInput {
 export interface TraitContributor {
   mediaId?: number;
   title?: string;
-  contribution: number;
+  contribution: number;          // DEPRECATED - use rawContribution
+  rawContribution: number;       // True shape impact (pre-normalization, pre-dampening)
+  shareOfTrait: number;          // 0-1, what % of this trait did this media cause
   tagsUsed: { name: string; rank: number }[];
+  // Debug info for attribution calibration
+  engagementFactor?: number;
+  rankFactor?: number;
+  diminishingFactor?: number;
 }
 
 export interface TraitScore {
@@ -310,18 +316,21 @@ class TraitScorer {
     }
   }
   
-  /**
+/**
    * Add a tag's contribution to traits (uses per-trait diminishing rates)
    * @param tag - The tag name from AniList
    * @param tagRank - The tag's relevance to the media (0-100, default 50)
    * @param engagementWeight - How much the user engaged with this media (0-1)
+   * @returns Map of traitId -> contribution for this tag (for tracking)
    */
-  addTag(tag: string, tagRank: number = 50, engagementWeight: number = 1): void {
+  addTag(tag: string, tagRank: number = 50, engagementWeight: number = 1): Map<string, number> {
     const tagDef = getTagDefinition(tag);
-    if (!tagDef) return; // Unknown tag, skip
+    const contributions = new Map<string, number>();
+    if (!tagDef) return contributions; // Unknown tag, skip
     
-    // Rank modifier: tags with higher relevance contribute more
-    const rankModifier = tagRank / 100;
+    // Cap rank modifier to prevent reality distortion
+    // Soft curve: 0.6 + 0.4*(rank/100) so rank never annihilates contribution
+    const rankModifier = 0.6 + 0.4 * (tagRank / 100);
     
     // Defining tags get a boost
     const definingBoost = isDefiningTag(tag) ? 1.5 : 1;
@@ -336,13 +345,22 @@ class TraitScorer {
       // Calculate contribution with PER-TRAIT diminishing returns
       // Formula: 1 / (1 + diminishRate * hitCount)
       const diminishing = 1 / (1 + acc.diminishRate * acc.hitCount);
-      const contribution = mapping.weight * diminishing * rankModifier * definingBoost * engagementWeight;
+      
+      // Floor to prevent major signature titles from being erased
+      const diminishedWeight = Math.max(diminishing, 0.15);
+      
+      const contribution = mapping.weight * diminishedWeight * rankModifier * definingBoost * engagementWeight;
       
       acc.rawScore += contribution;
       acc.hitCount++;
       acc.contributingTags.add(tag);
+      contributions.set(mapping.traitId, contribution);
     }
+    
+    return contributions;
   }
+  
+private currentEngagementFactor: number = 1;
   
   /**
    * Add multiple tags from a media entry with explainability tracking
@@ -351,7 +369,7 @@ class TraitScorer {
    * @param userRating - User's rating for this media (0-10). If provided, contributes to enjoyment score.
    * @param userBaseline - User's average rating (for delta calculation). Default 7.
    */
-  addMediaTags(
+addMediaTags(
     tags: MediaTagInput[], 
     engagementWeight: number = 1,
     mediaInfo?: { id?: number; title?: string; userRating?: number; userBaseline?: number }
@@ -365,6 +383,12 @@ class TraitScorer {
     const userBaseline = mediaInfo?.userBaseline ?? 7;
     const hasRating = userRating !== undefined && userRating > 0;
     
+    // Cap engagement multiplier to prevent reality distortion
+    // Instead of 0-3x, use 0.85-1.35x range
+    this.currentEngagementFactor = hasRating 
+      ? Math.max(0.85, Math.min(1.35, 0.85 + ((userRating - userBaseline) / 10) * 0.3))
+      : engagementWeight;
+    
     // Collect contributions per trait for this media
     const preScores = new Map<string, number>();
     for (const [id, acc] of Array.from(this.accumulators.entries())) {
@@ -373,7 +397,7 @@ class TraitScorer {
     
     // Add all tags
     for (const tag of tags) {
-      this.addTag(tag.name, tag.rank ?? 50, engagementWeight);
+      this.addTag(tag.name, tag.rank ?? 50, this.currentEngagementFactor);
     }
     
     // Update exposure and enjoyment scores per trait
@@ -438,10 +462,13 @@ class TraitScorer {
         totalMediaCount
       );
       
-      // Sort media contributions by contribution amount and take top 3
+// Calculate total raw contribution for this trait (for shareOfTrait)
+      const totalRawForTrait = acc.rawScore;
+      
+      // Sort media contributions by RAW contribution (not normalized)
       const sortedContributions = [...acc.mediaContributions]
         .sort((a, b) => b.contribution - a.contribution)
-        .slice(0, 3);
+        .slice(0, 5); // Keep top 5 for better explainability
       
       // Calculate confidence based on sample size and consistency
       // More hits = more confident, but cap at reasonable levels
@@ -470,8 +497,14 @@ class TraitScorer {
         topContributors: sortedContributions.map(c => ({
           mediaId: c.mediaId,
           title: c.title,
-          contribution: Math.round(c.contribution * 100) / 100,
+          contribution: Math.round(c.contribution * 100) / 100, // DEPRECATED
+          rawContribution: c.contribution, // True shape impact
+          shareOfTrait: totalRawForTrait > 0 ? c.contribution / totalRawForTrait : 0,
           tagsUsed: c.tags,
+          // Debug info (optional, can be stripped for production)
+          engagementFactor: this.currentEngagementFactor,
+          rankFactor: undefined, // Would need to track per-tag
+          diminishingFactor: undefined, // Would need to track per-contribution
         })),
         confidence,
         role: traitDef.role,
