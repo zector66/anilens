@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// Force Node.js runtime to avoid Edge runtime issues with imports/crypto/Buffer
+export const runtime = 'nodejs';
+
 let supabase: SupabaseClient | null = null;
 
 function getSupabase(): SupabaseClient {
@@ -168,10 +171,15 @@ export async function GET(request: NextRequest) {
       snapshots,
       count: snapshots.length
     });
-  } catch (error) {
-    console.error('Genome snapshot fetch error:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('[SNAPSHOT_500]', err?.stack || error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'snapshot_failed', 
+        message: String(err?.message || error),
+        stack: process.env.NODE_ENV === 'development' ? err?.stack : undefined
+      },
       { status: 500 }
     );
   }

@@ -28,11 +28,22 @@ export function useGenomeSnapshots(
         `/api/genome/snapshot?anilistId=${anilistId}&mediaType=${mediaType}&limit=${limit}`
       );
       
+      console.log("[SNAPSHOT RESULT]", {
+        ok: response.ok,
+        status: response.status,
+      });
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch genome snapshots');
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[SNAPSHOT ERROR]", errorData);
+        throw new Error(`Failed to fetch genome snapshots: ${errorData.message || response.statusText}`);
       }
       
       const data = await response.json();
+      console.log("[SNAPSHOT DATA]", {
+        count: data.snapshots?.length,
+        hasSnapshots: !!data.snapshots,
+      });
       return data.snapshots.map((s: GenomeSnapshot) => ({
         ...s,
         createdAt: new Date(s.createdAt)

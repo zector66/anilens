@@ -190,20 +190,24 @@ export function calculateWhatShapedMe(
   // Sort by global impact
   impacts.sort((a, b) => b.globalImpact - a.globalImpact);
   
-  // Assign impact levels based on percentile
-  const total = impacts.length;
+  // Normalize influence against top contributor (not full library)
+  // This makes the #1 title feel like the #1 title
+  const maxImpact = impacts[0]?.globalImpact || 1;
+  
+  // Assign impact levels based on normalized influence
   impacts.forEach((impact, index) => {
-    const percentile = (total - index) / total;
+    // Normalize to 0-100 scale relative to top contributor
+    const normalizedInfluence = (impact.globalImpact / maxImpact) * 100;
     
     if (index < 3) {
       impact.impactLevel = 'defining';
-    } else if (percentile >= 0.90) {
+    } else if (normalizedInfluence >= 70) {
       impact.impactLevel = 'very_high';
-    } else if (percentile >= 0.75) {
+    } else if (normalizedInfluence >= 50) {
       impact.impactLevel = 'high';
-    } else if (percentile >= 0.50) {
+    } else if (normalizedInfluence >= 30) {
       impact.impactLevel = 'notable';
-    } else if (percentile >= 0.25) {
+    } else if (normalizedInfluence >= 15) {
       impact.impactLevel = 'moderate';
     } else {
       impact.impactLevel = 'minor';
