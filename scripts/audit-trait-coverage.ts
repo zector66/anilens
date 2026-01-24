@@ -197,4 +197,5 @@ function printReport(result: AuditResult): void {
 const result = auditCoverage();
 printReport(result);
 
-export { auditCoverage, AuditResult };
+export { auditCoverage };
+export type { AuditResult };

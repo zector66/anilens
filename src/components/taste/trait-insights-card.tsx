@@ -109,7 +109,7 @@ export function TraitInsightsCard() {
               <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/10">
                 <p className="text-white text-sm">{c.description}</p>
                 <p className="text-gray-500 text-xs mt-1">
-                  {c.trait1} ({c.score1}) vs {c.trait2} ({c.score2})
+                  {c.traits.high.join(', ')} {c.traits.low ? `vs ${c.traits.low.join(', ')}` : ''} (severity: {c.severity})
                 </p>
               </div>
             ))}
