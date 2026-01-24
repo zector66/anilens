@@ -124,6 +124,7 @@ export function calculateWhatShapedMe(
   // Calculate global impact for each media
   const impacts: MediaImpact[] = [];
   
+  let debugLogCount = 0;
   for (const [_, media] of mediaContributions) {
     let globalImpact = 0;
     
@@ -138,6 +139,19 @@ export function calculateWhatShapedMe(
       // Weighted contribution
       const weightedContribution = tc.rawContribution * roleWeight * rarityBoost;
       globalImpact += weightedContribution;
+      
+      // DEBUG: Log first media's calculation
+      if (debugLogCount === 0 && tc.rawContribution > 0) {
+        console.log("What Shaped Me - using rawContribution:", {
+          media: media.title,
+          trait: tc.traitName,
+          rawContribution: tc.rawContribution,
+          roleWeight,
+          rarityBoost,
+          weightedContribution,
+        });
+        debugLogCount++;
+      }
     }
     
     // Sort trait contributions by weighted impact

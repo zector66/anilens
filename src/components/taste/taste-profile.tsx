@@ -105,6 +105,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   // NEW: Get trait-based stats from enhanced genome
   const { traitStats, genome } = useEnhancedGenome();
   
+  // DEBUG: Show if trait system is active
+  console.log("TasteProfile - using traitStats:", !!traitStats);
+  
   const toggleStatusFilter = (status: string) => {
     setStatusFilters(prev => {
       const newSet = new Set(prev);

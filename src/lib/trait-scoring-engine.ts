@@ -374,6 +374,14 @@ addMediaTags(
     engagementWeight: number = 1,
     mediaInfo?: { id?: number; title?: string; userRating?: number; userBaseline?: number }
   ): void {
+    // DEBUG: Log TAG_TRAIT_MAP size once
+    if (!(this as any).__debugLogged) {
+      (this as any).__debugLogged = true;
+      console.log("TAG_TRAIT_MAP size:", TAG_TRAIT_MAP.size);
+      console.log("Example lookup 'Psychological':", TAG_TRAIT_MAP.get("psychological"));
+      console.log("Example lookup 'Action':", TAG_TRAIT_MAP.get("action"));
+    }
+    
     // Store current media context for contribution tracking
     this.currentMediaId = mediaInfo?.id;
     this.currentMediaTitle = mediaInfo?.title;

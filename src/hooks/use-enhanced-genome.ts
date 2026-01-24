@@ -37,6 +37,11 @@ export function useEnhancedGenome(options?: {
 }) {
   const { entries, loading } = useAniListData();
 
+  // Create stable dependency key for entries to ensure recomputation
+  const entryKey = useMemo(() => {
+    return entries.map(e => `${e.media?.id}:${e.score}:${e.status}:${e.progress}`).join('|');
+  }, [entries]);
+
   const result = useMemo<{ genome: TasteGenome | null; traitStats: TraitBasedStats | null }>(() => {
     if (entries.length === 0) return { genome: null, traitStats: null };
     
@@ -55,33 +60,51 @@ export function useEnhancedGenome(options?: {
       recentDays: options?.recentDays ?? 30,
     });
 
+    // DEBUG: Confirm trait system is running
+    console.log("genome.version:", genome?.version);
+    console.log("traitProfile exists?", !!genome?.traitProfile);
+    console.log("derivedIndices exists?", !!genome?.derivedIndices);
+    console.log("trait counts:", {
+      identity: genome?.traitProfile?.channels.identity.length,
+      vibe: genome?.traitProfile?.channels.vibe.length,
+      structure: genome?.traitProfile?.channels.structure.length,
+      intensity: genome?.traitProfile?.channels.intensity.length,
+    });
+
     // If we have a trait profile, compute legacy-compatible stats from it
     if (genome?.traitProfile && genome?.derivedIndices) {
       const traitProfile = genome.traitProfile;
       const derivedIndices = genome.derivedIndices;
 
-      const traitStats: TraitBasedStats = {
-        personalityTraits: traitProfileToLegacyPersonality(
-          traitProfile,
-          derivedIndices,
-          {
-            completionRate: tasteProfile.behavioralMetrics.completionRate,
-            mainstreamIndex: tasteProfile.behavioralMetrics.mainstreamIndex,
-            diversityIndex: tasteProfile.behavioralMetrics.diversityIndex,
-          }
-        ),
-        tagAffinity: traitScoresToTagAffinity(traitProfile, 20),
-        genreAffinity: traitScoresToGenreAffinity(traitProfile, 15),
-        topTraits: getTopTraitsForDisplay(traitProfile, 10),
-        chaos: calculateChaosFromTraits(traitProfile, derivedIndices),
-        contradictions: detectAllContradictions(traitProfile, derivedIndices),
-      };
+      try {
+        const traitStats: TraitBasedStats = {
+          personalityTraits: traitProfileToLegacyPersonality(
+            traitProfile,
+            derivedIndices,
+            {
+              completionRate: tasteProfile.behavioralMetrics.completionRate,
+              mainstreamIndex: tasteProfile.behavioralMetrics.mainstreamIndex,
+              diversityIndex: tasteProfile.behavioralMetrics.diversityIndex,
+            }
+          ),
+          tagAffinity: traitScoresToTagAffinity(traitProfile, 20),
+          genreAffinity: traitScoresToGenreAffinity(traitProfile, 15),
+          topTraits: getTopTraitsForDisplay(traitProfile, 10),
+          chaos: calculateChaosFromTraits(traitProfile, derivedIndices),
+          contradictions: detectAllContradictions(traitProfile, derivedIndices),
+        };
 
-      return { genome, traitStats };
+        return { genome, traitStats };
+      } catch (e) {
+        console.error("traitStats build failed:", e);
+        console.warn("TraitStats null -> FALLING BACK TO LEGACY");
+        return { genome, traitStats: null };
+      }
     }
 
+    console.warn("TraitStats null -> FALLING BACK TO LEGACY (no traitProfile or derivedIndices)");
     return { genome, traitStats: null };
-  }, [entries, options?.includeStressDiet, options?.recentDays]);
+  }, [entries, entryKey, options?.includeStressDiet, options?.recentDays]);
 
   return { genome: result.genome, traitStats: result.traitStats, loading };
 }
