@@ -382,10 +382,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     );
   }
 
+  // Personality cards now use trait-based values when available
   const personalityCards = [
     { 
       label: 'Completionist', 
-      value: tasteProfile.personalityTraits.completionist, 
+      value: traitStats?.personalityTraits.completionist ?? tasteProfile.personalityTraits.completionist, 
       icon: Target,
       color: 'from-green-500 to-emerald-500',
       description: 'Your drive to finish what you start',
@@ -398,7 +399,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     },
     { 
       label: 'Seasonal Tourist', 
-      value: tasteProfile.personalityTraits.seasonalTourist, 
+      value: traitStats?.personalityTraits.seasonalTourist ?? tasteProfile.personalityTraits.seasonalTourist, 
       icon: Clock,
       color: 'from-blue-500 to-cyan-500',
       description: 'Following current season trends',
@@ -410,7 +411,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     },
     { 
       label: 'Cult Hunter', 
-      value: tasteProfile.personalityTraits.cultHunter, 
+      value: traitStats?.personalityTraits.cultHunter ?? tasteProfile.personalityTraits.cultHunter, 
       icon: Zap,
       color: 'from-yellow-500 to-orange-500',
       description: 'Seeking hidden gems and classics',
@@ -422,19 +423,19 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     },
     { 
       label: 'Avant-Garde', 
-      value: tasteProfile.personalityTraits.avantGarde, 
+      value: traitStats?.personalityTraits.avantGarde ?? tasteProfile.personalityTraits.avantGarde, 
       icon: Palette,
       color: 'from-pink-500 to-rose-500',
       description: 'Appreciation for experimental works',
       tooltip: `Based on experimental/avant-garde titles in your ${activeTab === 'ANIME' ? 'list' : 'collection'}.`,
       receipts: [
         { label: 'Experimental Index', value: (tasteProfile.behavioralMetrics.experimentalIndex * 10).toFixed(1) },
-        { label: 'Unique Tags', value: tasteProfile.tagAffinity.filter(t => t.affinity > 0.6).length.toString() }
+        { label: 'Unique Traits', value: (traitStats?.tagAffinity ?? tasteProfile.tagAffinity).filter(t => t.affinity > 0.6).length.toString() }
       ]
     },
     { 
       label: 'Mainstream Maxxer', 
-      value: tasteProfile.personalityTraits.mainstreamMaxxer, 
+      value: traitStats?.personalityTraits.mainstreamMaxxer ?? tasteProfile.personalityTraits.mainstreamMaxxer, 
       icon: Zap,
       color: 'from-blue-400 to-indigo-600',
       description: 'Following the cultural phenomena',
@@ -446,7 +447,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     },
     { 
       label: 'Nostalgia Addict', 
-      value: tasteProfile.personalityTraits.nostalgiaAddict, 
+      value: traitStats?.personalityTraits.nostalgiaAddict ?? tasteProfile.personalityTraits.nostalgiaAddict, 
       icon: Clock,
       color: 'from-amber-700 to-orange-800',
       description: 'Classic-focused taste',
