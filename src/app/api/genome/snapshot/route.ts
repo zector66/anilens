@@ -150,8 +150,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Return 204 No Content if no snapshots exist (cache miss)
+    if (!data || data.length === 0) {
+      return new NextResponse(null, { status: 204 });
+    }
+
     // Transform to camelCase for frontend
-    const snapshots = (data || []).map(row => ({
+    const snapshots = data.map(row => ({
       id: row.id,
       anilistId: row.anilist_id,
       mediaType: row.media_type,

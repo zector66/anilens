@@ -34,18 +34,28 @@ export function TasteDriftCard({ profile, entries, anilistId, type }: TasteDrift
   const genome = useMemo(() => extractGenome(profile), [profile]);
   
   // Auto-save snapshot on first load (if eligible)
+  // This is WRITE-BEHIND - if it fails, we don't care, UI still works
   useEffect(() => {
     if (genome && anilistId && entries.length > 10) {
       // Create a simple list hash for cache invalidation
       const listHash = `${entries.length}-${entries.reduce((sum, e) => sum + (e.score || 0), 0)}`;
       
-      saveSnapshot({
-        genome,
-        anilistId,
-        mediaType: type,
-        listHash,
-        entryCount: entries.length
-      });
+      // Save snapshot in background - failures are silent
+      saveSnapshot(
+        {
+          genome,
+          anilistId,
+          mediaType: type,
+          listHash,
+          entryCount: entries.length
+        },
+        {
+          onError: (error) => {
+            // Silent failure - snapshot is optional cache only
+            console.warn('[SNAPSHOT SAVE FAILED - IGNORED]', error);
+          }
+        }
+      );
     }
   }, [genome, anilistId, type, entries.length]); // eslint-disable-line react-hooks/exhaustive-deps
 

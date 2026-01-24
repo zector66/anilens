@@ -7,8 +7,7 @@ import {
   TasteDrift, 
   DriftTimeline,
   genomeToSnapshot,
-  buildDriftTimeline,
-  calculateDrift
+  buildDriftTimeline
 } from '@/lib/taste-drift';
 
 /**
@@ -32,6 +31,12 @@ export function useGenomeSnapshots(
         ok: response.ok,
         status: response.status,
       });
+      
+      // 204 No Content = cache miss, no snapshots exist (not an error)
+      if (response.status === 204) {
+        console.log("[SNAPSHOT CACHE MISS]");
+        return [];
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
