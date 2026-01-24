@@ -61,7 +61,6 @@ import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
 import { TraitInsightsCard } from './trait-insights-card';
-import { WhatShapedMeCard } from './what-shaped-me-card';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];

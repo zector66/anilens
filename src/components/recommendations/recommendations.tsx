@@ -7,7 +7,8 @@ import { useSettings } from '@/contexts/settings-context';
 import { useMedia } from '@/contexts/media-context';
 import { useModelSettings } from '@/hooks/use-model-settings';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
-import { extractGenome, predictEnjoyment, MediaFeatures, EnjoymentPrediction } from '@/lib/taste-genome';
+import { extractGenome, extractTraitProfile, predictEnjoyment, MediaFeatures, EnjoymentPrediction } from '@/lib/taste-genome';
+import { traitScoresToGenreAffinity, traitScoresToTagAffinity } from '@/lib/trait-to-legacy-adapter';
 import { MediaListEntry, Media } from '@/types/anilist';
 import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
 import { OptimizedImage } from '@/components/ui/optimized-image';
@@ -234,6 +235,93 @@ export function Recommendations({ userId }: RecommendationsProps) {
     return TasteAnalyzer.analyzeTaste(allEntries, activeType);
   }, [allEntries, activeType]);
 
+  const traitProfile = useMemo(() => {
+    if (allEntries.length === 0) return null;
+    return extractTraitProfile(allEntries);
+  }, [allEntries]);
+
+  const traitGenreAffinity = useMemo(() => (
+    traitProfile ? traitScoresToGenreAffinity(traitProfile, 15) : null
+  ), [traitProfile]);
+
+  const traitTagAffinity = useMemo(() => (
+    traitProfile ? traitScoresToTagAffinity(traitProfile, 20) : null
+  ), [traitProfile]);
+
+  const effectiveGenreAffinity = useMemo(() => {
+    const legacy = tasteProfile?.genreAffinity ?? [];
+    const trait = traitGenreAffinity ?? [];
+    if (legacy.length === 0) return trait;
+    if (trait.length === 0) return legacy;
+
+    const merged = new Map<string, typeof legacy[number]>();
+    for (const entry of legacy) {
+      merged.set(entry.genre, { ...entry, avgScore: entry.avgScore ?? 0 });
+    }
+    for (const entry of trait) {
+      const existing = merged.get(entry.genre);
+      if (!existing) {
+        merged.set(entry.genre, { ...entry, avgScore: entry.avgScore ?? 0 });
+      } else {
+        merged.set(entry.genre, {
+          ...existing,
+          affinity: Math.max(existing.affinity, entry.affinity),
+          confidence: Math.max(existing.confidence ?? 0, entry.confidence ?? 0),
+          count: Math.max(existing.count ?? 0, entry.count ?? 0),
+        });
+      }
+    }
+    return Array.from(merged.values()).sort((a, b) => b.affinity - a.affinity);
+  }, [tasteProfile?.genreAffinity, traitGenreAffinity]);
+
+  const effectiveTagAffinity = useMemo(() => {
+    const legacy = tasteProfile?.tagAffinity ?? [];
+    const trait = traitTagAffinity ?? [];
+    if (legacy.length === 0) return trait;
+    if (trait.length === 0) return legacy;
+
+    type TagAffinityEntry = {
+      tag: string;
+      affinity: number;
+      count: number;
+      avgScore: number;
+      avgRank: number;
+      confidence?: number;
+    };
+
+    const toEntry = (entry: typeof legacy[number] | (typeof trait)[number]): TagAffinityEntry => ({
+      tag: entry.tag,
+      affinity: entry.affinity,
+      count: entry.count,
+      avgScore: entry.avgScore ?? 0,
+      avgRank: 'avgRank' in entry ? entry.avgRank ?? 0 : 0,
+      confidence: entry.confidence,
+    });
+
+    const merged = new Map<string, TagAffinityEntry>();
+    for (const entry of legacy) {
+      const normalized = toEntry(entry);
+      merged.set(normalized.tag, normalized);
+    }
+    for (const entry of trait) {
+      const normalized = toEntry(entry);
+      const existing = merged.get(normalized.tag);
+      if (!existing) {
+        merged.set(normalized.tag, normalized);
+      } else {
+        merged.set(normalized.tag, {
+          ...existing,
+          affinity: Math.max(existing.affinity, normalized.affinity),
+          confidence: Math.max(existing.confidence ?? 0, normalized.confidence ?? 0),
+          count: Math.max(existing.count ?? 0, normalized.count ?? 0),
+          avgScore: Math.max(existing.avgScore ?? 0, normalized.avgScore ?? 0),
+          avgRank: Math.max(existing.avgRank ?? 0, normalized.avgRank ?? 0),
+        });
+      }
+    }
+    return Array.from(merged.values()).sort((a, b) => b.affinity - a.affinity);
+  }, [tasteProfile?.tagAffinity, traitTagAffinity]);
+
   // Analyze favorites for recommendation boosting
   const favoritesProfile = useMemo<FavoritesProfile | null>(() => {
     if (!favorites) return null;
@@ -269,7 +357,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
       formats: selectedFormats,
       mode,
       minScore: adjustedMinScore,
-      tagAffinity: tasteProfile?.tagAffinity || [],
+      tagAffinity: effectiveTagAffinity,
       studioBias: tasteProfile?.studioBias || [],
       formatWeights: tasteProfile?.formatWeights || {},
       favoritesProfile: favoritesProfile ? {
@@ -282,10 +370,10 @@ export function Recommendations({ userId }: RecommendationsProps) {
       favoritesInfluence,
       explorationLevel, // Pass to backend for genre diversity
     };
-  }, [selectedGenre, selectedFormats, activeFilter, minScore, explorationLevel, tasteProfile?.tagAffinity, tasteProfile?.studioBias, tasteProfile?.formatWeights, favoritesProfile, anchorToFavorites, favoritesInfluence]);
+  }, [selectedGenre, selectedFormats, activeFilter, minScore, explorationLevel, effectiveTagAffinity, tasteProfile?.studioBias, tasteProfile?.formatWeights, favoritesProfile, anchorToFavorites, favoritesInfluence]);
 
   const { data: recommendedMedia, isLoading: isLoadingRecs, refetch: refetchRecs, isRefetching } = useRecommendations(
-    tasteProfile?.genreAffinity || [],
+    effectiveGenreAffinity,
     watchedIds,
     activeType,
     recOptions
@@ -388,8 +476,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
 
   console.log('[Recommendations] Total processed:', processedRecommendations.length, 'with predictions');
 
-  const topGenres = tasteProfile.genreAffinity.slice(0, 5);
-  const topTags = tasteProfile.tagAffinity.slice(0, 5);
+  const topGenres = effectiveGenreAffinity.slice(0, 5);
+  const topTags = effectiveTagAffinity.slice(0, 5);
   const topStudios = tasteProfile.studioBias.slice(0, 3).map(s => s.studio);
   
   const filters = [
@@ -532,7 +620,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
           >
             All Genres
           </button>
-          {(showGenrePicker ? tasteProfile.genreAffinity : topGenres).map((g) => (
+          {(showGenrePicker ? effectiveGenreAffinity : topGenres).map((g) => (
             <button
               key={g.genre}
               onClick={() => setSelectedGenre(g.genre)}

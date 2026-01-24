@@ -142,10 +142,10 @@ export interface ProfileMeta {
  * Prevents "100% THIS" on tiny samples
  */
 function calculateSampleCap(totalMediaCount: number): number {
-  if (totalMediaCount >= 15) return 100; // Full confidence
-  // Formula: max = 55 + totalMediaCount * 2
-  // 5 shows → 65, 10 shows → 75, 15 shows → 85+
-  return Math.min(55 + totalMediaCount * 3, 100);
+  if (totalMediaCount >= 30) return 100; // Full confidence
+  // More conservative growth for small libraries
+  // 5 shows → ~73, 10 shows → ~80, 15 shows → ~86
+  return Math.min(55 + Math.sqrt(totalMediaCount) * 8, 100);
 }
 
 /**
@@ -422,7 +422,7 @@ addMediaTags(
     // Record contributions for explainability (top traits only)
     for (const [id, acc] of Array.from(this.accumulators.entries())) {
       const contribution = acc.rawScore - (preScores.get(id) || 0);
-      if (contribution > 0.5) { // Only track meaningful contributions
+      if (contribution > 0.25) { // Track smaller contributions to surface rare traits
         acc.mediaContributions.push({
           mediaId: this.currentMediaId,
           title: this.currentMediaTitle,

@@ -341,31 +341,50 @@ export function extractGenome(profile: TasteProfile): TasteGenome {
 function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
   tags: MediaTagInput[];
   engagementWeight: number;
+  score?: number;
 }> {
+  const VALID_STATUSES = new Set(['COMPLETED', 'CURRENT', 'REPEATING']);
+  const MANGA_TAG_RANK_FILTER = 60;
+
   return entries
-    .filter(e => e.media && e.status === 'COMPLETED')
+    .filter(e => e.media && VALID_STATUSES.has(e.status))
     .map(entry => {
       const media = entry.media!;
-      const score = entry.score || 5;
+      const score = entry.score > 0 ? entry.score : undefined;
       const repeats = entry.repeat || 0;
-      
-      // Engagement weight based on score and rewatches
-      const scoreWeight = Math.max(0, (score - 5) / 5); // 0 at 5, 1 at 10
+
+      const totalUnits = media.type === 'MANGA'
+        ? (media.chapters || 1)
+        : (media.episodes || 1);
+      const progressUnits = entry.status === 'COMPLETED'
+        ? totalUnits
+        : Math.min(totalUnits, entry.progress || 0);
+      const progressRatio = totalUnits > 0 ? progressUnits / totalUnits : 0;
+      const progressWeight = entry.status === 'COMPLETED'
+        ? 1
+        : Math.max(0.25, Math.sqrt(progressRatio || 0));
+
+      // Engagement weight based on score, rewatches, and progress
+      const normalizedScore = score !== undefined ? (score - 5) / 5 : 0; // -1 to 1
+      const scoreWeight = Math.max(0.2, 0.5 + normalizedScore * 0.5); // 0.2 - 1.0
       const repeatBonus = Math.min(0.5, repeats * 0.15);
-      const engagementWeight = Math.max(0.1, scoreWeight + repeatBonus);
-      
+      const engagementWeight = Math.max(0.2, (scoreWeight + repeatBonus) * progressWeight);
+
       // Convert media tags to trait input format
-      const tags: MediaTagInput[] = (media.tags || []).map(t => ({
-        name: t.name,
-        rank: t.rank
-      }));
-      
+      const tags: MediaTagInput[] = (media.tags || [])
+        .filter(t => !t.isGeneralSpoiler && !t.isMediaSpoiler)
+        .filter(t => media.type !== 'MANGA' || (t.rank ?? 50) >= MANGA_TAG_RANK_FILTER)
+        .map(t => ({
+          name: t.name,
+          rank: t.rank,
+        }));
+
       // Also add genres as pseudo-tags with high rank
       for (const genre of media.genres || []) {
         tags.push({ name: genre, rank: 85 });
       }
-      
-      return { tags, engagementWeight };
+
+      return { tags, engagementWeight, score };
     });
 }
 
