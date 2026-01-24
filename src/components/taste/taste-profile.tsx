@@ -1222,16 +1222,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       )}
 
-      {/* What Shaped Me - New Trait System Attribution */}
-      {genome?.traitProfile && analyzedEntries.length > 10 && (
-        <WhatShapedMeCard 
-          traitProfile={genome.traitProfile}
-          entries={analyzedEntries}
-          type={activeTab}
-        />
-      )}
-
-      {/* AniLens Lab - Taste Science (Legacy) */}
+      {/* AniLens Lab - Taste Science */}
       {tasteProfile && analyzedEntries.length > 10 && (
         <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 via-cyan-500/10 to-green-500/10 border border-purple-500/20">
           <TasteLabCard 

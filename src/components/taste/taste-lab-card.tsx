@@ -9,12 +9,13 @@ import {
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { 
   TasteContradiction, 
-  TasteInfluencer,
   extractGenome,
   detectContradictions,
-  identifyTasteInfluencers
 } from '@/lib/taste-genome';
 import { TasteProfile, MediaListEntry } from '@/types/anilist';
+import { calculateWhatShapedMe, type MediaImpact } from '@/lib/what-shaped-me';
+import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
+import { useExplainabilityDrawer } from './explainability-drawer';
 
 interface TasteLabCardProps {
   profile: TasteProfile;
@@ -26,6 +27,8 @@ interface TasteLabCardProps {
 export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCardProps) {
   const [activeTab, setActiveTab] = useState<'contradictions' | 'influencers' | 'genome'>('contradictions');
   const [showAll, setShowAll] = useState(false);
+  const { openDrawer, DrawerComponent } = useExplainabilityDrawer();
+  const { genome: enhancedGenome } = useEnhancedGenome();
 
   // Extract genome and analyze
   const genome = useMemo(() => extractGenome(profile), [profile]);
@@ -35,10 +38,13 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
     [entries, genome, profile, userStats]
   );
   
-  const influencers = useMemo(() => 
-    identifyTasteInfluencers(entries, profile, genome, 10),
-    [entries, profile, genome]
-  );
+  // Use new trait system for influencers if available
+  const influencers = useMemo(() => {
+    if (enhancedGenome?.traitProfile) {
+      return calculateWhatShapedMe(enhancedGenome.traitProfile, 10);
+    }
+    return [];
+  }, [enhancedGenome]);
 
   // Categorize contradictions with CLEAN 3-bucket classification
   const onBrandFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');
@@ -195,9 +201,97 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
               <p className="text-sm">Not enough data to identify influencers</p>
             </div>
           ) : (
-            influencers.slice(0, showAll ? 10 : 5).map((influencer, i) => (
-              <InfluencerRow key={influencer.mediaId} influencer={influencer} rank={i + 1} />
-            ))
+            influencers.slice(0, showAll ? 10 : 5).map((impact: MediaImpact, i: number) => {
+              const entry = entries.find(e => e.media?.id === impact.mediaId);
+              return (
+                <button
+                  key={impact.mediaId || i}
+                  onClick={() => {
+                    openDrawer({
+                      title: impact.title || 'Unknown',
+                      description: impact.summary,
+                      topContributors: impact.topTraits.map(t => ({
+                        title: impact.title,
+                        mediaId: impact.mediaId,
+                        contribution: t.rawContribution,
+                        rawContribution: t.rawContribution,
+                        shareOfTrait: t.shareOfTrait,
+                        tagsUsed: [],
+                      })),
+                    });
+                  }}
+                  className="w-full flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+                >
+                  {/* Rank Badge */}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    impact.impactLevel === 'defining' ? 'bg-gradient-to-br from-yellow-500 to-orange-500 text-white' :
+                    impact.impactLevel === 'very_high' ? 'bg-purple-500/30 text-purple-300' :
+                    impact.impactLevel === 'high' ? 'bg-cyan-500/30 text-cyan-300' :
+                    'bg-white/10 text-gray-400'
+                  }`}>
+                    {i + 1}
+                  </div>
+                  
+                  {/* Cover Image */}
+                  <div className="w-12 h-16 rounded-md overflow-hidden shrink-0 bg-white/10">
+                    {entry?.media?.coverImage?.large && (
+                      <OptimizedImage
+                        src={entry.media.coverImage.large}
+                        alt={impact.title || 'Unknown'}
+                        width={48}
+                        height={64}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <h5 className="text-sm font-medium text-white truncate">{impact.title || 'Unknown'}</h5>
+                    
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="text-xs text-cyan-400 font-medium">
+                        {impact.summary}
+                      </div>
+                      {impact.impactLevel === 'defining' && (
+                        <Sparkles className="w-3 h-3 text-yellow-400" />
+                      )}
+                    </div>
+                    
+                    {/* Top Shaped Traits */}
+                    {impact.topTraits.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {impact.topTraits.slice(0, 3).map((trait) => (
+                          <span 
+                            key={trait.traitId}
+                            className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded"
+                          >
+                            {trait.traitName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Impact Level Badge */}
+                  <div className="shrink-0">
+                    <div className={`text-[10px] px-2 py-1 rounded-full font-medium ${
+                      impact.impactLevel === 'defining' ? 'bg-yellow-500/20 text-yellow-400' :
+                      impact.impactLevel === 'very_high' ? 'bg-purple-500/20 text-purple-300' :
+                      impact.impactLevel === 'high' ? 'bg-cyan-500/20 text-cyan-300' :
+                      impact.impactLevel === 'notable' ? 'bg-blue-500/20 text-blue-300' :
+                      'bg-white/10 text-gray-400'
+                    }`}>
+                      {impact.impactLevel === 'defining' ? 'Defining' :
+                       impact.impactLevel === 'very_high' ? 'Very High' :
+                       impact.impactLevel === 'high' ? 'High' :
+                       impact.impactLevel === 'notable' ? 'Notable' :
+                       'Moderate'}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
           )}
 
           {influencers.length > 5 && (
@@ -314,6 +408,7 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
           </div>
         </div>
       )}
+      <DrawerComponent />
     </div>
   );
 }
@@ -414,73 +509,5 @@ function ContradictionRow({ contradiction }: { contradiction: TasteContradiction
   );
 }
 
-function InfluencerRow({ influencer, rank }: { influencer: TasteInfluencer; rank: number }) {
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-      {/* Rank */}
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-        rank === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-        rank === 2 ? 'bg-gray-400/20 text-gray-300' :
-        rank === 3 ? 'bg-orange-500/20 text-orange-400' :
-        'bg-white/10 text-gray-400'
-      }`}>
-        {rank}
-      </div>
-
-      {/* Cover Image */}
-      <div className="w-12 h-16 rounded-md overflow-hidden shrink-0 bg-white/10">
-        {influencer.coverImage && (
-          <OptimizedImage
-            src={influencer.coverImage}
-            alt={influencer.title}
-            width={48}
-            height={64}
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <h5 className="text-sm font-medium text-white truncate">{influencer.title}</h5>
-        
-        <div className="flex items-center gap-2 mt-1">
-          <div className="text-xs text-cyan-400 font-medium">
-            {influencer.influenceScore}% influence
-          </div>
-          {influencer.wasFormative && (
-            <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
-              Formative
-            </span>
-          )}
-        </div>
-
-        {/* Shaped Traits */}
-        {influencer.shapedTraits.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {influencer.shapedTraits.slice(0, 3).map((trait) => (
-              <span 
-                key={trait.trait}
-                className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded"
-              >
-                {trait.trait}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Influence Bar */}
-      <div className="w-16 shrink-0">
-        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div 
-            className="h-full rounded-full bg-linear-to-r from-cyan-500 to-purple-500"
-            style={{ width: `${influencer.influenceScore}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default TasteLabCard;
