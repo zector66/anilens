@@ -412,3 +412,170 @@ export function deserializeSnapshot(data: Record<string, unknown>): TasteSnapsho
     timestamp: new Date(data.timestamp as string),
   } as TasteSnapshot;
 }
+
+// ============================================================================
+// TASTE STABILITY INDEX
+// Measures how consistent core identity traits are over time
+// ============================================================================
+
+export interface TasteStabilityResult {
+  stabilityIndex: number;        // 0-100, higher = more stable
+  stabilityLabel: StabilityLabel;
+  coreTraitStability: number;    // Identity channel stability
+  vibeStability: number;         // Vibe channel stability
+  overallVolatility: number;     // How much traits change in general
+  analysis: string;              // Human-readable summary
+}
+
+export type StabilityLabel = 
+  | 'Bedrock Identity'    // 90-100: Core traits never shift
+  | 'Stable Foundation'   // 70-89: Minor fluctuations only
+  | 'Evolving Taste'      // 50-69: Notable changes over time
+  | 'Fluid Explorer'      // 30-49: Significant shifts
+  | 'Chameleon Viewer';   // 0-29: Constantly changing
+
+/**
+ * Calculate Taste Stability Index from snapshot history
+ * Compares core identity traits across multiple snapshots
+ * 
+ * @param snapshots - Historical snapshots, newest first
+ * @param minSnapshots - Minimum snapshots needed for valid calculation
+ */
+export function calculateTasteStability(
+  snapshots: TasteSnapshot[],
+  minSnapshots: number = 3
+): TasteStabilityResult | null {
+  if (snapshots.length < minSnapshots) {
+    return null; // Not enough history
+  }
+  
+  // Compare each snapshot to the one before it
+  const traitStabilityScores: number[] = [];
+  const vibeStabilityScores: number[] = [];
+  
+  for (let i = 0; i < snapshots.length - 1; i++) {
+    const current = snapshots[i];
+    const previous = snapshots[i + 1];
+    
+    // Calculate identity trait stability
+    const identityStability = calculateChannelStability(
+      current.topIdentity,
+      previous.topIdentity
+    );
+    traitStabilityScores.push(identityStability);
+    
+    // Calculate vibe stability
+    const vibeStability = calculateChannelStability(
+      current.topVibe,
+      previous.topVibe
+    );
+    vibeStabilityScores.push(vibeStability);
+  }
+  
+  // Average stability across all comparisons
+  const avgIdentityStability = traitStabilityScores.reduce((a, b) => a + b, 0) / traitStabilityScores.length;
+  const avgVibeStability = vibeStabilityScores.reduce((a, b) => a + b, 0) / vibeStabilityScores.length;
+  
+  // Weight identity traits more heavily (they're "who you are")
+  const stabilityIndex = Math.round(avgIdentityStability * 0.6 + avgVibeStability * 0.4);
+  
+  // Calculate overall volatility (inverse of stability)
+  const overallVolatility = 100 - stabilityIndex;
+  
+  // Determine label
+  const stabilityLabel = getStabilityLabel(stabilityIndex);
+  
+  // Generate analysis
+  const analysis = generateStabilityAnalysis(
+    stabilityIndex,
+    avgIdentityStability,
+    avgVibeStability,
+    snapshots.length
+  );
+  
+  return {
+    stabilityIndex,
+    stabilityLabel,
+    coreTraitStability: Math.round(avgIdentityStability),
+    vibeStability: Math.round(avgVibeStability),
+    overallVolatility: Math.round(overallVolatility),
+    analysis,
+  };
+}
+
+/**
+ * Calculate stability between two sets of traits
+ * Returns 0-100 where 100 = identical, 0 = completely different
+ */
+function calculateChannelStability(
+  current: SnapshotTrait[],
+  previous: SnapshotTrait[]
+): number {
+  if (current.length === 0 && previous.length === 0) return 100;
+  if (current.length === 0 || previous.length === 0) return 0;
+  
+  const currentSet = new Set(current.map(t => t.traitId));
+  const previousSet = new Set(previous.map(t => t.traitId));
+  
+  // Jaccard similarity for trait presence
+  const intersection = [...currentSet].filter(t => previousSet.has(t)).length;
+  const union = new Set([...currentSet, ...previousSet]).size;
+  const presenceStability = (intersection / union) * 100;
+  
+  // Score delta for shared traits
+  let scoreDeltaSum = 0;
+  let sharedCount = 0;
+  
+  const previousScoreMap = new Map(previous.map(t => [t.traitId, t.score]));
+  for (const trait of current) {
+    const prevScore = previousScoreMap.get(trait.traitId);
+    if (prevScore !== undefined) {
+      const delta = Math.abs(trait.score - prevScore);
+      // Max delta is ~100, normalize to 0-1 where 0 = no change
+      scoreDeltaSum += delta / 100;
+      sharedCount++;
+    }
+  }
+  
+  const scoreStability = sharedCount > 0 
+    ? (1 - scoreDeltaSum / sharedCount) * 100 
+    : presenceStability;
+  
+  // Combine presence and score stability
+  return presenceStability * 0.6 + scoreStability * 0.4;
+}
+
+function getStabilityLabel(index: number): StabilityLabel {
+  if (index >= 90) return 'Bedrock Identity';
+  if (index >= 70) return 'Stable Foundation';
+  if (index >= 50) return 'Evolving Taste';
+  if (index >= 30) return 'Fluid Explorer';
+  return 'Chameleon Viewer';
+}
+
+function generateStabilityAnalysis(
+  stabilityIndex: number,
+  identityStability: number,
+  vibeStability: number,
+  snapshotCount: number
+): string {
+  const monthsAnalyzed = snapshotCount - 1;
+  
+  if (stabilityIndex >= 90) {
+    return `Your core taste has been remarkably consistent over ${monthsAnalyzed} months. You know exactly what you like.`;
+  } else if (stabilityIndex >= 70) {
+    if (identityStability > vibeStability + 15) {
+      return `Your genre preferences are rock-solid, but your mood preferences shift based on life circumstances.`;
+    }
+    return `Your taste has a stable core with healthy exploration around the edges. A balanced viewer.`;
+  } else if (stabilityIndex >= 50) {
+    if (vibeStability > identityStability + 15) {
+      return `Your emotional preferences are consistent, but you're actively exploring different genres and styles.`;
+    }
+    return `Your taste is evolving! You're discovering new preferences while maintaining some core favorites.`;
+  } else if (stabilityIndex >= 30) {
+    return `You're a taste explorer - your preferences shift significantly over time. Each month brings new favorites.`;
+  } else {
+    return `Your taste is highly fluid - you're either early in your journey or genuinely enjoy variety above all else.`;
+  }
+}

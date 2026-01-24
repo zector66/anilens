@@ -625,7 +625,104 @@ export interface Contradiction {
   description: string;
   severity: number; // 0-100, how strong the contradiction is
   traits: { high: string[]; low?: string[] };
+  // Resolved explanation - what this contradiction MEANS about the user
+  flavorType?: ContradictionFlavor;
+  resolvedExplanation?: string;
 }
+
+/**
+ * Flavor types explain WHY someone has this contradiction
+ */
+export type ContradictionFlavor = 
+  | 'palate_cleanser'    // Uses one to recover from the other
+  | 'dual_mode'          // Has two distinct viewing modes
+  | 'comfort_through'    // Finds comfort IN the contrast (e.g., comfort through fear)
+  | 'aesthetic_only'     // Likes the aesthetic, not the intensity
+  | 'genre_agnostic'     // Doesn't care about genre, cares about execution
+  | 'mood_dependent'     // Watches based on current mood
+  | 'context_switch'     // Completely separates these as different activities
+  | 'hidden_depth'       // Uses light content to process heavy content
+  | 'thrill_seeker';     // Loves the emotional rollercoaster
+
+/**
+ * Flavor definitions with detection logic and explanations
+ */
+interface FlavorDefinition {
+  id: ContradictionFlavor;
+  name: string;
+  triggers: {
+    contradictionIds: string[];        // Which contradictions this applies to
+    requiredTraits?: string[];         // Additional traits that must be present
+    intensityThreshold?: number;       // Min severity to consider
+  };
+  explanationTemplate: string;         // Template with {high} and {low} placeholders
+}
+
+const CONTRADICTION_FLAVORS: FlavorDefinition[] = [
+  {
+    id: 'palate_cleanser',
+    name: 'Palate Cleanser',
+    triggers: { 
+      contradictionIds: ['cozy_horror', 'chill_tense', 'cute_dark'],
+      intensityThreshold: 40,
+    },
+    explanationTemplate: 'You likely use {high} content to decompress after intense {low} sessions. The contrast is intentional self-care.',
+  },
+  {
+    id: 'comfort_through',
+    name: 'Comfort Through Contrast',
+    triggers: { 
+      contradictionIds: ['cozy_horror'],
+      requiredTraits: ['horror', 'psychological'],
+    },
+    explanationTemplate: 'You find comfort IN fear itself. Horror provides a safe way to experience controlled anxiety, while cozy content grounds you.',
+  },
+  {
+    id: 'dual_mode',
+    name: 'Dual Mode Viewer',
+    triggers: { 
+      contradictionIds: ['romance_gore', 'absurd_tragic'],
+      intensityThreshold: 50,
+    },
+    explanationTemplate: 'You have two distinct viewing personalities: one that craves {high}, another that needs {low}. Both are authentically you.',
+  },
+  {
+    id: 'aesthetic_only',
+    name: 'Aesthetic Appreciator',
+    triggers: { 
+      contradictionIds: ['cute_dark', 'romance_gore'],
+      requiredTraits: ['artistic', 'visual_storytelling'],
+    },
+    explanationTemplate: 'You appreciate the AESTHETIC of {low} content without necessarily seeking its full intensity. Visual storytelling matters more than shock value.',
+  },
+  {
+    id: 'mood_dependent',
+    name: 'Mood-Based Viewer',
+    triggers: { 
+      contradictionIds: ['chill_tense', 'absurd_tragic', 'cozy_horror'],
+      intensityThreshold: 30,
+    },
+    explanationTemplate: 'Your viewing choices are strongly mood-dependent. Sometimes you need {high}, sometimes {low} - and you trust your instincts.',
+  },
+  {
+    id: 'thrill_seeker',
+    name: 'Emotional Thrill Seeker',
+    triggers: { 
+      contradictionIds: ['absurd_tragic', 'romance_gore'],
+      requiredTraits: ['emotional_damage', 'catharsis'],
+    },
+    explanationTemplate: 'You seek emotional extremes. The contrast between {high} and {low} creates a richer emotional experience than either alone.',
+  },
+  {
+    id: 'hidden_depth',
+    name: 'Hidden Depth Processor',
+    triggers: { 
+      contradictionIds: ['cute_dark', 'cozy_horror'],
+      requiredTraits: ['psychological', 'character_study'],
+    },
+    explanationTemplate: 'Light content helps you process heavy themes. Your {high} watching might be how you digest the weight of {low}.',
+  },
+];
 
 // Tonal contradiction pairs (watching both extremes)
 const TONAL_CONTRADICTION_PAIRS: Array<{
@@ -687,7 +784,56 @@ const TONAL_CONTRADICTION_PAIRS: Array<{
 ];
 
 /**
+ * Resolve the flavor type for a contradiction based on user's trait profile
+ * Returns the best-matching flavor with explanation
+ */
+function resolveContradictionFlavor(
+  contradictionId: string,
+  severity: number,
+  highTraitsLabel: string,
+  lowTraitsLabel: string,
+  traitScores: Map<string, number>
+): { flavorType: ContradictionFlavor; resolvedExplanation: string } | undefined {
+  // Find matching flavors for this contradiction
+  const matchingFlavors = CONTRADICTION_FLAVORS.filter(flavor => {
+    // Must match contradiction ID
+    if (!flavor.triggers.contradictionIds.includes(contradictionId)) return false;
+    
+    // Check intensity threshold
+    if (flavor.triggers.intensityThreshold && severity < flavor.triggers.intensityThreshold) return false;
+    
+    // Check required traits
+    if (flavor.triggers.requiredTraits) {
+      const hasRequiredTraits = flavor.triggers.requiredTraits.some(t => (traitScores.get(t) || 0) > 30);
+      if (!hasRequiredTraits) return false;
+    }
+    
+    return true;
+  });
+  
+  if (matchingFlavors.length === 0) return undefined;
+  
+  // Pick the most specific flavor (one with most requirements)
+  const bestFlavor = matchingFlavors.reduce((best, current) => {
+    const bestScore = (best.triggers.requiredTraits?.length || 0) + (best.triggers.intensityThreshold || 0) / 100;
+    const currentScore = (current.triggers.requiredTraits?.length || 0) + (current.triggers.intensityThreshold || 0) / 100;
+    return currentScore > bestScore ? current : best;
+  });
+  
+  // Generate explanation from template
+  const explanation = bestFlavor.explanationTemplate
+    .replace('{high}', highTraitsLabel)
+    .replace('{low}', lowTraitsLabel);
+  
+  return {
+    flavorType: bestFlavor.id,
+    resolvedExplanation: explanation,
+  };
+}
+
+/**
  * Detect tonal contradictions - when user watches polar opposite vibes
+ * Now includes flavor resolution for meaningful explanations
  */
 export function detectTonalContradictions(profile: TraitProfile): Contradiction[] {
   const contradictions: Contradiction[] = [];
@@ -707,15 +853,31 @@ export function detectTonalContradictions(profile: TraitProfile): Contradiction[
     // Both sides must be above threshold
     if (highAvg >= pair.threshold && lowAvg >= pair.threshold) {
       const severity = Math.round((highAvg + lowAvg) / 2);
+      
+      // Get active traits for labels
+      const activeHigh = pair.highTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold);
+      const activeLow = pair.lowTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold);
+      
+      // Resolve flavor for this contradiction
+      const flavor = resolveContradictionFlavor(
+        pair.id,
+        severity,
+        activeHigh[0] || 'light',
+        activeLow[0] || 'dark',
+        traitScores
+      );
+      
       contradictions.push({
         type: 'tonal',
         name: pair.name,
         description: pair.description,
         severity,
         traits: {
-          high: pair.highTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold),
-          low: pair.lowTraits.filter(t => (traitScores.get(t) || 0) >= pair.threshold),
+          high: activeHigh,
+          low: activeLow,
         },
+        flavorType: flavor?.flavorType,
+        resolvedExplanation: flavor?.resolvedExplanation,
       });
     }
   }
