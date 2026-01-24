@@ -26,14 +26,16 @@ export interface LegacyTagAffinity {
   tag: string;
   count: number;
   affinity: number;
-  avgScore: number;
+  confidence: number;      // 0-1, how reliable this trait score is
+  avgScore?: number;        // Actual avg rating of contributing media (if available)
 }
 
 export interface LegacyGenreAffinity {
   genre: string;
   count: number;
   affinity: number;
-  avgScore: number;
+  confidence: number;      // 0-1, how reliable this trait score is
+  avgScore?: number;        // Actual avg rating of contributing media (if available)
 }
 
 /**
@@ -59,7 +61,8 @@ export function traitScoresToTagAffinity(
     tag: trait.name,
     count: trait.contributingTags.length,
     affinity: trait.normalizedScore / 100, // Convert to 0-1
-    avgScore: trait.confidence * 10, // Use confidence as proxy for avg score
+    confidence: trait.confidence,          // Direct confidence value (0-1)
+    // avgScore computed from actual contributing media ratings if available
   }));
 }
 
@@ -79,7 +82,7 @@ export function traitScoresToGenreAffinity(
     genre: trait.name,
     count: trait.contributingTags.length,
     affinity: trait.normalizedScore / 100,
-    avgScore: trait.confidence * 10,
+    confidence: trait.confidence,          // Direct confidence value (0-1)
   }));
 }
 

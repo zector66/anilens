@@ -1000,7 +1000,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                       {tag.tag}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {tag.count} {traitStats ? 'signals' : 'titles'} • {tag.avgScore.toFixed(1)}★
+                      {tag.count} {traitStats ? 'signals' : 'titles'} • {((tag as { confidence?: number }).confidence ?? tag.avgScore ?? 0.5).toFixed(1)} conf
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">

@@ -239,7 +239,8 @@ export interface TasteType {
   id: string;
   name: string;
   description: string;
-  matchScore: number; // 0-100
+  matchScore: number; // 0-100, dampened by confidence
+  confidence?: number; // 0-1, based on sample size
   drivers: TasteTypeDriver[]; // Top 3 traits that triggered this type
   summary: string; // 1-sentence explanation
 }
@@ -375,13 +376,28 @@ const TASTE_TYPES: Array<{
 ];
 
 /**
+ * Calculate confidence multiplier based on sample size
+ * This dampens CLAIMS (type detection, contradictions) not raw trait scores
+ * Users still see their trait values, but type/claim confidence scales with data
+ */
+function calculateConfidenceMultiplier(sampleSize: number): number {
+  // Smooth curve: 0 at 0, ~0.5 at 15, ~0.8 at 30, 1.0 at 50+
+  if (sampleSize >= 50) return 1.0;
+  return Math.pow(sampleSize / 50, 0.6); // Smooth power curve
+}
+
+/**
  * Detect user's taste types based on their trait profile and derived indices
  * Now includes driver attribution with top 3 traits and 1-sentence summary
+ * 
+ * @param sampleSize - Total media count, used for confidence dampening on matchScore
  */
 export function detectTasteTypes(
   profile: TraitProfile,
-  derivedIndices: DerivedIndex[]
+  derivedIndices: DerivedIndex[],
+  sampleSize?: number
 ): TasteType[] {
+  const confidenceMultiplier = calculateConfidenceMultiplier(sampleSize ?? profile.totalMediaCount);
   // Build trait score lookup with names
   const traitScores = new Map<string, number>();
   const traitNames = new Map<string, string>();
@@ -451,11 +467,16 @@ export function detectTasteTypes(
       const driverList = topDrivers.map(d => `${d.traitName} (${d.score})`).join(', ');
       const summary = `Driven by: ${driverList}`;
       
+      // Apply confidence dampening to matchScore (affects claims, not raw values)
+      const rawMatchScore = matchScore / totalRequirements;
+      const dampenedMatchScore = Math.round(rawMatchScore * confidenceMultiplier);
+      
       detectedTypes.push({
         id: typeDef.id,
         name: typeDef.name,
         description: typeDef.description,
-        matchScore: Math.round(matchScore / totalRequirements),
+        matchScore: dampenedMatchScore,
+        confidence: confidenceMultiplier, // Track confidence for UI
         drivers: topDrivers,
         summary,
       });

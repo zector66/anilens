@@ -101,19 +101,13 @@ export interface ProfileMeta {
 }
 
 // ============================================================================
-// DIMINISHING RETURNS CURVE
-// Each additional signal for the same trait adds less
-// First = +5, Second = +3, Third = +2, Fourth = +1, Fifth+ = +0.5
+// DIMINISHING RETURNS - Per-Trait Formula
+// Each trait has its own diminishRate (0.05 for rare traits, 0.25 for broad)
+// Formula: contribution = weight * (1 / (1 + diminishRate * hitCount))
+// This ensures:
+//   - Rare traits (denpa, noir) diminish slowly → can surface even with few hits
+//   - Broad traits (action, comedy) diminish quickly → prevents spam domination
 // ============================================================================
-
-const DIMINISHING_WEIGHTS = [5, 3, 2, 1, 0.5];
-
-function getDiminishingWeight(hitCount: number): number {
-  if (hitCount < DIMINISHING_WEIGHTS.length) {
-    return DIMINISHING_WEIGHTS[hitCount];
-  }
-  return 0.5; // Minimum contribution
-}
 
 // ============================================================================
 // EDGE CASE HANDLING UTILITIES
@@ -142,22 +136,77 @@ function classifySampleSize(count: number): ProfileMeta['sampleSize'] {
 }
 
 /**
- * Detect rating signal strength from score variance
+ * Detect score compression (user only uses 2-3 rating values)
+ * Returns entropy-like measure: 0 = all same, 1 = full distribution used
  */
-function detectRatingSignal(scores: number[]): ProfileMeta['ratingSignalStrength'] {
-  if (scores.length === 0) return 'none';
+function detectScoreCompression(scores: number[]): number {
+  if (scores.length === 0) return 0;
+  const validScores = scores.filter(s => s > 0);
+  if (validScores.length < 5) return 0.5; // Too few to judge
+  
+  // Count unique values
+  const uniqueValues = new Set(validScores).size;
+  const maxPossible = Math.min(10, validScores.length); // 1-10 scale or sample size
+  
+  return uniqueValues / maxPossible;
+}
+
+/**
+ * Detect rating signal strength from multiple indicators:
+ * 1. Standard deviation (variance)
+ * 2. Score compression (unique values used)
+ * 3. Implicit signals available (completion/drop/rewatch data)
+ */
+function detectRatingSignal(
+  scores: number[],
+  implicitSignals?: { completionRate?: number; dropRate?: number; rewatchCount?: number }
+): ProfileMeta['ratingSignalStrength'] {
+  if (scores.length === 0) {
+    // No explicit ratings - check if we have implicit signals
+    if (implicitSignals && (implicitSignals.completionRate !== undefined || implicitSignals.dropRate !== undefined)) {
+      return 'weak'; // Implicit signals available
+    }
+    return 'none';
+  }
   
   const validScores = scores.filter(s => s > 0);
-  if (validScores.length === 0) return 'none';
+  if (validScores.length === 0) {
+    if (implicitSignals && (implicitSignals.completionRate !== undefined || implicitSignals.dropRate !== undefined)) {
+      return 'weak';
+    }
+    return 'none';
+  }
   
+  // Calculate standard deviation
   const mean = validScores.reduce((a, b) => a + b, 0) / validScores.length;
   const variance = validScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / validScores.length;
   const stdDev = Math.sqrt(variance);
   
-  // Low variance means all scores are similar (no preference signal)
-  if (stdDev < 0.5) return 'none';
-  if (stdDev < 1.0) return 'weak';
-  if (stdDev < 2.0) return 'normal';
+  // Check score compression (do they only use 2-3 values?)
+  const compression = detectScoreCompression(validScores);
+  
+  // Combine signals: stdDev + compression + implicit
+  let signalScore = 0;
+  
+  // Variance contribution (0-2 points)
+  if (stdDev >= 2.0) signalScore += 2;
+  else if (stdDev >= 1.0) signalScore += 1.5;
+  else if (stdDev >= 0.5) signalScore += 0.5;
+  
+  // Compression contribution (0-1 points)
+  signalScore += compression;
+  
+  // Implicit signals contribution (0-0.5 points)
+  if (implicitSignals) {
+    if (implicitSignals.completionRate !== undefined) signalScore += 0.2;
+    if (implicitSignals.dropRate !== undefined && implicitSignals.dropRate > 0) signalScore += 0.2;
+    if (implicitSignals.rewatchCount !== undefined && implicitSignals.rewatchCount > 0) signalScore += 0.1;
+  }
+  
+  // Map to signal strength
+  if (signalScore < 0.5) return 'none';
+  if (signalScore < 1.5) return 'weak';
+  if (signalScore < 2.5) return 'normal';
   return 'strong';
 }
 
