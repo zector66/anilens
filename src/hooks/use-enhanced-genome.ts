@@ -103,8 +103,14 @@ export function useEnhancedGenome(options?: {
 
         console.log('[traitStats build]', { ok: !!traitStats });
         return { genome, traitStats };
-      } catch (e) {
-        console.error("traitStats build failed:", e);
+      } catch (err) {
+        const error = err as Error;
+        console.error('[TRAIT STATS BUILD FAILED]', {
+          message: error.message,
+          stack: error.stack,
+          traitProfileExists: !!traitProfile,
+          derivedIndicesCount: derivedIndices.length,
+        });
         console.warn("TraitStats null -> FALLING BACK TO LEGACY");
         return { genome, traitStats: null };
       }

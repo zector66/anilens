@@ -105,6 +105,16 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   // NEW: Get trait-based stats from enhanced genome
   const { traitStats, genome } = useEnhancedGenome();
   
+  // DEBUG: Comprehensive trait system diagnostic
+  console.log('[Trait Debug]', {
+    hasGenome: !!genome,
+    genomeVersion: genome?.version,
+    hasTraitProfile: !!genome?.traitProfile,
+    hasDerived: !!genome?.derivedIndices,
+    traitProfileKeys: genome?.traitProfile ? Object.keys(genome.traitProfile.channels ?? {}) : null,
+    traitStatsReady: !!traitStats,
+  });
+  
   // DEBUG: Show if trait system is active
   console.log("TasteProfile - using traitStats:", !!traitStats);
   
@@ -200,6 +210,13 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     
     return normalized;
   }, [currentList, statusFilters, formatFilters, activeTab]);
+  
+  // DEBUG: Check if entries have tags (required for trait scoring)
+  const tagCounts = analyzedEntries.flatMap(e => e.media?.tags ?? []).length;
+  console.log('[Tag Debug]', { 
+    tagCounts,
+    firstEntryTags: analyzedEntries?.[0]?.media?.tags?.slice(0, 3)
+  });
   
   // Get ALL entries (unfiltered) for accurate total counts
   const allEntries = useMemo(() => {
