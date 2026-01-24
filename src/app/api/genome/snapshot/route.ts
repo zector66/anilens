@@ -126,10 +126,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '12', 10);
 
     if (!anilistId) {
-      return NextResponse.json(
-        { error: 'anilistId is required' },
-        { status: 400 }
-      );
+      // Return empty instead of error - snapshots are optional
+      return NextResponse.json({
+        snapshots: [],
+        count: 0
+      });
     }
 
     const db = getSupabase();
@@ -143,15 +144,15 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching genome snapshots:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch snapshots' },
-        { status: 500 }
-      );
+      // Log error but return empty - snapshots are optional cache
+      console.warn('[SNAPSHOT FETCH FAILED - RETURNING EMPTY]', error);
+      return NextResponse.json({
+        snapshots: [],
+        count: 0
+      });
     }
 
     // Return 200 with empty array if no snapshots exist (cache miss)
-    // Avoid 204 to prevent JSON parsing issues on client
     if (!data || data.length === 0) {
       return NextResponse.json({
         snapshots: [],

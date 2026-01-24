@@ -10,6 +10,9 @@ import {
   buildDriftTimeline
 } from '@/lib/taste-drift';
 
+// Kill switch for snapshots - disable if causing issues
+const SNAPSHOTS_ENABLED = process.env.NEXT_PUBLIC_SNAPSHOTS_ENABLED === 'true';
+
 /**
  * Fetch genome snapshot history for a user
  */
@@ -21,6 +24,12 @@ export function useGenomeSnapshots(
   return useQuery({
     queryKey: ['genome-snapshots', anilistId, mediaType, limit],
     queryFn: async (): Promise<GenomeSnapshot[]> => {
+      // Kill switch: return empty if snapshots disabled
+      if (!SNAPSHOTS_ENABLED) {
+        console.log('[SNAPSHOTS DISABLED]');
+        return [];
+      }
+      
       if (!anilistId) return [];
       
       const response = await fetch(
@@ -74,6 +83,12 @@ export function useSaveGenomeSnapshot() {
       listHash?: string;
       entryCount?: number;
     }) => {
+      // Kill switch: skip save if snapshots disabled
+      if (!SNAPSHOTS_ENABLED) {
+        console.log('[SNAPSHOTS DISABLED - SKIP SAVE]');
+        return { success: false, message: 'Snapshots disabled' };
+      }
+      
       const snapshot = genomeToSnapshot(genome, anilistId, mediaType, listHash, entryCount);
       
       const response = await fetch('/api/genome/snapshot', {

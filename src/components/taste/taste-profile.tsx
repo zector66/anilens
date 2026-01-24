@@ -385,6 +385,15 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     );
   }
 
+  // Render trait system status badge at top of page
+  const renderTraitSystemStatus = () => (
+    <div className="text-xs opacity-50 mb-4 font-mono text-center">
+      traitProfile: {genome?.traitProfile ? '✅' : '❌'} | 
+      derived: {genome?.derivedIndices ? '✅' : '❌'} | 
+      traitStats: {traitStats ? '✅' : '❌'}
+    </div>
+  );
+
   // Personality cards now use trait-based values when available
   const personalityCards = [
     { 
@@ -464,6 +473,9 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
   return (
     <div className="space-y-8">
+      {/* Trait System Status Badge */}
+      {renderTraitSystemStatus()}
+      
       {/* Type Toggle + View Mode */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         {/* Anime/Manga Toggle */}
