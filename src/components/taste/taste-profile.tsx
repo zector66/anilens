@@ -967,25 +967,25 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       </div>
 
-      {/* Top Tags */}
+      {/* Top Tags - Now uses trait-based scoring when available */}
       <div className="p-6 rounded-xl bg-linear-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <Tag className="w-5 h-5 text-green-400" />
-              Top Tags
+              {traitStats ? 'Top Traits' : 'Top Tags'}
             </h3>
             <p className="text-sm text-gray-400 mt-1">
-              Your strongest affinities for specific themes and content
+              {traitStats ? 'Your strongest trait affinities from the trait system' : 'Your strongest affinities for specific themes and content'}
             </p>
           </div>
           <div className="px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-medium">
-            {tasteProfile.tagAffinity.length} total tags
+            {traitStats ? `${traitStats.tagAffinity.length} traits` : `${tasteProfile.tagAffinity.length} total tags`}
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {tasteProfile.tagAffinity
+          {(traitStats?.tagAffinity ?? tasteProfile.tagAffinity)
             .filter(tag => tag.affinity > 0.3 && tag.count >= 2) // Show meaningful tags with enough data
             .slice(0, 12)
             .map((tag) => (
@@ -999,7 +999,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
                       {tag.tag}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {tag.count} titles • {tag.avgScore.toFixed(1)}★ avg
+                      {tag.count} {traitStats ? 'signals' : 'titles'} • {tag.avgScore.toFixed(1)}★
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -1026,7 +1026,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
             ))}
         </div>
 
-        {tasteProfile.tagAffinity.filter(tag => tag.affinity > 0.3 && tag.count >= 2).length === 0 && (
+        {(traitStats?.tagAffinity ?? tasteProfile.tagAffinity).filter(tag => tag.affinity > 0.3 && tag.count >= 2).length === 0 && (
           <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
               <Tag className="w-8 h-8 text-green-400" />
