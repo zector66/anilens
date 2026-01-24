@@ -43,6 +43,12 @@ export function useEnhancedGenome(options?: {
   }, [entries]);
 
   const result = useMemo<{ genome: TasteGenome | null; traitStats: TraitBasedStats | null }>(() => {
+    // DEBUG: Log loading state and entry count
+    console.log('[EnhancedGenome State]', {
+      loading,
+      entries: entries?.length,
+    });
+    
     if (entries.length === 0) return { genome: null, traitStats: null };
     
     // Only include relevant entries
@@ -54,11 +60,29 @@ export function useEnhancedGenome(options?: {
     // Get taste profile first (still needed for behavioral metrics)
     const tasteProfile = TasteAnalyzer.analyzeTaste(filteredEntries, 'ANIME');
     
-    // Extract enhanced genome with trait data
-    const genome = extractEnhancedGenome(tasteProfile, filteredEntries, {
-      includeStressDiet: options?.includeStressDiet ?? true,
-      recentDays: options?.recentDays ?? 30,
-    });
+    // Extract enhanced genome with trait data - CATCH CRASHES
+    let genome: TasteGenome | null = null;
+    try {
+      genome = extractEnhancedGenome(tasteProfile, filteredEntries, {
+        includeStressDiet: options?.includeStressDiet ?? true,
+        recentDays: options?.recentDays ?? 30,
+      });
+      
+      console.log('[GENOME BUILT]', {
+        version: genome?.version,
+        hasTraitProfile: !!genome?.traitProfile,
+        hasDerived: !!genome?.derivedIndices,
+      });
+    } catch (err) {
+      const error = err as Error;
+      console.error('[GENOME BUILD FAILED]', {
+        message: error.message,
+        stack: error.stack,
+        entriesCount: filteredEntries.length,
+      });
+      // Return null genome but don't crash the app
+      return { genome: null, traitStats: null };
+    }
 
     // DEBUG: Comprehensive trait pipeline status
     console.log('[useEnhancedGenome]', {

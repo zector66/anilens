@@ -46,22 +46,28 @@ class TasteAnalyzerCache {
 
   /**
    * Store profile in cache
+   * Cache failures are non-fatal - never interrupt computation
    */
   set(entries: MediaListEntry[], type: 'ANIME' | 'MANGA', profile: TasteProfile): void {
-    const hash = this.generateHash(entries, type);
-    
-    // Evict oldest if at capacity
-    if (this.cache.size >= this.MAX_ENTRIES) {
-      const oldestKey = Array.from(this.cache.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
-      this.cache.delete(oldestKey);
+    try {
+      const hash = this.generateHash(entries, type);
+      
+      // Evict oldest if at capacity
+      if (this.cache.size >= this.MAX_ENTRIES) {
+        const oldestKey = Array.from(this.cache.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
+        this.cache.delete(oldestKey);
+      }
+      
+      this.cache.set(hash, {
+        profile,
+        timestamp: Date.now(),
+        hash,
+      });
+    } catch (err) {
+      // Cache quota exceeded or other storage error - ignore
+      console.warn('[CACHE SAVE FAILED - IGNORE]', err);
     }
-    
-    this.cache.set(hash, {
-      profile,
-      timestamp: Date.now(),
-      hash,
-    });
   }
 
   /**
