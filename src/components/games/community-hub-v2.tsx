@@ -550,7 +550,7 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
               
               return (
                 <div 
-                  key={player.anilist_id}
+                  key={`${player.anilist_id}-${leaderboardType}-${index}`}
                   className={`p-4 flex items-center gap-4 transition-all duration-200 hover:bg-white/5 ${isCurrentUser ? 'bg-purple-500/10' : ''}`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
