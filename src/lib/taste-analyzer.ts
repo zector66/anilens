@@ -547,8 +547,20 @@ export class TasteAnalyzer {
     const year = new Date().getFullYear();
     let y0 = 0, y1 = 0, y2 = 0;
     mediaList.forEach(e => {
-      const sy = e.media?.startDate?.year;
-      if (sy === year) y0++; else if (sy === year - 1) y1++; else if (sy === year - 2) y2++;
+      // Use when the user watched it (completedAt or updatedAt), not when it aired
+      const watchYear = e.completedAt?.year || 
+                       (e.updatedAt ? new Date(e.updatedAt * 1000).getFullYear() : null);
+      
+      // Also check if it's a seasonal anime (aired recently)
+      const airYear = e.media?.startDate?.year;
+      const isRecentAiring = airYear && airYear >= year - 2;
+      
+      // Count as seasonal if: watched recently AND aired recently
+      if (watchYear && isRecentAiring) {
+        if (watchYear === year) y0++;
+        else if (watchYear === year - 1) y1++;
+        else if (watchYear === year - 2) y2++;
+      }
     });
     const weighted = (y0 * 1.5) + (y1 * 1.0) + (y2 * 0.5);
     return Math.min(10, Math.min(5, (y0 + y1) / 10) + Math.min(3, (weighted / (mediaList.length || 1)) * 15) + Math.min(2, y0 / 15));
