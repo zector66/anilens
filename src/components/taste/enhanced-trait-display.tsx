@@ -11,7 +11,9 @@ import {
   TrendingUp,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Play,
+  Tag
 } from 'lucide-react';
 import type { TraitProfile, TraitScore } from '@/lib/trait-scoring-engine';
 import { TraitExplainabilityDrawer } from './trait-explainability-drawer';
@@ -33,6 +35,76 @@ const CHANNEL_COLORS = {
 
 interface EnhancedTraitDisplayProps {
   profile: TraitProfile;
+}
+
+// Hover tooltip component
+function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div 
+      className="relative"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div className="absolute z-50 w-80 p-4 bg-gray-900 border border-gray-700 rounded-lg shadow-xl -top-2 left-full ml-2">
+          <div className="mb-3">
+            <h4 className="text-white font-semibold mb-1">{trait.name}</h4>
+            {trait.description && (
+              <p className="text-gray-300 text-sm">{trait.description}</p>
+            )}
+          </div>
+          
+          {/* Top Contributors */}
+          {trait.topContributors && trait.topContributors.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
+                <Play className="w-3 h-3" />
+                TOP ANIME
+              </div>
+              {trait.topContributors.slice(0, 3).map((contributor, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <a 
+                    href={`https://anilist.co/anime/${contributor.mediaId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-300 hover:text-blue-200 transition-colors"
+                  >
+                    {contributor.title}
+                  </a>
+                  <span className="text-gray-400 text-xs">
+                    {Math.round((contributor.shareOfTrait || 0) * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Contributing Tags */}
+          {trait.contributingTags && trait.contributingTags.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
+                <Tag className="w-3 h-3" />
+                TOP TAGS
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {trait.contributingTags.slice(0, 6).map((tag, index) => (
+                  <span 
+                    key={index}
+                    className="px-2 py-1 bg-gray-800 text-gray-300 text-xs rounded"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
@@ -85,25 +157,28 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
         {expandedSection === 'signature' && (
           <div className="space-y-2">
             {profile.topSignatureTraits.slice(0, 10).map((trait) => (
-              <div 
-                key={trait.traitId} 
-                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                onClick={() => setSelectedTrait(trait)}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">{trait.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-right">
-                      <div className="text-purple-400 font-bold text-sm">
-                        {Math.round(trait.signatureScore || 0)}
-                      </div>
-                      <div className="text-gray-500 text-[10px]">signature</div>
+              <TraitTooltip key={trait.traitId} trait={trait}>
+                <div 
+                  className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setSelectedTrait(trait);
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-medium">{trait.name}</span>
                     </div>
-                    <Info className="w-4 h-4 text-gray-500" />
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-purple-400 font-bold text-sm">
+                          {Math.round(trait.signatureScore || 0)}
+                        </div>
+                        <div className="text-gray-500 text-[10px]">signature</div>
+                      </div>
+                      <Info className="w-4 h-4 text-gray-500" />
+                    </div>
                   </div>
-                </div>
                 
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
@@ -129,7 +204,8 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
                     </span>
                   </div>
                 )}
-              </div>
+                </div>
+              </TraitTooltip>
             ))}
           </div>
         )}
@@ -163,24 +239,28 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
               .filter(t => t.role !== 'warning')
               .slice(0, 12)
               .map((trait) => (
-                <div 
-                  key={trait.traitId}
-                  className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                  onClick={() => setSelectedTrait(trait)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300 text-sm">{trait.name}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
-                          style={{ width: `${trait.normalizedScore}%` }}
-                        />
+                <TraitTooltip key={trait.traitId} trait={trait}>
+                  <div 
+                    className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedTrait(trait);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300 text-sm">{trait.name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                            style={{ width: `${trait.normalizedScore}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-400 text-xs w-8 text-right">{trait.normalizedScore}</span>
                       </div>
-                      <span className="text-gray-400 text-xs w-8 text-right">{trait.normalizedScore}</span>
                     </div>
                   </div>
-                </div>
+                </TraitTooltip>
               ))}
           </div>
         )}
@@ -211,16 +291,20 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
         {expandedSection === 'vibe' && (
           <div className="grid grid-cols-2 gap-3">
             {profile.channels.vibe.slice(0, 8).map((trait) => (
-              <div 
-                key={trait.traitId}
-                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                onClick={() => setSelectedTrait(trait)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300 text-sm">{trait.name}</span>
-                  <span className="text-pink-400 text-sm font-bold">{trait.normalizedScore}</span>
+              <TraitTooltip key={trait.traitId} trait={trait}>
+                <div 
+                  className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setSelectedTrait(trait);
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-300 text-sm">{trait.name}</span>
+                    <span className="text-pink-400 text-sm font-bold">{trait.normalizedScore}</span>
+                  </div>
                 </div>
-              </div>
+              </TraitTooltip>
             ))}
           </div>
         )}
@@ -252,32 +336,36 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
           {expandedSection === 'warnings' && (
             <div className="space-y-3">
               {profile.warningTraits.slice(0, 6).map((trait) => (
-                <div 
-                  key={trait.traitId}
-                  className="p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                  onClick={() => setSelectedTrait(trait)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-medium">{trait.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-orange-400 font-bold">{trait.normalizedScore}</span>
-                      <Info className="w-4 h-4 text-gray-500" />
+                <TraitTooltip key={trait.traitId} trait={trait}>
+                  <div 
+                    className="p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedTrait(trait);
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium">{trait.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-orange-400 font-bold">{trait.normalizedScore}</span>
+                        <Info className="w-4 h-4 text-gray-500" />
+                      </div>
                     </div>
+                    
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+                        style={{ width: `${trait.normalizedScore}%` }}
+                      />
+                    </div>
+                    
+                    {trait.topContributors && trait.topContributors.length > 0 && (
+                      <p className="text-gray-500 text-xs mt-2">
+                        Click to see which shows contribute to this
+                      </p>
+                    )}
                   </div>
-                  
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
-                      style={{ width: `${trait.normalizedScore}%` }}
-                    />
-                  </div>
-                  
-                  {trait.topContributors && trait.topContributors.length > 0 && (
-                    <p className="text-gray-500 text-xs mt-2">
-                      Click to see which shows contribute to this
-                    </p>
-                  )}
-                </div>
+                </TraitTooltip>
               ))}
             </div>
           )}
