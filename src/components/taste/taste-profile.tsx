@@ -61,6 +61,7 @@ import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
 import { TasteDriftCard } from './taste-drift-card';
 import { TraitInsightsCard } from './trait-insights-card';
+import { EnhancedTraitDisplay } from './enhanced-trait-display';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
@@ -685,7 +686,23 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         </div>
       )}
 
-      {/* NEW: Trait System Insights */}
+      {/* NEW: Enhanced Trait System Display */}
+      {genome?.traitProfile && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <Tag className="w-5 h-5 text-white" />
+              </div>
+              Deep Taste Intelligence
+            </h2>
+            <GlossaryButton onClick={() => setShowGlossary(true)} />
+          </div>
+          <EnhancedTraitDisplay profile={genome.traitProfile} />
+        </div>
+      )}
+      
+      {/* Legacy Trait Insights (can be removed later) */}
       <TraitInsightsCard />
 
       {/* Personality Traits */}

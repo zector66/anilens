@@ -8,6 +8,12 @@
 
 import { ALL_TRAITS, TRAIT_BY_ID, type ScoringChannel, type TraitDefinition } from './trait-universe';
 import { getTagDefinition, isDefiningTag, ALL_TAG_DEFINITIONS } from './tag-mappings';
+import { 
+  enhanceTraitsWithDistinctiveness, 
+  getTopSignatureTraits,
+  getBalancedTopTraits,
+  type RarityTier 
+} from './trait-distinctiveness';
 
 // ============================================================================
 // PRECOMPILED TAG→TRAIT LOOKUP MAP (Performance optimization)
@@ -86,6 +92,11 @@ export interface TraitScore {
   exposureScore?: number;   // 0-100, how often you encounter this trait
   enjoymentScore?: number;  // 0-100, how much you rate it when it appears
   affinityDelta?: number;   // enjoymentScore - exposureScore (positive = loves, negative = tolerates)
+  
+  // Distinctiveness (NEW)
+  signatureScore?: number;  // normalizedScore × IDF (boosts rare traits)
+  rarity?: RarityTier;      // common/uncommon/rare/very_rare
+  globalFrequency?: number; // 0-1, % of users with this trait
 }
 
 /**
@@ -110,7 +121,11 @@ export interface ChannelScores {
 
 export interface TraitProfile {
   channels: ChannelScores;
-  topTraits: TraitScore[];  // Top traits across all channels
+  topTraits: TraitScore[];  // Top traits across all channels (by raw score)
+  topSignatureTraits: TraitScore[];  // Top traits by distinctiveness (signature score)
+  balancedTraits: TraitScore[];  // Diversity-balanced traits across channels
+  warningTraits: TraitScore[];  // Separated warning traits (role: 'warning')
+  affinityInsights: TraitAffinityInsight[];  // Exposure vs enjoyment insights
   totalMediaCount: number;
   profileMeta: ProfileMeta;  // Edge case handling metadata
 }
@@ -710,9 +725,64 @@ export function computeTraitProfile(
     warnings.push('Massive library detected. Rare traits have been preserved.');
   }
   
+  // Get channel scores
+  const channels = scorer.getChannelScores(totalMediaCount);
+  
+  // Get all traits for processing
+  const allTraits = [
+    ...channels.identity,
+    ...channels.vibe,
+    ...channels.structure,
+    ...channels.intensity,
+  ];
+  
+  // Enhance all traits with distinctiveness metrics
+  const enhancedTraits = enhanceTraitsWithDistinctiveness(allTraits);
+  
+  // Update channel scores with enhanced traits
+  const enhancedChannels: ChannelScores = {
+    identity: enhancedTraits.filter(t => t.channel === 'identity'),
+    vibe: enhancedTraits.filter(t => t.channel === 'vibe'),
+    structure: enhancedTraits.filter(t => t.channel === 'structure'),
+    intensity: enhancedTraits.filter(t => t.channel === 'intensity'),
+  };
+  
+  // Separate warning traits from identity traits
+  const warningTraits = enhancedTraits
+    .filter(t => t.role === 'warning')
+    .sort((a, b) => b.normalizedScore - a.normalizedScore);
+  
+  // Get top traits by raw score (traditional)
+  const topTraits = enhancedTraits
+    .filter(t => t.role !== 'warning')
+    .sort((a, b) => b.rawScore - a.rawScore)
+    .slice(0, 15);
+  
+  // Get top signature traits (by distinctiveness)
+  const topSignatureTraits = getTopSignatureTraits(enhancedTraits, 15, {
+    excludeWarnings: true,
+    minScore: 10, // Only show traits with meaningful scores
+  });
+  
+  // Get balanced traits (diversity across channels)
+  const balancedTraits = getBalancedTopTraits(enhancedTraits, {
+    identity: 8,
+    vibe: 6,
+    structure: 3,
+    intensity: 3,
+    excludeWarnings: true,
+  });
+  
+  // Generate affinity insights
+  const affinityInsights = generateAffinityInsights(enhancedTraits, 20);
+  
   return {
-    channels: scorer.getChannelScores(totalMediaCount),
-    topTraits: scorer.getTopTraits(15, totalMediaCount),
+    channels: enhancedChannels,
+    topTraits,
+    topSignatureTraits,
+    balancedTraits,
+    warningTraits,
+    affinityInsights,
     totalMediaCount,
     profileMeta: {
       sampleSize,
