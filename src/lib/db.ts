@@ -4,7 +4,8 @@ import { neon } from '@neondatabase/serverless';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _sql: any = null;
 
-function getDb() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDb(): any {
   if (!_sql) {
     const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
     if (!url) {
@@ -500,3 +501,6 @@ export async function getGameStats(userId: number) {
 
   return result;
 }
+
+// Export the getDb function for use in API routes
+export { getDb };
