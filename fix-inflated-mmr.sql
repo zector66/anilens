@@ -3,23 +3,23 @@
 
 -- Step 1: Identify users with inflated MMR (more than 50 MMR per game on average)
 SELECT 
-    u.anilist_id,
-    u.username,
-    pr.game_type,
-    pr.rating as current_mmr,
-    pr.games_played,
-    ROUND(pr.rating::float / NULLIF(pr.games_played, 1), 2) as mmr_per_game,
+    users.anilist_id,
+    users.username,
+    player_ratings.game_type,
+    player_ratings.rating as current_mmr,
+    player_ratings.games_played,
+    ROUND(player_ratings.rating::float / NULLIF(player_ratings.games_played, 1), 2) as mmr_per_game,
     CASE 
-        WHEN pr.games_played <= 5 THEN pr.rating * 0.3  -- Reduce by 70% for very few games
-        WHEN pr.games_played <= 10 THEN pr.rating * 0.4  -- Reduce by 60% for few games  
-        WHEN pr.games_played <= 20 THEN pr.rating * 0.6  -- Reduce by 40% for moderate games
-        ELSE pr.rating * 0.8  -- Reduce by 20% for many games
+        WHEN player_ratings.games_played <= 5 THEN player_ratings.rating * 0.3  -- Reduce by 70% for very few games
+        WHEN player_ratings.games_played <= 10 THEN player_ratings.rating * 0.4  -- Reduce by 60% for few games  
+        WHEN player_ratings.games_played <= 20 THEN player_ratings.rating * 0.6  -- Reduce by 40% for moderate games
+        ELSE player_ratings.rating * 0.8  -- Reduce by 20% for many games
     END as suggested_mmr
-FROM player_ratings pr
-JOIN users u ON pr.user_id = u.id
-WHERE pr.games_played > 0 
-  AND pr.rating > 500  -- Only fix high MMR
-  AND (pr.rating::float / NULLIF(pr.games_played, 1)) > 50  -- More than 50 MMR per game
+FROM player_ratings
+INNER JOIN users ON player_ratings.user_id = users.id
+WHERE player_ratings.games_played > 0 
+  AND player_ratings.rating > 500  -- Only fix high MMR
+  AND (player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)) > 50  -- More than 50 MMR per game
 ORDER BY mmr_per_game DESC;
 
 -- Step 2: Apply the fixes (run this after reviewing the above results)
@@ -36,14 +36,14 @@ WHERE rating > 500
 
 -- Step 3: Verify the fixes
 SELECT 
-    u.anilist_id,
-    u.username,
-    pr.game_type,
-    pr.rating as fixed_mmr,
-    pr.games_played,
-    ROUND(pr.rating::float / NULLIF(pr.games_played, 1), 2) as mmr_per_game_after_fix
-FROM player_ratings pr
-JOIN users u ON pr.user_id = u.id
-WHERE pr.games_played > 0 
-ORDER BY pr.rating DESC
+    users.anilist_id,
+    users.username,
+    player_ratings.game_type,
+    player_ratings.rating as fixed_mmr,
+    player_ratings.games_played,
+    ROUND(player_ratings.rating::float / NULLIF(player_ratings.games_played, 1), 2) as mmr_per_game_after_fix
+FROM player_ratings
+INNER JOIN users ON player_ratings.user_id = users.id
+WHERE player_ratings.games_played > 0 
+ORDER BY player_ratings.rating DESC
 LIMIT 20;
