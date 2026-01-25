@@ -574,14 +574,19 @@ addMediaTags(
       // Normalize exposure (0-100)
       score.exposureScore = Math.round((score.exposureScore || 0) / maxExposure * 100);
       
-      // Normalize enjoyment (0-100) if available
-      if (score.enjoymentScore !== undefined) {
+      // Only normalize enjoyment and calculate affinity if there's actual rating data
+      // enjoymentScore !== undefined means we have the field, but we need to check if it has meaningful data
+      if (score.enjoymentScore !== undefined && score.enjoymentScore > 0) {
         score.enjoymentScore = Math.round(score.enjoymentScore / maxEnjoyment * 100);
         
         // Calculate affinity delta (enjoyment - exposure)
         // Positive = you love this more than you watch it
         // Negative = you watch it but don't rate it highly
         score.affinityDelta = score.enjoymentScore - score.exposureScore;
+      } else {
+        // No rating data - clear enjoymentScore and affinityDelta
+        score.enjoymentScore = undefined;
+        score.affinityDelta = undefined;
       }
     }
     
