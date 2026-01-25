@@ -394,7 +394,13 @@ function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
         tags.push({ name: genre, rank: 85 });
       }
 
-      return { tags, engagementWeight, score };
+      return { 
+        tags, 
+        engagementWeight, 
+        score,
+        id: media.id,
+        title: media.title?.userPreferred || media.title?.romaji || media.title?.english || 'Unknown Title'
+      };
     });
 }
 

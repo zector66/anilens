@@ -682,6 +682,8 @@ export function computeTraitProfile(
     tags: MediaTagInput[];
     engagementWeight: number;
     score?: number; // User's rating (0-10)
+    id?: number; // Media ID for explainability
+    title?: string; // Media title for explainability
   }>,
   userBaseline?: number // User's average rating for delta calculation
 ): TraitProfile {
@@ -697,6 +699,8 @@ export function computeTraitProfile(
   
   for (const entry of mediaEntries) {
     scorer.addMediaTags(entry.tags, entry.engagementWeight, {
+      id: entry.id,
+      title: entry.title,
       userRating: entry.score,
       userBaseline: baseline,
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Minus, Sparkles, AlertCircle } from 'lucide-react';
 import type { TraitScore } from '@/lib/trait-scoring-engine';
 import { getRarityLabel, getRarityColor, formatFrequency } from '@/lib/trait-distinctiveness';
@@ -109,6 +109,17 @@ function getAffinityDisplay(delta: number | undefined): {
 }
 
 export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilityDrawerProps) {
+  // Scroll to top when drawer opens
+  useEffect(() => {
+    if (trait) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [trait]);
+
   if (!trait) return null;
 
   const contributors = trait.topContributors || [];
@@ -251,7 +262,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
                   <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <p className="text-white font-medium">{contributor.title || `Media ${contributor.mediaId}`}</p>
+                        <p className="text-white font-medium">{contributor.title || 'Unknown Title'}</p>
                         <p className="text-gray-500 text-xs mt-1">
                           Contributes {Math.round((contributor.shareOfTrait || 0) * 100)}% of this trait
                         </p>
