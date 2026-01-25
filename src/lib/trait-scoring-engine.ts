@@ -499,15 +499,11 @@ addMediaTags(
       const sizeConfidence = Math.min(totalMediaCount / 20, 1); // Max confidence at 20+ media
       const confidence = Math.round((sampleConfidence * 0.7 + sizeConfidence * 0.3) * 100) / 100;
       
-      // Compute exposure and enjoyment scores (normalized to 0-100)
-      const maxExposure = Math.max(1, acc.exposureScore);
-      const normalizedExposure = Math.round((acc.exposureScore / maxExposure) * 100);
-      const normalizedEnjoyment = acc.ratedCount > 0 
-        ? Math.round((acc.enjoymentScore / acc.exposureScore) * 100) // Ratio-based
-        : undefined;
-      const affinityDelta = normalizedEnjoyment !== undefined 
-        ? normalizedEnjoyment - normalizedExposure 
-        : undefined;
+      // Store raw exposure/enjoyment for later normalization
+      // We'll normalize these across ALL traits after collecting them
+      const rawExposure = acc.exposureScore;
+      const rawEnjoyment = acc.enjoymentScore;
+      const hasEnjoymentData = acc.ratedCount > 0;
       
       const score: TraitScore = {
         traitId,
@@ -531,10 +527,10 @@ addMediaTags(
         })),
         confidence,
         role: traitDef.role,
-        // Exposure vs Enjoyment
-        exposureScore: normalizedExposure,
-        enjoymentScore: normalizedEnjoyment,
-        affinityDelta,
+        // Exposure vs Enjoyment (will be normalized later)
+        exposureScore: rawExposure,
+        enjoymentScore: hasEnjoymentData ? rawEnjoyment : undefined,
+        affinityDelta: undefined, // Will be calculated after normalization
       };
       
       channels[traitDef.channel].push(score);
@@ -559,6 +555,34 @@ addMediaTags(
       
       // Sort by normalized score descending
       scores.sort((a, b) => b.normalizedScore - a.normalizedScore);
+    }
+    
+    // Normalize exposure and enjoyment scores across ALL traits (not per-channel)
+    const allScores: TraitScore[] = [
+      ...channels.identity,
+      ...channels.vibe,
+      ...channels.structure,
+      ...channels.intensity,
+    ];
+    
+    // Find max exposure and enjoyment across all traits
+    const maxExposure = Math.max(...allScores.map(s => s.exposureScore || 0), 1);
+    const maxEnjoyment = Math.max(...allScores.filter(s => s.enjoymentScore !== undefined).map(s => s.enjoymentScore!), 1);
+    
+    // Normalize exposure and enjoyment to 0-100 scale and calculate affinity delta
+    for (const score of allScores) {
+      // Normalize exposure (0-100)
+      score.exposureScore = Math.round((score.exposureScore || 0) / maxExposure * 100);
+      
+      // Normalize enjoyment (0-100) if available
+      if (score.enjoymentScore !== undefined) {
+        score.enjoymentScore = Math.round(score.enjoymentScore / maxEnjoyment * 100);
+        
+        // Calculate affinity delta (enjoyment - exposure)
+        // Positive = you love this more than you watch it
+        // Negative = you watch it but don't rate it highly
+        score.affinityDelta = score.enjoymentScore - score.exposureScore;
+      }
     }
     
     return channels;
