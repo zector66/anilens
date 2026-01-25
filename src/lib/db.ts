@@ -401,7 +401,7 @@ export async function updateRatingAfterGame(
 // Leaderboard Operations
 // ============================================================================
 
-export async function getLeaderboard(gameType: string, limit: number = 100) {
+export async function getLeaderboard(gameType: string, limit: number = 100, offset: number = 0) {
   const result = await getDb()`
     SELECT 
       u.anilist_id,
@@ -416,13 +416,13 @@ export async function getLeaderboard(gameType: string, limit: number = 100) {
     JOIN users u ON pr.user_id = u.id
     WHERE pr.game_type = ${gameType} AND pr.games_played > 0
     ORDER BY pr.rating DESC
-    LIMIT ${limit}
+    LIMIT ${limit} OFFSET ${offset}
   `;
 
   return result;
 }
 
-export async function getGlobalLeaderboard(limit: number = 100) {
+export async function getGlobalLeaderboard(limit: number = 100, offset: number = 0) {
   // Aggregate ratings across all game types - use SUM for overall MMR
   const result = await getDb()`
     SELECT 
@@ -440,7 +440,7 @@ export async function getGlobalLeaderboard(limit: number = 100) {
     GROUP BY u.id, u.anilist_id, u.username, u.avatar_url
     HAVING SUM(pr.games_played) >= 1
     ORDER BY rating DESC
-    LIMIT ${limit}
+    LIMIT ${limit} OFFSET ${offset}
   `;
 
   return result;

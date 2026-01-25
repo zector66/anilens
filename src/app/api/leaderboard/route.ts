@@ -6,12 +6,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const gameType = searchParams.get('gameType');
     const limit = parseInt(searchParams.get('limit') || '100');
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     let leaderboard;
     if (gameType && gameType !== 'global') {
-      leaderboard = await getLeaderboard(gameType, limit);
+      leaderboard = await getLeaderboard(gameType, limit, offset);
     } else {
-      leaderboard = await getGlobalLeaderboard(limit);
+      leaderboard = await getGlobalLeaderboard(limit, offset);
     }
 
     return NextResponse.json({

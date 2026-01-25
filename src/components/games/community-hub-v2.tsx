@@ -32,7 +32,8 @@ import {
   Medal,
   Gamepad2,
   Shield,
-  Activity
+  Activity,
+  ChevronDown
 } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
@@ -417,16 +418,23 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
     rank: number;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const limit = 50; // Load 50 at a time
 
   // Fetch leaderboard on mount and when type changes
   useEffect(() => {
     const fetchLeaderboard = async () => {
       setIsLoading(true);
+      setOffset(0);
+      setHasMore(true);
       try {
-        const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=50`);
+        const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}`);
         const data = await response.json();
         if (data.success) {
           setLeaderboard(data.leaderboard || []);
+          setHasMore((data.leaderboard || []).length === limit);
         }
       } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
@@ -436,6 +444,40 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
     };
     fetchLeaderboard();
   }, [leaderboardType]);
+
+  // Load more function
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const newOffset = offset + limit;
+      const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}&offset=${newOffset}`);
+      const data = await response.json();
+      if (data.success) {
+        const newEntries = data.leaderboard || [];
+        setLeaderboard(prev => [...prev, ...newEntries]);
+        setOffset(newOffset);
+        setHasMore(newEntries.length === limit);
+      }
+    } catch (error) {
+      console.error('Failed to load more leaderboard entries:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 1000) {
+        loadMore();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, offset, leaderboardType]);
 
   const leaderboardTypes = [
     { id: 'global', label: 'Overall' },
@@ -555,6 +597,36 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
                 </div>
               );
             })}
+          </div>
+        )}
+        
+        {/* Load More Button */}
+        {hasMore && !isLoading && (
+          <div className="p-4 border-t border-white/10">
+            <button
+              onClick={loadMore}
+              disabled={isLoadingMore}
+              className="w-full py-3 px-4 bg-purple-500/20 hover:bg-purple-500/30 disabled:bg-purple-500/10 disabled:opacity-50 text-purple-300 hover:text-purple-200 disabled:text-purple-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {isLoadingMore ? (
+                <div>
+                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  Loading more...
+                </div>
+              ) : (
+                <div>
+                  Load More Players
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              )}
+            </button>
+          </div>
+        )}
+        
+        {/* No More Results */}
+        {!hasMore && leaderboard.length > 0 && (
+          <div className="p-4 text-center text-gray-400 text-sm border-t border-white/10">
+            Showing all {leaderboard.length} players
           </div>
         )}
       </div>
