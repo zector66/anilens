@@ -1,7 +1,7 @@
 -- Fix Inflated MMR Values
 -- This script identifies and fixes users with unrealistic MMR values
 
--- Step 1: Identify users with inflated MMR (more than 200 MMR per game on average)
+-- Step 1: Identify users with inflated MMR (more than 50 MMR per game on average)
 SELECT 
     u.anilist_id,
     u.username,
