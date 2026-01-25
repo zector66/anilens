@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         player_ratings.game_type,
         player_ratings.rating as current_mmr,
         player_ratings.games_played,
-        ROUND(player_ratings.rating::float / NULLIF(player_ratings.games_played, 1), 2) as mmr_per_game,
+        ROUND((player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)), 2) as mmr_per_game,
         CASE 
           WHEN player_ratings.games_played <= 5 THEN player_ratings.rating * 0.3
           WHEN player_ratings.games_played <= 10 THEN player_ratings.rating * 0.4
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           player_ratings.game_type,
           player_ratings.rating as fixed_mmr,
           player_ratings.games_played,
-          ROUND(player_ratings.rating::float / NULLIF(player_ratings.games_played, 1), 2) as mmr_per_game_after_fix
+          ROUND((player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)), 2) as mmr_per_game_after_fix
         FROM player_ratings
         INNER JOIN users ON player_ratings.user_id = users.id
         WHERE player_ratings.games_played > 0 
