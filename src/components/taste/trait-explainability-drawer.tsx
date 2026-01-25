@@ -265,7 +265,18 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
                   <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <p className="text-white font-medium">{contributor.title || 'Unknown Title'}</p>
+                        {contributor.mediaId ? (
+                          <a 
+                            href={`https://anilist.co/anime/${contributor.mediaId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-white font-medium hover:text-purple-300 transition-colors cursor-pointer"
+                          >
+                            {contributor.title || 'Unknown Title'}
+                          </a>
+                        ) : (
+                          <p className="text-white font-medium">{contributor.title || 'Unknown Title'}</p>
+                        )}
                         <p className="text-gray-500 text-xs mt-1">
                           Contributes {Math.round((contributor.shareOfTrait || 0) * 100)}% of this trait
                         </p>
