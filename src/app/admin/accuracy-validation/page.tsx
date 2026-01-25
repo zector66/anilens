@@ -20,7 +20,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import type { MediaListEntry } from '@/types/anilist';
-import type { UltimateAccuracyProfile } from '@/lib/ultimate-accuracy';
+import type { UltimateAccuracyProfileV2 } from '@/lib/ultimate-accuracy-v2';
 import { UltimateTraitDisplay } from '@/components/taste/ultimate-trait-display';
 
 interface ValidationTest {
@@ -96,7 +96,7 @@ export default function AccuracyValidationPanel() {
     }
   ]);
 
-  const [currentProfile, setCurrentProfile] = useState<UltimateAccuracyProfile | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<UltimateAccuracyProfileV2 | null>(null);
   const [metrics, setMetrics] = useState<AccuracyMetrics | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showDetails, setShowDetails] = useState(false);

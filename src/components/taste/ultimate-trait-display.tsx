@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { TraitProfile, TraitScore } from '@/lib/trait-scoring-engine';
 import type { PercentileResult } from '@/lib/trait-percentiles';
-import type { UltimateAccuracyProfile } from '@/lib/ultimate-accuracy';
+import type { UltimateAccuracyProfileV2 } from '@/lib/ultimate-accuracy-v2';
 import { UltimateTraitExplainabilityDrawer } from './ultimate-trait-explainability-drawer';
 import { getRarityColor, getRarityLabel } from '@/lib/trait-distinctiveness';
 
@@ -49,7 +49,7 @@ const CHANNEL_COLORS = {
 interface UltimateTraitDisplayProps {
   profile: TraitProfile;
   percentiles?: PercentileResult[];
-  accuracyProfile?: UltimateAccuracyProfile;
+  accuracyProfile?: UltimateAccuracyProfileV2;
   showUltimateAccuracy?: boolean;
 }
 

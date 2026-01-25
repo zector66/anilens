@@ -20,13 +20,13 @@ import {
 } from 'lucide-react';
 import type { TraitScore } from '@/lib/trait-scoring-engine';
 import type { PercentileResult } from '@/lib/trait-percentiles';
-import type { UltimateAccuracyProfile } from '@/lib/ultimate-accuracy';
+import type { UltimateAccuracyProfileV2 } from '@/lib/ultimate-accuracy-v2';
 import { getRarityLabel, getRarityColor, formatFrequency } from '@/lib/trait-distinctiveness';
 
 interface UltimateTraitExplainabilityDrawerProps {
   trait: TraitScore | null;
   percentile?: PercentileResult | null;
-  accuracyProfile?: UltimateAccuracyProfile | null;
+  accuracyProfile?: UltimateAccuracyProfileV2 | null;
   onClose: () => void;
 }
 

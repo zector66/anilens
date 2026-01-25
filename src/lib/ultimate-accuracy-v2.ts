@@ -55,6 +55,7 @@ export interface UltimateAccuracyProfileV2 {
     statusDistribution: Record<string, number>; // Status breakdown
     tagDensity: number;               // Average tags per show
     traitSpread: number;              // How spread out traits are
+    favoriteBoost: number;           // Backward compatibility
   };
 }
 
@@ -413,7 +414,8 @@ function assessDataQuality(
     episodeWeighting,
     statusDistribution,
     tagDensity,
-    traitSpread
+    traitSpread,
+    favoriteBoost: 1.0 // Backward compatibility
   };
 }
 

@@ -13,16 +13,14 @@
  * ✅ Rating signal strength detection
  * ✅ Negative evidence from dropped/low scores
  * ✅ Exposure vs Preference split
- * ✅ Realistic confidence scoring
- * ✅ Population percentiles
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MediaListEntry } from '@/types/anilist';
 import { 
-  computeUltimateAccuracy,
-  type UltimateAccuracyProfile
-} from '@/lib/ultimate-accuracy';
+  computeUltimateAccuracyV2,
+  type UltimateAccuracyProfileV2
+} from '@/lib/ultimate-accuracy-v2';
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,8 +56,8 @@ export async function POST(request: NextRequest) {
       createdAt: entry.createdAt || Date.now(),
     }));
 
-    // Compute ultimate accuracy profile
-    const accuracyProfile = await computeUltimateAccuracy(validatedEntries);
+    // Compute ultimate accuracy profile with v2 fixes
+    const accuracyProfile = await computeUltimateAccuracyV2(validatedEntries);
 
     // Return comprehensive accuracy results
     return NextResponse.json({
@@ -82,12 +80,12 @@ export async function POST(request: NextRequest) {
         // Summary for quick UI display
         summary: {
           totalEntries: validatedEntries.length,
-          topTraits: accuracyProfile.signatureTraits.slice(0, 5).map(t => ({
+          topTraits: accuracyProfile.signatureTraits.slice(0, 5).map((t: any) => ({
             name: t.name,
             rawScore: t.rawScore,
             category: t.category,
-            percentile: accuracyProfile.percentiles.find(p => p.traitId === t.traitId)?.percentile || 0,
-            rarity: accuracyProfile.percentiles.find(p => p.traitId === t.traitId)?.rarity || 'common'
+            percentile: accuracyProfile.percentiles.find((p: any) => p.traitId === t.traitId)?.percentile || 0,
+            rarity: accuracyProfile.percentiles.find((p: any) => p.traitId === t.traitId)?.rarity || 'common'
           })),
           confidence: accuracyProfile.confidence.overall,
           dataQuality: {
