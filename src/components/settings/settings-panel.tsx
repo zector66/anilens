@@ -31,7 +31,7 @@ import {
 import { KeyboardShortcutsHelp } from '@/components/ui/tooltip';
 import { useSettings as useGlobalSettings, TitleLanguage } from '@/contexts/settings-context';
 import { useUI } from '@/contexts/ui-context';
-import { WeatherCondition } from '@/lib/weather-service';
+import { WeatherCondition, getTemperatureDisplay } from '@/lib/weather-service';
 
 interface UserSettings {
   theme: 'dark' | 'light' | 'system';
@@ -115,6 +115,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setWeatherIntensity,
     weatherOverride,
     setWeatherOverride,
+    temperatureUnit,
+    setTemperatureUnit,
     theme,
     setTheme
   } = useUI();
@@ -394,7 +396,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <div>
                             <p className="text-sm text-white flex items-center gap-2">
                               <span className="text-lg">{weatherData.icon}</span>
-                              {weatherData.description} · {weatherData.temperature}°C
+                              {weatherData.description} · {getTemperatureDisplay(weatherData.temperature, temperatureUnit)}
                             </p>
                             <p className="text-xs text-gray-500">{weatherData.isDay ? 'Daytime' : 'Nighttime'}</p>
                           </div>
@@ -441,6 +443,33 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             </span>
                           </button>
                         ))}
+                      </div>
+                    </div>
+
+                    {/* Temperature Unit */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400">Temperature Unit</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setTemperatureUnit('celsius')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${
+                            temperatureUnit === 'celsius'
+                              ? 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                              : 'bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400'
+                          }`}
+                        >
+                          Celsius (°C)
+                        </button>
+                        <button
+                          onClick={() => setTemperatureUnit('fahrenheit')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${
+                            temperatureUnit === 'fahrenheit'
+                              ? 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                              : 'bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400'
+                          }`}
+                        >
+                          Fahrenheit (°F)
+                        </button>
                       </div>
                     </div>
 

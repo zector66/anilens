@@ -43,6 +43,10 @@ interface UIContextType {
   // Manual weather override (for testing/preference)
   weatherOverride: WeatherCondition | null;
   setWeatherOverride: (condition: WeatherCondition | null) => void;
+  
+  // Temperature units
+  temperatureUnit: 'celsius' | 'fahrenheit';
+  setTemperatureUnit: (unit: 'celsius' | 'fahrenheit') => void;
 }
 
 const UIContext = createContext<UIContextType | null>(null);
@@ -109,6 +113,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
   );
   const [weatherOverride, setWeatherOverrideState] = useState<WeatherCondition | null>(() => 
     getStoredValue('ui-weather-override', null) as WeatherCondition | null
+  );
+  const [temperatureUnit, setTemperatureUnitState] = useState<'celsius' | 'fahrenheit'>(() => 
+    getStoredValue('ui-temperature-unit', 'celsius') as 'celsius' | 'fahrenheit'
   );
 
   // Fetch weather data
@@ -302,6 +309,10 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const setWeatherEnabled = useCallback((w: boolean) => setWeatherEnabledState(w), []);
   const setWeatherIntensity = useCallback((i: 'light' | 'medium' | 'heavy') => setWeatherIntensityState(i), []);
   const setWeatherOverride = useCallback((c: WeatherCondition | null) => setWeatherOverrideState(c), []);
+  const setTemperatureUnit = useCallback((u: 'celsius' | 'fahrenheit') => {
+    setTemperatureUnitState(u);
+    localStorage.setItem('ui-temperature-unit', u);
+  }, []);
 
   return (
     <UIContext.Provider value={{
@@ -326,6 +337,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
       setWeatherIntensity,
       weatherOverride,
       setWeatherOverride,
+      temperatureUnit,
+      setTemperatureUnit,
     }}>
       {children}
     </UIContext.Provider>

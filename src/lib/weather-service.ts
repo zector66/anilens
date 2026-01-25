@@ -132,6 +132,18 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   }
 }
 
+export function convertTemperature(celsius: number, unit: 'celsius' | 'fahrenheit'): number {
+  if (unit === 'fahrenheit') {
+    return Math.round(celsius * 9/5 + 32);
+  }
+  return celsius;
+}
+
+export function getTemperatureDisplay(celsius: number, unit: 'celsius' | 'fahrenheit'): string {
+  const temp = convertTemperature(celsius, unit);
+  return `${temp}°${unit === 'fahrenheit' ? 'F' : 'C'}`;
+}
+
 export async function getWeather(): Promise<WeatherData | null> {
   const location = await getUserLocation();
   if (!location) return null;

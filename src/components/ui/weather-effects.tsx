@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { WeatherCondition } from '@/lib/weather-service';
+import { WeatherCondition, getTemperatureDisplay } from '@/lib/weather-service';
+import { useUI } from '@/contexts/ui-context';
 
 interface WeatherEffectsProps {
   condition: WeatherCondition;
@@ -503,24 +504,22 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
 
 // Widget to show current weather
 export function WeatherWidget({ 
-  condition, 
   temperature, 
   description, 
   icon,
-  isDay,
   className = '' 
 }: { 
-  condition: WeatherCondition;
   temperature: number;
   description: string;
   icon: string;
-  isDay: boolean;
   className?: string;
 }) {
+  const { temperatureUnit } = useUI();
+  
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 text-sm ${className}`}>
       <span className="text-lg">{icon}</span>
-      <span className="text-white font-medium">{temperature}°C</span>
+      <span className="text-white font-medium">{getTemperatureDisplay(temperature, temperatureUnit)}</span>
       <span className="text-gray-400 hidden sm:inline">· {description}</span>
     </div>
   );

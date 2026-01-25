@@ -335,11 +335,9 @@ function Dashboard({ user, activeTab, setActiveTab, logout }: DashboardProps) {
             {/* Weather Widget */}
             {weatherEnabled && weatherData && (
               <WeatherWidget 
-                condition={weatherData.condition}
                 temperature={weatherData.temperature}
                 description={weatherData.description}
                 icon={weatherData.icon}
-                isDay={weatherData.isDay}
                 className="hidden xl:flex"
               />
             )}
