@@ -195,8 +195,9 @@ export function getTopSignatureTraits(
   }
   
   // Filter by minimum score if specified
-  if (options?.minScore) {
-    filtered = filtered.filter(t => t.normalizedScore >= options.minScore);
+  const minScore = options?.minScore;
+  if (minScore !== undefined) {
+    filtered = filtered.filter(t => t.normalizedScore >= minScore);
   }
   
   // Enhance with distinctiveness
