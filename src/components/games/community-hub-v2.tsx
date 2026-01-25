@@ -456,7 +456,15 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
       const data = await response.json();
       if (data.success) {
         const newEntries = data.leaderboard || [];
-        setLeaderboard(prev => [...prev, ...newEntries]);
+        setLeaderboard(prev => {
+          // Create a map of existing entries to prevent duplicates
+          const existingKeys = new Set(prev.map((p: any) => `${p.anilist_id}-${p.game_type || 'global'}`));
+          
+          // Filter out duplicates from new entries
+          const filteredNew = newEntries.filter((p: any) => !existingKeys.has(`${p.anilist_id}-${p.game_type || 'global'}`));
+          
+          return [...prev, ...filteredNew];
+        });
         setOffset(newOffset);
         setHasMore(newEntries.length === limit);
       }
