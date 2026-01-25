@@ -99,22 +99,30 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-purple-400 font-bold text-sm">
-                      {Math.round(trait.signatureScore || 0)}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="text-purple-400 font-bold text-sm">
+                        {Math.round(trait.signatureScore || 0)}
+                      </div>
+                      <div className="text-gray-500 text-[10px]">signature</div>
+                    </div>
                     <Info className="w-4 h-4 text-gray-500" />
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                      style={{ width: `${Math.min(trait.normalizedScore, 100)}%` }}
-                    />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-gray-500 text-[10px]">Your Strength</span>
+                      <span className="text-white text-xs font-medium">{trait.normalizedScore}</span>
+                    </div>
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                        style={{ width: `${Math.min(trait.normalizedScore, 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <span className="text-gray-400 text-xs w-8 text-right">{trait.normalizedScore}</span>
                 </div>
                 
                 {/* Affinity indicator */}
