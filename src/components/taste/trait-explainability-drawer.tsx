@@ -112,7 +112,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
   // Scroll to top when drawer opens
   useEffect(() => {
     if (trait) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
       document.body.style.overflow = 'hidden';
     }
     return () => {
@@ -133,7 +133,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
       
