@@ -311,27 +311,30 @@ function calculateRatingChange(
   }
   
   // Bonus for perfect games (scales with question count)
+  // This replaces separate accuracy and long game bonuses to prevent stacking
   if (correctCount === questionsCount) {
-    if (questionsCount >= 15) {
-      change += 40; // Large perfect bonus for 15+ questions
+    if (questionsCount >= 20) {
+      change += 25; // Large perfect bonus for 20+ questions
+    } else if (questionsCount >= 15) {
+      change += 20; // Medium perfect bonus for 15+ questions
     } else if (questionsCount >= 10) {
-      change += 30; // Medium perfect bonus for 10+ questions
+      change += 15; // Small perfect bonus for 10+ questions
     } else if (questionsCount >= 5) {
-      change += 20; // Small perfect bonus for 5+ questions
+      change += 10; // Minimal perfect bonus for 5+ questions
     }
-  }
-  
-  // High accuracy bonus (90%+)
-  const accuracy = correctCount / questionsCount;
-  if (accuracy >= 0.9 && questionsCount >= 5) {
-    change += 10;
-  }
-  
-  // Long game bonus: reward players who do more questions
-  if (questionsCount >= 20) {
-    change += 15; // Bonus for marathon games
-  } else if (questionsCount >= 15) {
-    change += 10;
+  } else {
+    // High accuracy bonus for non-perfect games (90%+)
+    const accuracy = correctCount / questionsCount;
+    if (accuracy >= 0.9 && questionsCount >= 5) {
+      change += 5; // Smaller bonus for high accuracy
+    }
+    
+    // Long game bonus for non-perfect games
+    if (questionsCount >= 20) {
+      change += 8; // Bonus for marathon games
+    } else if (questionsCount >= 15) {
+      change += 5;
+    }
   }
   
   // At higher ratings, gains are slightly reduced (harder to climb)
@@ -343,6 +346,11 @@ function calculateRatingChange(
   
   // Apply game type modifier (easier games give less MMR)
   change = Math.round(change * gameModifier);
+  
+  // Hard caps to prevent extreme inflation
+  // Maximum gain per game: 50 MMR
+  // Maximum loss per game: -20 MMR
+  change = Math.max(-20, Math.min(50, change));
   
   return change;
 }
