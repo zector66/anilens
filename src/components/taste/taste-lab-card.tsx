@@ -28,10 +28,12 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
   const [activeTab, setActiveTab] = useState<'contradictions' | 'influencers' | 'genome'>('contradictions');
   const [showAll, setShowAll] = useState(false);
   const { openDrawer, DrawerComponent } = useExplainabilityDrawer();
-  const { genome: enhancedGenome } = useEnhancedGenome();
-
+  
   // Extract genome and analyze
   const genome = useMemo(() => extractGenome(profile), [profile]);
+  
+  // Get enhanced genome with entries from profile
+  const { genome: enhancedGenome } = useEnhancedGenome(entries);
   
   const contradictions = useMemo(() => 
     detectContradictions(entries, genome, profile, userStats),

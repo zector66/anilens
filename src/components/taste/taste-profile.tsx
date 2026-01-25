@@ -102,22 +102,6 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     'MANHUA': 'Manhua',
   };
 
-  // NEW: Get trait-based stats from enhanced genome
-  const { traitStats, genome } = useEnhancedGenome();
-  
-  // DEBUG: Comprehensive trait system diagnostic
-  console.log('[Trait Debug]', {
-    hasGenome: !!genome,
-    genomeVersion: genome?.version,
-    hasTraitProfile: !!genome?.traitProfile,
-    hasDerived: !!genome?.derivedIndices,
-    traitProfileKeys: genome?.traitProfile ? Object.keys(genome.traitProfile.channels ?? {}) : null,
-    traitStatsReady: !!traitStats,
-  });
-  
-  // DEBUG: Show if trait system is active
-  console.log("TasteProfile - using traitStats:", !!traitStats);
-  
   const toggleStatusFilter = (status: string) => {
     setStatusFilters(prev => {
       const newSet = new Set(prev);
@@ -217,6 +201,23 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     tagCounts,
     firstEntryTags: analyzedEntries?.[0]?.media?.tags?.slice(0, 3)
   });
+  
+  // NEW: Get trait-based stats from enhanced genome
+  // IMPORTANT: Pass analyzedEntries to ensure data consistency
+  const { traitStats, genome } = useEnhancedGenome(analyzedEntries);
+  
+  // DEBUG: Comprehensive trait system diagnostic
+  console.log('[Trait Debug]', {
+    hasGenome: !!genome,
+    genomeVersion: genome?.version,
+    hasTraitProfile: !!genome?.traitProfile,
+    hasDerived: !!genome?.derivedIndices,
+    traitProfileKeys: genome?.traitProfile ? Object.keys(genome.traitProfile.channels ?? {}) : null,
+    traitStatsReady: !!traitStats,
+  });
+  
+  // DEBUG: Show if trait system is active
+  console.log("TasteProfile - using traitStats:", !!traitStats);
   
   // Get ALL entries (unfiltered) for accurate total counts
   const allEntries = useMemo(() => {

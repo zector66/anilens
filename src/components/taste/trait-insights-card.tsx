@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
+import { useAniListData } from '@/hooks/use-anilist-data';
 import type { Contradiction } from '@/lib/derived-traits';
 import { 
   Brain, 
@@ -38,7 +39,8 @@ const PERSONALITY_COLORS: Record<string, string> = {
 };
 
 export function TraitInsightsCard() {
-  const { genome, traitStats, loading } = useEnhancedGenome();
+  const { entries, loading } = useAniListData();
+  const { genome, traitStats } = useEnhancedGenome(entries);
   const [expandedSection, setExpandedSection] = useState<string | null>('types');
 
   if (loading) {

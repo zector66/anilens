@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useAniListData } from "./use-anilist-data";
 import { TasteAnalyzer } from "@/lib/taste-analyzer";
 import { extractEnhancedGenome, type TasteGenome } from "@/lib/taste-genome";
 import { detectAllContradictions } from "@/lib/derived-traits";
@@ -13,6 +12,7 @@ import {
   type LegacyTagAffinity,
   type LegacyGenreAffinity,
 } from "@/lib/trait-to-legacy-adapter";
+import type { MediaListEntry } from "@/types/anilist";
 
 export interface TraitBasedStats {
   personalityTraits: LegacyPersonalityTraits;
@@ -26,16 +26,19 @@ export interface TraitBasedStats {
 /**
  * Hook that provides the enhanced genome with trait profile integration
  * 
+ * IMPORTANT: Pass entries from parent component to ensure data consistency
+ * 
  * Returns:
  * - genome: Full TasteGenome with trait data, derived indices, and taste types
  * - traitStats: Legacy-compatible stats computed from new trait system
- * - loading: Whether data is still loading
  */
-export function useEnhancedGenome(options?: {
-  includeStressDiet?: boolean;
-  recentDays?: number;
-}) {
-  const { entries, loading } = useAniListData();
+export function useEnhancedGenome(
+  entries: MediaListEntry[],
+  options?: {
+    includeStressDiet?: boolean;
+    recentDays?: number;
+  }
+) {
 
   // Create stable dependency key for entries to ensure recomputation
   const entryKey = useMemo(() => {
@@ -43,9 +46,8 @@ export function useEnhancedGenome(options?: {
   }, [entries]);
 
   const result = useMemo<{ genome: TasteGenome | null; traitStats: TraitBasedStats | null }>(() => {
-    // DEBUG: Log loading state and entry count
+    // DEBUG: Log entry count
     console.log('[EnhancedGenome State]', {
-      loading,
       entries: entries?.length,
     });
     
@@ -152,7 +154,6 @@ export function useEnhancedGenome(options?: {
 
   // LOG #4: Final hook return payload
   console.log('[EnhancedGenome] RETURNING', {
-    loading,
     entries: entries?.length,
     hasGenome: !!result.genome,
     genomeVersion: result.genome?.version,
@@ -161,20 +162,17 @@ export function useEnhancedGenome(options?: {
     hasTraitStats: !!result.traitStats,
   });
 
-  return { genome: result.genome, traitStats: result.traitStats, loading };
+  return { genome: result.genome, traitStats: result.traitStats };
 }
 
 /**
  * Hook that provides just the trait profile without the full genome
+ * NOTE: This hook is deprecated - pass entries directly to useEnhancedGenome instead
  */
-export function useTraitProfile() {
-  const { genome, loading } = useEnhancedGenome();
+export function useTraitProfile(entries: MediaListEntry[]) {
+  const { genome } = useEnhancedGenome(entries);
   
   return {
     traitProfile: genome?.traitProfile ?? null,
-    derivedIndices: genome?.derivedIndices ?? [],
-    tasteTypes: genome?.tasteTypes ?? [],
-    topTraits: genome?.topTraitsByChannel ?? null,
-    loading,
   };
 }
