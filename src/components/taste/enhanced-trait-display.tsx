@@ -93,11 +93,6 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-white font-medium">{trait.name}</span>
-                    {trait.rarity && (
-                      <span className={`px-2 py-0.5 rounded text-xs ${getRarityColor(trait.rarity)}`}>
-                        {getRarityLabel(trait.rarity)}
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
