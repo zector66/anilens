@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       WHERE player_ratings.games_played > 0 
         AND player_ratings.rating > 500
         AND (player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)) > 50
-      ORDER BY mmr_per_game DESC
+      ORDER BY (player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)) DESC
     `;
 
     console.log(`Found ${inflated.length} inflated accounts`);
