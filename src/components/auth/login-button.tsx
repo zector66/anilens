@@ -26,8 +26,19 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
     setError(null);
     try {
       await login(username.trim());
-    } catch {
-      setError('User not found. Check your username and try again.');
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // Better error handling based on error type
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        setError('Cannot connect to AniList. Please check your internet connection and try again.');
+      } else if (error instanceof Error && (error.message.includes('Not Found') || error.message.includes('404'))) {
+        setError('User not found. Check your username and try again.');
+      } else if (error instanceof Error && error.message.includes('429')) {
+        setError('Too many requests. Please wait a moment and try again.');
+      } else {
+        setError('Failed to load profile. Please try again in a moment.');
+      }
     }
   };
 
@@ -44,7 +55,13 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                // Clear error when user starts typing again
+                if (error) {
+                  setError(null);
+                }
+              }}
               placeholder="AniList username"
               className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 transition-all text-base"
               disabled={isLoggingIn}
