@@ -225,11 +225,12 @@ function computeAblationImpact(
 ): number {
   // Create entries without this candidate
   const entriesWithoutCandidate = allEntries.filter(
-    e => e.media.id !== candidate.mediaId
+    e => e.media?.id !== candidate.mediaId
   );
   
   // Compute profile without this candidate
-  const profileWithoutCandidate = computeTraitProfile(entriesWithoutCandidate);
+  const traitInputsWithoutCandidate = mediaEntriesToTraitInputs(entriesWithoutCandidate);
+  const profileWithoutCandidate = computeTraitProfile(traitInputsWithoutCandidate);
   
   // Compute vectors
   const fullVector = computeProfileVector(fullProfile);

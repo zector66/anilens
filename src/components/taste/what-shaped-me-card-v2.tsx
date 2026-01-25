@@ -123,7 +123,7 @@ export function WhatShapedMeCardV2({ entries, type }: WhatShapedMeCardV2Props) {
                 <div className="relative w-12 h-16 flex-shrink-0">
                   <OptimizedImage
                     src={impact.coverImage}
-                    alt={impact.title}
+                    alt={impact.title || 'Unknown'}
                     className="w-full h-full object-cover rounded"
                   />
                 </div>
