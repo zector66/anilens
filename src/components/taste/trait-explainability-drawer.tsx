@@ -152,6 +152,9 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
                 )}
               </div>
               <p className="text-gray-400 text-sm capitalize">{trait.category} • {trait.channel}</p>
+              {trait.description && (
+                <p className="text-gray-300 text-sm mt-2">{trait.description}</p>
+              )}
             </div>
             <button
               onClick={onClose}

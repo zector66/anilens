@@ -155,24 +155,24 @@ export const EMOTIONAL_OUTPUT_TRAITS: TraitDefinition[] = [
 // ============================================================================
 
 export const PLOT_ENGINE_TRAITS: TraitDefinition[] = [
-  { id: 'episodic', name: 'Episodic', category: 'plot_engine', channel: 'structure' },
-  { id: 'serialized', name: 'Serialized/Long-Arc', category: 'plot_engine', channel: 'structure' },
-  { id: 'monster_of_week', name: 'Monster-of-the-Week', category: 'plot_engine', channel: 'structure' },
-  { id: 'mystery_box', name: 'Mystery Box', category: 'plot_engine', channel: 'structure' },
-  { id: 'heist_structure', name: 'Heist Structure', category: 'plot_engine', channel: 'structure' },
-  { id: 'investigation_loop', name: 'Investigation Loop', category: 'plot_engine', channel: 'structure' },
-  { id: 'training_loop', name: 'Training/Improvement Loop', category: 'plot_engine', channel: 'structure' },
-  { id: 'tournament_engine', name: 'Tournament Arc Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'quest_engine', name: 'Quest/Journey Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'war_campaign', name: 'War Campaign Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'scheme_engine', name: 'Politics/Scheme Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'revenge_engine', name: 'Revenge Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'survival_engine', name: 'Survival/Attrition Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'death_game_engine', name: 'Death Game Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'romance_progression', name: 'Romance Progression Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'sol_routine', name: 'Slice-of-Life Routine Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'workplace_routine', name: 'Workplace Routine Engine', category: 'plot_engine', channel: 'structure' },
-  { id: 'escalation_engine', name: 'Escalation Engine', category: 'plot_engine', channel: 'structure', description: 'Stakes keep rising' },
+  { id: 'episodic', name: 'Episodic', category: 'plot_engine', channel: 'structure', description: 'Self-contained stories with new adventures each episode' },
+  { id: 'serialized', name: 'Serialized/Long-Arc', category: 'plot_engine', channel: 'structure', description: 'Continuous story that builds over many episodes' },
+  { id: 'monster_of_week', name: 'Monster-of-the-Week', category: 'plot_engine', channel: 'structure', description: 'New challenge or villain each episode with familiar heroes' },
+  { id: 'mystery_box', name: 'Mystery Box', category: 'plot_engine', channel: 'structure', description: 'Story built around unanswered questions and gradual reveals' },
+  { id: 'heist_structure', name: 'Heist Structure', category: 'plot_engine', channel: 'structure', description: 'Planning and executing a complex mission with a team' },
+  { id: 'investigation_loop', name: 'Investigation Loop', category: 'plot_engine', channel: 'structure', description: 'Solving mysteries or crimes through clues and deduction' },
+  { id: 'training_loop', name: 'Training/Improvement Loop', category: 'plot_engine', channel: 'structure', description: 'Characters getting stronger through practice and challenges' },
+  { id: 'tournament_engine', name: 'Tournament Arc Engine', category: 'plot_engine', channel: 'structure', description: 'Competition format with multiple rounds and escalating opponents' },
+  { id: 'quest_engine', name: 'Quest/Journey Engine', category: 'plot_engine', channel: 'structure', description: 'Adventure format with clear goals and destinations' },
+  { id: 'war_campaign', name: 'War Campaign Engine', category: 'plot_engine', channel: 'structure', description: 'Large-scale conflicts with battles and strategy' },
+  { id: 'scheme_engine', name: 'Politics/Scheme Engine', category: 'plot_engine', channel: 'structure', description: 'Complex plots involving manipulation, strategy, and power plays' },
+  { id: 'revenge_engine', name: 'Revenge Engine', category: 'plot_engine', channel: 'structure', description: 'Story driven by seeking vengeance for past wrongs' },
+  { id: 'survival_engine', name: 'Survival/Attrition Engine', category: 'plot_engine', channel: 'structure', description: 'Characters struggling to stay alive in harsh conditions' },
+  { id: 'death_game_engine', name: 'Death Game Engine', category: 'plot_engine', channel: 'structure', description: 'Life-or-death competition with rules and consequences' },
+  { id: 'romance_progression', name: 'Romance Progression Engine', category: 'plot_engine', channel: 'structure', description: 'Story focused on developing romantic relationships over time' },
+  { id: 'sol_routine', name: 'Slice-of-Life Routine Engine', category: 'plot_engine', channel: 'structure', description: 'Everyday life situations and character interactions' },
+  { id: 'workplace_routine', name: 'Workplace Routine Engine', category: 'plot_engine', channel: 'structure', description: 'Story centered around professional life and workplace dynamics' },
+  { id: 'escalation_engine', name: 'Escalation Engine', category: 'plot_engine', channel: 'structure', description: 'Stakes and conflicts keep getting more intense over time' },
 ];
 
 // ============================================================================
@@ -180,9 +180,9 @@ export const PLOT_ENGINE_TRAITS: TraitDefinition[] = [
 // ============================================================================
 
 export const NARRATIVE_COMPLEXITY_TRAITS: TraitDefinition[] = [
-  { id: 'philosophical', name: 'Philosophical', category: 'narrative_complexity', channel: 'structure' },
-  { id: 'existential', name: 'Existential', category: 'narrative_complexity', channel: 'structure' },
-  { id: 'mindfuck', name: 'Mindfuck', category: 'narrative_complexity', channel: 'structure' },
+  { id: 'philosophical', name: 'Philosophical', category: 'narrative_complexity', channel: 'structure', description: 'Explores deep questions about life, morality, and human nature' },
+  { id: 'existential', name: 'Existential', category: 'narrative_complexity', channel: 'structure', description: 'Deals with meaning, purpose, and the human condition' },
+  { id: 'mindfuck', name: 'Mindfuck', category: 'narrative_complexity', channel: 'structure', description: 'Reality-bending stories that challenge your perception and understanding' },
   { id: 'psychological_warfare', name: 'Psychological Warfare', category: 'narrative_complexity', channel: 'structure' },
   { id: 'unreliable_narrator', name: 'Unreliable Narrator', category: 'narrative_complexity', channel: 'structure' },
   { id: 'nonlinear', name: 'Nonlinear Timeline', category: 'narrative_complexity', channel: 'structure' },

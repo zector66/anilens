@@ -81,6 +81,7 @@ export interface TraitScore {
   name: string;
   category: string;
   channel: ScoringChannel;
+  description?: string;   // User-friendly explanation of what this trait means
   rawScore: number;       // Accumulated weighted score
   normalizedScore: number; // 0-100 within channel
   contributingTags: string[]; // Tags that contributed to this trait
@@ -510,6 +511,7 @@ addMediaTags(
         name: traitDef.name,
         category: traitDef.category,
         channel: traitDef.channel,
+        description: traitDef.description,
         rawScore: adjustedRawScore,
         normalizedScore: 0, // Will be computed after
         contributingTags: Array.from(acc.contributingTags),
