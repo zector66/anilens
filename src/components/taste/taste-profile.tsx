@@ -196,29 +196,10 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     return normalized;
   }, [currentList, statusFilters, formatFilters, activeTab]);
   
-  // DEBUG: Check if entries have tags (required for trait scoring)
   const tagCounts = analyzedEntries.flatMap(e => e.media?.tags ?? []).length;
-  console.log('[Tag Debug]', { 
-    tagCounts,
-    firstEntryTags: analyzedEntries?.[0]?.media?.tags?.slice(0, 3)
-  });
-  
   // NEW: Get trait-based stats from enhanced genome
   // IMPORTANT: Pass analyzedEntries to ensure data consistency
   const { traitStats, genome } = useEnhancedGenome(analyzedEntries);
-  
-  // DEBUG: Comprehensive trait system diagnostic
-  console.log('[Trait Debug]', {
-    hasGenome: !!genome,
-    genomeVersion: genome?.version,
-    hasTraitProfile: !!genome?.traitProfile,
-    hasDerived: !!genome?.derivedIndices,
-    traitProfileKeys: genome?.traitProfile ? Object.keys(genome.traitProfile.channels ?? {}) : null,
-    traitStatsReady: !!traitStats,
-  });
-  
-  // DEBUG: Show if trait system is active
-  console.log("TasteProfile - using traitStats:", !!traitStats);
   
   // Get ALL entries (unfiltered) for accurate total counts
   const allEntries = useMemo(() => {
@@ -404,15 +385,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     );
   }
 
-  // Render trait system status badge at top of page
-  const renderTraitSystemStatus = () => (
-    <div className="text-xs opacity-50 mb-4 font-mono text-center">
-      traitProfile: {genome?.traitProfile ? '✅' : '❌'} | 
-      derived: {genome?.derivedIndices ? '✅' : '❌'} | 
-      traitStats: {traitStats ? '✅' : '❌'}
-    </div>
-  );
-
+  
   // Personality cards now use trait-based values when available
   const personalityCards = [
     { 
@@ -495,9 +468,6 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
   return (
     <div className="space-y-8">
-      {/* Trait System Status Badge */}
-      {renderTraitSystemStatus()}
-      
       {/* Type Toggle + View Mode */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         {/* Anime/Manga Toggle */}
