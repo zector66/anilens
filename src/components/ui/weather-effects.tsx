@@ -160,17 +160,17 @@ function Moon() {
         <div className="absolute -inset-6 bg-gradient-radial from-blue-100/20 to-transparent rounded-full blur-lg" />
         
         {/* Moon body */}
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-2xl shadow-blue-200/30 relative overflow-hidden">
+        <div className="w-20 h-20 rounded-full bg-linear-to-br from-gray-50 via-gray-200 to-gray-400 shadow-2xl shadow-blue-200/30 relative overflow-hidden">
           {/* Surface texture overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-gray-300/20 to-gray-500/30 rounded-full" />
+          <div className="absolute inset-0 bg-linear-to-br from-transparent via-gray-300/20 to-gray-500/30 rounded-full" />
           
           {/* Craters with depth */}
-          <div className="absolute top-2 left-4 w-4 h-4 rounded-full bg-gradient-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
+          <div className="absolute top-2 left-4 w-4 h-4 rounded-full bg-linear-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
           <div className="absolute top-3 left-5 w-2 h-2 rounded-full bg-gray-200/40" />
           
-          <div className="absolute top-8 left-12 w-3 h-3 rounded-full bg-gradient-to-br from-gray-300/50 to-gray-400/70 shadow-inner" />
+          <div className="absolute top-8 left-12 w-3 h-3 rounded-full bg-linear-to-br from-gray-300/50 to-gray-400/70 shadow-inner" />
           
-          <div className="absolute top-12 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
+          <div className="absolute top-12 left-3 w-5 h-5 rounded-full bg-linear-to-br from-gray-300/60 to-gray-400/80 shadow-inner" />
           <div className="absolute top-13 left-4 w-2 h-2 rounded-full bg-gray-200/30" />
           
           <div className="absolute top-6 left-8 w-2 h-2 rounded-full bg-gray-400/40" />
@@ -489,7 +489,7 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
             : condition === 'cloudy'
             ? 'bg-gray-600/5'
             : isDay && condition === 'clear'
-            ? 'bg-gradient-to-br from-yellow-50/5 via-orange-50/3 to-transparent'
+            ? 'bg-linear-to-br from-yellow-50/5 via-orange-50/3 to-transparent'
             : ''
         }`}
       />

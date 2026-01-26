@@ -396,6 +396,7 @@ html:not(.dark) .light-input::placeholder {
   border-radius: inherit;
   background: linear-gradient(135deg, #a855f7, #ec4899, #3b82f6);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0.5;
