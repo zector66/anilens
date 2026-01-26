@@ -366,6 +366,7 @@ export function UltimateTraitDisplay({
       {Object.entries(currentProfile.channels).map(([channel, traits]) => {
         const ChannelIcon = CHANNEL_ICONS[channel as keyof typeof CHANNEL_ICONS];
         const channelColor = CHANNEL_COLORS[channel as keyof typeof CHANNEL_COLORS];
+        const isWarningChannel = channel === 'intensity';
         
         return (
           <div key={channel} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
@@ -377,6 +378,11 @@ export function UltimateTraitDisplay({
                 <ChannelIcon className="w-5 h-5 text-white" />
                 <h3 className="text-white font-semibold capitalize">{channel}</h3>
                 <span className="text-gray-400 text-sm">{traits.length} traits</span>
+                {isWarningChannel && (
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-orange-500/20 text-orange-400">
+                    Content Warnings
+                  </span>
+                )}
               </div>
               {expandedSection === channel ? (
                 <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -387,8 +393,85 @@ export function UltimateTraitDisplay({
             
             {expandedSection === channel && (
               <div className="p-4 space-y-2">
+                {/* Special explainer for intensity/warning channel */}
+                {isWarningChannel && (
+                  <div className="mb-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                    <p className="text-orange-300 text-xs">
+                      <strong>Note:</strong> These traits show content presence, not preference. 
+                      High values mean you&apos;ve watched shows containing this content, 
+                      not that you seek it out.
+                    </p>
+                  </div>
+                )}
+                
                 {traits.slice(0, 6).map((trait: TraitScore) => {
                   const { trait: traitData, percentile } = getTraitWithPercentile(trait);
+                  
+                  // For warning traits, show different UI
+                  if (isWarningChannel) {
+                    // Use contributing tags as proxy for hit count (no hitCount on TraitScore)
+                    const hitCount = traitData.topContributors?.length || traitData.contributingTags?.length || 0;
+                    const rawScore = traitData.rawScore || 0;
+                    
+                    return (
+                      <div 
+                        key={traitData.traitId}
+                        className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => setSelectedTrait(traitData)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">{traitData.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {/* Show title count instead of fake percentage */}
+                            <div className="text-right">
+                              <div className="text-orange-400 text-sm font-bold">
+                                {hitCount} {hitCount === 1 ? 'title' : 'titles'}
+                              </div>
+                              <div className="text-gray-500 text-[10px]">triggered this</div>
+                            </div>
+                            <Info className="w-4 h-4 text-gray-500" />
+                          </div>
+                        </div>
+                        
+                        {/* Show absolute exposure, NOT normalized percentage */}
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-gray-500 text-[10px]">
+                              Exposure Level (absolute)
+                            </span>
+                            <span className="text-orange-400 text-xs font-medium">
+                              {Math.round(rawScore)} pts
+                            </span>
+                          </div>
+                          {/* Severity indicator based on hit count */}
+                          <div className="flex items-center gap-1 mt-1">
+                            {hitCount <= 3 && (
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400">
+                                Minimal (few titles)
+                              </span>
+                            )}
+                            {hitCount > 3 && hitCount <= 10 && (
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-500/20 text-yellow-400">
+                                Moderate ({hitCount} titles)
+                              </span>
+                            )}
+                            {hitCount > 10 && (
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-orange-500/20 text-orange-400">
+                                Significant ({hitCount} titles)
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            Click for titles that contributed to this
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Normal trait display for non-warning channels
                   return (
                     <TraitTooltip key={traitData.traitId} trait={traitData} percentile={percentile}>
                       <div 
