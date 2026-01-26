@@ -15,13 +15,13 @@
 import { MediaListEntry } from '@/types/anilist';
 import { 
   computeTraitProfile, 
-  TraitScorer, 
   type TraitProfile, 
-  type TraitScore 
+  type MediaTagInput
 } from './trait-scoring-engine';
 import { 
   calculateUserScoreStats, 
-  createCoreIdentitySubset 
+  createCoreIdentitySubset,
+  calculateEngagementWeight
 } from './engagement-weights';
 
 export interface ImpactScore {
@@ -43,6 +43,38 @@ export interface ImpactAnalysis {
   impacts: ImpactScore[];
   totalMedia: number;
   analysisVersion: string;
+}
+
+/**
+ * Convert MediaListEntry to format expected by computeTraitProfile
+ */
+function convertEntriesForTraitProfile(
+  entries: MediaListEntry[],
+  userStats: { mean: number; std: number; count: number }
+): Array<{
+  tags: MediaTagInput[];
+  engagementWeight: number;
+  score?: number;
+  id?: number;
+  title?: string;
+}> {
+  return entries.map(entry => {
+    const engagementWeight = calculateEngagementWeight(entry, userStats);
+    
+    // Convert media.tags to MediaTagInput format
+    const tags: MediaTagInput[] = (entry.media?.tags || []).map(tag => ({
+      name: tag.name,
+      rank: tag.rank || 50
+    }));
+    
+    return {
+      tags,
+      engagementWeight: engagementWeight.weight,
+      score: entry.score || undefined,
+      id: entry.mediaId || undefined,
+      title: entry.media?.title?.userPreferred || undefined
+    };
+  });
 }
 
 /**
@@ -80,7 +112,8 @@ export async function computeImpactScores(
   }
 
   // Compute full profile
-  const fullProfile = await computeTraitProfile(analysisEntries);
+  const convertedEntries = convertEntriesForTraitProfile(analysisEntries, userStats);
+  const fullProfile = await computeTraitProfile(convertedEntries);
 
   // 2. Select candidates for impact analysis
   // Focus on titles that are likely to have high impact:
@@ -118,7 +151,8 @@ export async function computeImpactScores(
       candidate,
       analysisEntries,
       fullProfile,
-      distanceMetric
+      distanceMetric,
+      userStats
     );
     
     if (impact.impact > 0.01) { // Only include meaningful impacts
@@ -143,7 +177,8 @@ async function computeSingleImpact(
   candidate: MediaListEntry,
   allEntries: MediaListEntry[],
   fullProfile: TraitProfile,
-  distanceMetric: 'cosine' | 'euclidean' | 'weighted'
+  distanceMetric: 'cosine' | 'euclidean' | 'weighted',
+  userStats: { mean: number; std: number; count: number }
 ): Promise<ImpactScore> {
   // Create profile without this candidate
   const entriesWithoutCandidate = allEntries.filter(
@@ -151,7 +186,7 @@ async function computeSingleImpact(
   );
   
   const ablatedProfile = entriesWithoutCandidate.length > 0
-    ? await computeTraitProfile(entriesWithoutCandidate)
+    ? await computeTraitProfile(convertEntriesForTraitProfile(entriesWithoutCandidate, userStats))
     : createEmptyProfile();
 
   // Calculate distance between profiles
