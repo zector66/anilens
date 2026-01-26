@@ -318,31 +318,56 @@ export function UltimateTraitDisplay({
                       ) : null;
                     })()}
                     
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-gray-500 text-[10px]">
-                            {activeProfile === 'preference' ? 'Preference Strength' : 'Exposure Strength'}
-                          </span>
-                          <span className="text-white text-xs font-medium">{traitData.normalizedScore}</span>
+                    {/* 3-LAYER TRAIT DISPLAY: Strength / Exposure / Rarity */}
+                    <div className="grid grid-cols-3 gap-3 mt-2 p-2 rounded-lg bg-white/5 border border-white/10">
+                      {/* Layer 1: Strength (You) */}
+                      <div className="text-center">
+                        <div className="text-gray-500 text-[9px] uppercase tracking-wide mb-1">Strength</div>
+                        <div className={`text-lg font-bold ${activeProfile === 'preference' ? 'text-purple-400' : 'text-blue-400'}`}>
+                          {traitData.normalizedScore}
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${
-                              activeProfile === 'preference' 
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                                : 'bg-gradient-to-r from-blue-500 to-cyan-500'
-                            }`}
-                            style={{ width: `${Math.min(traitData.normalizedScore, 100)}%` }}
-                          />
+                        <div className="text-gray-500 text-[9px]">
+                          {activeProfile === 'preference' ? 'preference' : 'exposure'}
                         </div>
                       </div>
-                      {percentile && (
-                        <div className="w-16 text-right">
-                          <div className="text-gray-500 text-[10px]">Population</div>
-                          <div className="text-blue-400 text-xs font-bold">{percentile.percentile}%</div>
+                      
+                      {/* Layer 2: Exposure (Titles) */}
+                      <div className="text-center border-l border-r border-white/10">
+                        <div className="text-gray-500 text-[9px] uppercase tracking-wide mb-1">Exposure</div>
+                        <div className="text-lg font-bold text-cyan-400">
+                          {traitData.topContributors?.length || traitData.contributingTags?.length || '?'}
                         </div>
-                      )}
+                        <div className="text-gray-500 text-[9px]">titles</div>
+                      </div>
+                      
+                      {/* Layer 3: Rarity (Population) */}
+                      <div className="text-center">
+                        <div className="text-gray-500 text-[9px] uppercase tracking-wide mb-1">Rarity</div>
+                        <div className={`text-lg font-bold ${
+                          percentile && percentile.percentile >= 90 ? 'text-pink-400' :
+                          percentile && percentile.percentile >= 75 ? 'text-purple-400' :
+                          percentile && percentile.percentile >= 50 ? 'text-blue-400' : 'text-gray-400'
+                        }`}>
+                          {percentile ? `${percentile.percentile}%` : '—'}
+                        </div>
+                        <div className="text-gray-500 text-[9px]">
+                          {percentile?.rarity || 'unknown'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Strength bar */}
+                    <div className="mt-2">
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${
+                            activeProfile === 'preference' 
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                              : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                          }`}
+                          style={{ width: `${Math.min(traitData.normalizedScore, 100)}%` }}
+                        />
+                      </div>
                     </div>
                     
                     {/* Affinity indicator - only show for preference profile */}
