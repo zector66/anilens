@@ -191,7 +191,7 @@ export function UnifiedTraitDisplay({
       )}
 
       {/* Summary */}
-      <div className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-xl border border-white/10">
+      <div className="p-4 bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-xl border border-white/10">
         <p className="text-white font-medium">{traitSummary || 'Analyzing your taste patterns...'}</p>
       </div>
 
