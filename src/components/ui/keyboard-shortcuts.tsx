@@ -17,7 +17,7 @@ const shortcuts = [
   ]},
   { category: 'Settings', items: [
     { keys: ['M'], description: 'Toggle sound' },
-    { keys: ['D'], description: 'Toggle dark/light mode' },
+    { keys: ['D'], description: 'Toggle theme (Dark/System)' },
   ]},
 ];
 
@@ -44,7 +44,7 @@ export function KeyboardShortcutsModal() {
       }
 
       if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey) {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
+        setTheme(theme === 'dark' ? 'system' : 'dark');
       }
     };
 

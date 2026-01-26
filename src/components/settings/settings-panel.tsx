@@ -269,12 +269,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { id: 'dark', label: 'Dark', icon: Moon },
-                    { id: 'light', label: 'Light', icon: Sun },
                     { id: 'system', label: 'System', icon: Monitor },
                   ].map((themeOption) => (
                     <button
                       key={themeOption.id}
-                      onClick={() => setTheme(themeOption.id as 'dark' | 'light' | 'system')}
+                      onClick={() => setTheme(themeOption.id as 'dark' | 'system')}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
                         theme === themeOption.id
                           ? 'border-purple-500 bg-purple-500/10'

@@ -57,13 +57,12 @@ export function SettingsPanel() {
               <label className="text-sm text-gray-400 mb-2 block">Theme</label>
               <div className="flex gap-2">
                 {[
-                  { id: 'light', icon: Sun, label: 'Light' },
                   { id: 'dark', icon: Moon, label: 'Dark' },
                   { id: 'system', icon: Monitor, label: 'System' },
                 ].map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
-                    onClick={() => setTheme(id as 'light' | 'dark' | 'system')}
+                    onClick={() => setTheme(id as 'dark' | 'system')}
                     className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
                       theme === id 
                         ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' 
