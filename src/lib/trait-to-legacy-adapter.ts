@@ -213,8 +213,9 @@ export function traitProfileToLegacyPersonality(
   // Avant-Garde: Look for experimental/artistic traits  
   const avantGarde = findTraitScore(['experimental', 'avant_garde', 'artistic', 'surreal', 'abstract']);
 
-  // Seasonal Tourist: inverse of classic affinity (approximation)
-  const seasonalTourist = 10 - nostalgiaAddict;
+  // Seasonal Tourist: Now based on current season (Winter 2026) engagement only
+  // This will be calculated directly in taste-analyzer, keeping the approximation for now
+  const seasonalTourist = 10 - nostalgiaAddict; // Temporary - will be overridden by actual calculation
 
   return {
     completionist: (behavioralMetrics?.completionRate ?? 0.7) * 10,

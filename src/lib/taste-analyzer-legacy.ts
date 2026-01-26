@@ -482,7 +482,7 @@ export class TasteAnalyzer {
 
     const personalityTraits = {
       completionist: completionRate * 10,
-      seasonalTourist: this.calculateSeasonalTouristScore(analyzedList),
+      seasonalTourist: this.calculateSeasonalTouristScore(analyzedList, type),
       cultHunter: (1 - mainstreamIndex) * 10,
       nostalgiaAddict: this.calculateNostalgiaScore(yearData),
       mainstreamMaxxer: mainstreamIndex * 10,
@@ -543,27 +543,61 @@ export class TasteAnalyzer {
     return weights;
   }
 
-  private static calculateSeasonalTouristScore(mediaList: MediaListEntry[]): number {
-    const year = new Date().getFullYear();
-    let y0 = 0, y1 = 0, y2 = 0;
-    mediaList.forEach(e => {
-      // Use when the user watched it (completedAt or updatedAt), not when it aired
-      const watchYear = e.completedAt?.year || 
-                       (e.updatedAt ? new Date(e.updatedAt * 1000).getFullYear() : null);
+  private static calculateSeasonalTouristScore(mediaList: MediaListEntry[], mediaType: 'ANIME' | 'MANGA' = 'ANIME'): number {
+    if (mediaType === 'ANIME') {
+      // Anime: Only count Winter 2026 season (Jan-Mar 2026)
+      const currentYear = 2026;
+      let currentSeasonCount = 0;
       
-      // Also check if it's a seasonal anime (aired recently)
-      const airYear = e.media?.startDate?.year;
-      const isRecentAiring = airYear && airYear >= year - 2;
+      mediaList.forEach(e => {
+        // Use when the user watched it (completedAt or updatedAt), not when it aired
+        const watchYear = e.completedAt?.year || 
+                         (e.updatedAt ? new Date(e.updatedAt * 1000).getFullYear() : null);
+        
+        // Check if it's from Winter 2026 season (Jan-Mar 2026)
+        const airYear = e.media?.startDate?.year;
+        const airMonth = e.media?.startDate?.month;
+        const isWinter2026 = airYear === 2026 && airMonth && airMonth >= 1 && airMonth <= 3;
+        
+        // Count as seasonal tourist if: watched in 2026 AND aired in Winter 2026
+        if (watchYear === currentYear && isWinter2026) {
+          currentSeasonCount++;
+        }
+      });
       
-      // Count as seasonal if: watched recently AND aired recently
-      if (watchYear && isRecentAiring) {
-        if (watchYear === year) y0++;
-        else if (watchYear === year - 1) y1++;
-        else if (watchYear === year - 2) y2++;
-      }
-    });
-    const weighted = (y0 * 1.5) + (y1 * 1.0) + (y2 * 0.5);
-    return Math.min(10, Math.min(5, (y0 + y1) / 10) + Math.min(3, (weighted / (mediaList.length || 1)) * 15) + Math.min(2, y0 / 15));
+      // Score based on current season engagement only
+      const baseScore = Math.min(5, currentSeasonCount / 5); // Max 5 points for 5+ current season shows
+      const engagementBonus = Math.min(3, (currentSeasonCount / (mediaList.length || 1)) * 20); // Max 3 points for high current season ratio
+      const intensityBonus = Math.min(2, currentSeasonCount / 10); // Max 2 points for 10+ current season shows
+      
+      return Math.min(10, baseScore + engagementBonus + intensityBonus);
+    } else {
+      // Manga: Count recent publications (last 2 years)
+      const currentYear = new Date().getFullYear();
+      let recentCount = 0;
+      
+      mediaList.forEach(e => {
+        // Use when the user read it (completedAt or updatedAt)
+        const readYear = e.completedAt?.year || 
+                        (e.updatedAt ? new Date(e.updatedAt * 1000).getFullYear() : null);
+        
+        // Check if it's from recent publications (last 2 years)
+        const pubYear = e.media?.startDate?.year;
+        const isRecent = pubYear && pubYear >= currentYear - 2;
+        
+        // Count as seasonal tourist if: read recently AND published recently
+        if (readYear && isRecent) {
+          recentCount++;
+        }
+      });
+      
+      // Score based on recent engagement
+      const baseScore = Math.min(5, recentCount / 5); // Max 5 points for 5+ recent titles
+      const engagementBonus = Math.min(3, (recentCount / (mediaList.length || 1)) * 20); // Max 3 points for high recent ratio
+      const intensityBonus = Math.min(2, recentCount / 10); // Max 2 points for 10+ recent titles
+      
+      return Math.min(10, baseScore + engagementBonus + intensityBonus);
+    }
   }
 
   private static calculateNostalgiaScore(yearData: Map<number, { count: number; totalScore: number; progressUnits: number; scoredCount: number }>): number {

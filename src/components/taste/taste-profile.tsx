@@ -433,11 +433,14 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       value: traitStats?.personalityTraits.seasonalTourist ?? tasteProfile.personalityTraits.seasonalTourist, 
       icon: Clock,
       color: 'from-blue-500 to-cyan-500',
-      description: 'Following current season trends',
-      tooltip: 'Based on % of your list from the current/last year.',
-      receipts: [
+      description: activeTab === 'ANIME' ? 'Watching Winter 2026 season anime' : 'Reading recent manga publications',
+      tooltip: activeTab === 'ANIME' ? 'Based on Winter 2026 season anime you are watching.' : 'Based on recent manga publications you are reading.',
+      receipts: activeTab === 'ANIME' ? [
+        { label: 'Winter 2026 Titles', value: analyzedEntries.filter(e => e.media?.startDate?.year === 2026 && e.media?.startDate?.month && e.media.startDate.month >= 1 && e.media.startDate.month <= 3).length.toString() },
+        { label: 'Season Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year === 2026 && e.media?.startDate?.month && e.media.startDate.month >= 1 && e.media.startDate.month <= 3).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
+      ] : [
         { label: 'Recent Titles', value: analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length.toString() },
-        { label: 'Seasonal Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
+        { label: 'Recent Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
       ]
     },
     { 

@@ -44,9 +44,9 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   seasonalTourist: {
     name: "The Seasonal Tourist",
     emoji: "🌸",
-    description: "You ride the waves of each release season, always catching what's hot and trending.",
-    traits: ["Trendy", "Social", "Up-to-date", "Community-driven"],
-    color: "from-pink-500 to-rose-600",
+    description: "You're watching Winter 2026 anime as they air, staying current with the latest season.",
+    traits: ["Current", "Trendy", "Up-to-date", "Season-focused"],
+    color: "from-blue-500 to-cyan-600",
     icon: Clock
   },
   cultHunter: {
@@ -159,7 +159,9 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
     if (type === 'completionist') {
       description = `You finish what you start. Dropping a ${mediaTerm} is simply not in your vocabulary.`;
     } else if (type === 'seasonalTourist') {
-      description = `You ride the waves of each ${mediaTerm} season, always ${actionTermPresent} what's hot and trending.`;
+      description = isAnime 
+        ? `You're watching Winter 2026 anime as they air, staying current with the latest season.`
+        : `You're reading recent manga releases, staying current with the latest publications.`;
     } else if (type === 'emotionalMasochist') {
       description = `You seek the stories that will destroy you emotionally. Pain is entertainment.`;
     } else if (type === 'mainstreamMaxxer') {
