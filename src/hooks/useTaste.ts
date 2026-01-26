@@ -7,6 +7,7 @@ interface UseTasteOptions extends ComputeTasteOptions {
   userId?: number;
   mediaType?: 'ANIME' | 'MANGA';
   enableCache?: boolean;
+  forceRecompute?: boolean;
 }
 
 /**

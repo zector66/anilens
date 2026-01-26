@@ -14,7 +14,8 @@ import {
   Info,
   TrendingUp,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { useTaste, TasteResult } from '@/lib/taste';
 import { UltimateTraitExplainabilityDrawer } from './ultimate-trait-explainability-drawer';
@@ -78,7 +79,7 @@ interface UnifiedTraitDisplayProps {
 }
 
 export function UnifiedTraitDisplay({ 
-  userId = 0, 
+  userId, 
   mediaType = 'ANIME',
   initialView = 'preference' 
 }: UnifiedTraitDisplayProps) {
@@ -86,13 +87,15 @@ export function UnifiedTraitDisplay({
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set(['core']));
   const [selectedTrait, setSelectedTrait] = useState<any>(null);
   const [showExplainability, setShowExplainability] = useState(false);
+  const [forceRecompute, setForceRecompute] = useState(0);
 
   // THE ONE AND ONLY taste hook
   const { taste, loading, error, topTraits, traitSummary, confidence, sampleSize, warnings } = useTaste({
     userId,
     mediaType,
     includeViews: true,
-    includeLegacy: false // We don't need legacy anymore
+    includeLegacy: false, // We don't need legacy anymore
+    forceRecompute: forceRecompute > 0 // Force recompute when refresh is clicked
   });
 
   if (loading) {
@@ -133,11 +136,26 @@ export function UnifiedTraitDisplay({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="text-center space-y-2 flex-1">
+          <h1 className="text-3xl font-bold text-white">Taste Analysis</h1>
+          <p className="text-gray-400">Your unique anime fingerprint</p>
+        </div>
+        <button
+          onClick={() => setForceRecompute(prev => prev + 1)}
+          disabled={loading}
+          className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
+          title="Recompute taste with latest algorithm"
+        >
+          <RefreshCw className={`w-5 h-5 text-white ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
       {/* Profile Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h3 className="text-xl font-bold text-white">Taste Analysis</h3>
           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg">
             <Target className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-gray-300">{sampleSize || 0} titles</span>
