@@ -659,17 +659,17 @@ html:not(.dark) .light-input::placeholder {
 /* Slow pulse for sun glow */
 @keyframes pulse-slow {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0.7;
     transform: scale(1);
   }
   50% {
-    opacity: 0.8;
-    transform: scale(1.05);
+    opacity: 0.85;
+    transform: scale(1.02);
   }
 }
 
 .animate-pulse-slow {
-  animation: pulse-slow 4s ease-in-out infinite;
+  animation: pulse-slow 6s ease-in-out infinite;
 }
 
 /* Radial gradient background helper */
@@ -812,18 +812,18 @@ html:not(.dark) .light-input::placeholder {
 /* Sun ray rotation */
 @keyframes ray-rotate {
   0% {
-    opacity: 0.3;
+    opacity: 0.1;
   }
   50% {
-    opacity: 0.6;
+    opacity: 0.3;
   }
   100% {
-    opacity: 0.3;
+    opacity: 0.1;
   }
 }
 
 .animate-ray-rotate {
-  animation: ray-rotate 3s ease-in-out infinite;
+  animation: ray-rotate 5s ease-in-out infinite;
 }
 
 /* Lens flare */

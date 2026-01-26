@@ -24,7 +24,7 @@ function RainDrop({ delay, left, duration, height, opacity }: {
         animationDuration: `${duration}s`,
         width: '1px',
         height: `${height}px`,
-        background: `linear-gradient(to bottom, transparent, rgba(147, 197, 253, ${opacity}), rgba(96, 165, 250, ${opacity * 1.2}))`,
+        background: `linear-gradient(to bottom, transparent, rgba(147, 197, 253, ${opacity * 0.6}), rgba(96, 165, 250, ${opacity}))`,
         borderRadius: '2px',
         filter: 'blur(0.5px)',
       }}
@@ -64,7 +64,7 @@ function Snowflake({ delay, left, size, duration, type, wobble }: {
         fontSize: `${size}px`,
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
-        opacity: 0.6 + Math.random() * 0.4,
+        opacity: 0.4 + Math.random() * 0.4, // Slightly more subtle
         filter: size > 14 ? 'blur(0.5px)' : 'none',
         ['--wobble' as string]: `${wobble}px`,
       }}
@@ -107,42 +107,42 @@ function Lightning({ active, intensity }: { active: boolean; intensity: number }
   );
 }
 
-// Enhanced Sun with lens flare and god rays
+// Enhanced Sun with subtle, realistic lighting
 function SunRays() {
   return (
-    <div className="absolute top-4 right-12 pointer-events-none">
-      <div className="relative w-48 h-48">
-        {/* Outer glow */}
-        <div className="absolute inset-0 bg-gradient-radial from-yellow-200/40 via-orange-200/20 to-transparent rounded-full animate-pulse-slow blur-xl" />
+    <div className="absolute top-8 right-16 pointer-events-none">
+      <div className="relative w-32 h-32">
+        {/* Soft outer glow - much more subtle */}
+        <div className="absolute inset-0 bg-gradient-radial from-yellow-100/20 via-orange-100/10 to-transparent rounded-full animate-pulse-slow blur-2xl" />
         
-        {/* God rays */}
-        {[...Array(12)].map((_, i) => (
+        {/* Subtle light rays - fewer and softer */}
+        {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="absolute top-1/2 left-1/2 origin-center animate-ray-rotate"
+            className="absolute top-1/2 left-1/2 origin-center animate-ray-rotate opacity-30"
             style={{
-              width: '2px',
-              height: '200px',
-              background: 'linear-gradient(to bottom, rgba(255,220,100,0.4), transparent)',
-              transform: `translate(-50%, -50%) rotate(${i * 30}deg)`,
-              animationDelay: `${i * 0.5}s`,
+              width: '1px',
+              height: '120px',
+              background: 'linear-gradient(to bottom, rgba(255,220,100,0.2), transparent)',
+              transform: `translate(-50%, -50%) rotate(${i * 45}deg)`,
+              animationDelay: `${i * 0.7}s`,
+              filter: 'blur(1px)',
             }}
           />
         ))}
         
-        {/* Middle glow */}
-        <div className="absolute inset-4 bg-gradient-radial from-yellow-100/60 via-orange-200/30 to-transparent rounded-full" />
+        {/* Soft middle glow */}
+        <div className="absolute inset-2 bg-gradient-radial from-yellow-50/30 via-orange-100/15 to-transparent rounded-full blur-lg" />
         
-        {/* Sun core */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16">
-          <div className="w-full h-full rounded-full bg-gradient-radial from-yellow-100 via-yellow-200 to-orange-300 shadow-lg shadow-yellow-500/50 animate-pulse-slow" />
-          <div className="absolute inset-1 rounded-full bg-gradient-radial from-white/80 to-transparent" />
+        {/* Sun core - softer and smaller */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12">
+          <div className="w-full h-full rounded-full bg-gradient-radial from-yellow-50/90 via-yellow-100/70 to-orange-200/50 shadow-lg shadow-yellow-400/20 animate-pulse-slow" />
+          <div className="absolute inset-0.5 rounded-full bg-gradient-radial from-white/60 to-transparent blur-sm" />
         </div>
         
-        {/* Lens flares */}
-        <div className="absolute top-[70%] left-[30%] w-6 h-6 bg-gradient-radial from-cyan-400/30 to-transparent rounded-full blur-sm animate-flare" />
-        <div className="absolute top-[80%] left-[40%] w-3 h-3 bg-gradient-radial from-purple-400/20 to-transparent rounded-full blur-sm animate-flare" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute top-[90%] left-[50%] w-8 h-8 bg-gradient-radial from-orange-300/20 to-transparent rounded-full blur-md animate-flare" style={{ animationDelay: '1s' }} />
+        {/* Subtle lens flares - fewer and more transparent */}
+        <div className="absolute top-[60%] left-[20%] w-4 h-4 bg-gradient-radial from-yellow-200/10 to-transparent rounded-full blur-md animate-flare" />
+        <div className="absolute top-[70%] left-[30%] w-2 h-2 bg-gradient-radial from-orange-200/10 to-transparent rounded-full blur-sm animate-flare" style={{ animationDelay: '0.5s' }} />
       </div>
     </div>
   );
@@ -265,7 +265,7 @@ function Aurora() {
 
 // Enhanced Cloud component with more detail and smoother animation
 function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number; scale: number; delay: number; isDark?: boolean }) {
-  const cloudOpacity = isDark ? 0.06 : 0.10; // Reduced opacity for subtlety
+  const cloudOpacity = isDark ? 0.06 : 0.08; // Even more subtle for day clouds
   return (
     <div
       className="absolute animate-float-cloud pointer-events-none transition-opacity duration-1000"
@@ -290,10 +290,11 @@ function Cloud({ top, left, scale, delay, isDark }: { top: number; left: number;
 function FogLayer({ opacity, delay }: { opacity: number; delay: number }) {
   return (
     <div
-      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-300/20 to-transparent animate-fog pointer-events-none"
+      className="absolute inset-0 bg-gradient-to-br from-gray-200/10 via-gray-300/15 to-gray-200/10 animate-fog pointer-events-none"
       style={{
         opacity,
         animationDelay: `${delay}s`,
+        filter: 'blur(20px)',
       }}
     />
   );
@@ -487,6 +488,8 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
             ? 'bg-gray-400/15'
             : condition === 'cloudy'
             ? 'bg-gray-600/5'
+            : isDay && condition === 'clear'
+            ? 'bg-gradient-to-br from-yellow-50/5 via-orange-50/3 to-transparent'
             : ''
         }`}
       />
