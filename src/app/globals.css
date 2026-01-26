@@ -62,56 +62,78 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Light mode specific overrides for components */
+/* Light mode - comprehensive overrides */
 :root:not(.dark) {
-  /* Cards and containers in light mode */
+  /* Override CSS variables for light mode */
+  --background: #ffffff !important;
+  --foreground: #1e293b !important;
+  --card-bg: #ffffff !important;
+  --card-border: #e2e8f0 !important;
+  --muted: #64748b !important;
+  --muted-foreground: #64748b !important;
+  --accent: #8b5cf6 !important;
+  --accent-foreground: #ffffff !important;
+  --primary: #8b5cf6 !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: #f8fafc !important;
+  --secondary-foreground: #1e293b !important;
+  --border: #e2e8f0 !important;
+  --input: #ffffff !important;
+  
+  /* Force background to be white */
+  body {
+    background: #ffffff !important;
+  }
+  
+  /* Main container backgrounds */
+  .bg-gray-900\/95, .bg-gray-900\/90, .bg-gray-900 {
+    background: #ffffff !important;
+  }
+  
+  /* Cards and containers */
   .bg-white\/5 {
-    background-color: var(--card-bg) !important;
-    border-color: var(--card-border) !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
   }
   
   .bg-white\/10 {
-    background-color: var(--secondary) !important;
-    border-color: var(--border) !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
   }
   
-  /* Text colors in light mode */
-  .text-white {
-    color: var(--foreground) !important;
+  /* Dark backgrounds that need to be light */
+  .bg-black\/20, .bg-black\/30, .bg-black\/50 {
+    background: #f8fafc !important;
+  }
+  
+  /* Text colors */
+  .text-white, .text-gray-100, .text-gray-200, .text-gray-300 {
+    color: #1e293b !important;
   }
   
   .text-gray-400, .text-gray-500 {
-    color: var(--muted) !important;
+    color: #64748b !important;
   }
   
-  .text-gray-300 {
-    color: var(--muted-foreground) !important;
-  }
-  
-  /* Border colors in light mode */
-  .border-white\/10, .border-white\/20 {
-    border-color: var(--border) !important;
-  }
-  
-  /* Background colors */
-  .bg-black\/20 {
-    background-color: var(--card-bg) !important;
-  }
-  
-  .bg-black\/30 {
-    background-color: var(--secondary) !important;
+  /* Border colors */
+  .border-white\/10, .border-white\/20, .border-gray-800 {
+    border-color: #e2e8f0 !important;
   }
   
   /* Hover states */
   .hover\:bg-white\/10:hover {
-    background-color: var(--secondary) !important;
+    background: #f1f5f9 !important;
   }
   
   .hover\:bg-white\/20:hover {
-    background-color: var(--card-bg) !important;
+    background: #f8fafc !important;
   }
   
-  /* Scrollbar in light mode */
+  .hover\:bg-gray-800:hover {
+    background: #f1f5f9 !important;
+  }
+  
+  /* Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -128,6 +150,35 @@ body {
   
   ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+  }
+  
+  /* Remove dark overlays */
+  .bg-gradient-to-b.from-gray-900 {
+    background: transparent !important;
+  }
+  
+  /* Specific component fixes */
+  .bg-gray-800\/50, .bg-gray-800\/90 {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  
+  /* Dark text that needs to be light */
+  .text-purple-400, .text-blue-400 {
+    color: #8b5cf6 !important;
+  }
+  
+  /* Button backgrounds */
+  .bg-purple-500\/20 {
+    background: #f3f4f6 !important;
+    border: 1px solid #e5e7eb !important;
+  }
+  
+  /* Remove dark gradients */
+  .bg-gradient-to-t.from-gray-900, 
+  .bg-gradient-to-b.from-black\/50,
+  .bg-gradient-to-br.from-gray-900 {
+    background: #ffffff !important;
   }
 }
 
