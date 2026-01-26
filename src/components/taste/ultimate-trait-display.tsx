@@ -21,6 +21,40 @@ import type { UltimateAccuracyProfileV2 } from '@/lib/ultimate-accuracy-v2';
 import { UltimateTraitExplainabilityDrawer } from './ultimate-trait-explainability-drawer';
 import { getRarityColor, getRarityLabel } from '@/lib/trait-distinctiveness';
 
+// Helper function to get polarity label and color
+function getPolarityInfo(trait: TraitScore, activeProfile: 'preference' | 'exposure') {
+  // For preference profile, classify based on affinity delta
+  if (activeProfile === 'preference' && trait.affinityDelta !== undefined) {
+    if (trait.affinityDelta > 15) {
+      return { label: 'Loved', color: 'text-green-400', bgColor: 'bg-green-500/20' };
+    } else if (trait.affinityDelta < -15) {
+      return { label: 'Tolerated', color: 'text-orange-400', bgColor: 'bg-orange-500/20' };
+    }
+  }
+  
+  // For exposure profile or neutral preference, show as neutral
+  return { label: 'Present', color: 'text-blue-400', bgColor: 'bg-blue-500/20' };
+}
+
+// Helper function to get liked vs tolerated breakdown
+function getLikedVsTolerated(trait: TraitScore) {
+  if (trait.enjoymentScore !== undefined && trait.exposureScore !== undefined) {
+    const liked = Math.max(0, trait.enjoymentScore);
+    const tolerated = Math.max(0, trait.exposureScore - trait.enjoymentScore);
+    const total = liked + tolerated;
+    
+    if (total > 0) {
+      return {
+        likedPercent: (liked / total) * 100,
+        toleratedPercent: (tolerated / total) * 100,
+        hasData: true
+      };
+    }
+  }
+  
+  return { likedPercent: 0, toleratedPercent: 0, hasData: false };
+}
+
 // Helper function to get rarity color for percentile rarity tiers
 function getPercentileRarityColor(rarity: string): string {
   switch (rarity) {
@@ -106,6 +140,7 @@ export function UltimateTraitDisplay({
 }: UltimateTraitDisplayProps) {
   const [selectedTrait, setSelectedTrait] = useState<TraitScore | null>(null);
   const [expandedSection, setExpandedSection] = useState<string>('signature');
+  const [activeProfile, setActiveProfile] = useState<'preference' | 'exposure'>('preference');
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? '' : section);
@@ -119,6 +154,11 @@ export function UltimateTraitDisplay({
     const percentile = getTraitPercentile(trait.traitId);
     return { trait, percentile };
   };
+
+  // Get the currently active profile
+  const currentProfile = accuracyProfile && activeProfile === 'preference' 
+    ? accuracyProfile.preferenceProfile 
+    : accuracyProfile?.exposureProfile || profile;
 
   return (
     <div className="space-y-6">
@@ -151,6 +191,40 @@ export function UltimateTraitDisplay({
         </div>
       )}
 
+      {/* Profile Type Selector */}
+      {accuracyProfile && (
+        <div className="bg-white/5 rounded-xl border border-white/10 p-1">
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              onClick={() => setActiveProfile('preference')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeProfile === 'preference'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Heart className="w-4 h-4" />
+                What You Love
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveProfile('exposure')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeProfile === 'exposure'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Users className="w-4 h-4" />
+                What You Watch
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Signature Traits Section */}
       <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
         <button
@@ -160,7 +234,9 @@ export function UltimateTraitDisplay({
           <div className="flex items-center gap-3">
             <Sparkles className="w-5 h-5 text-purple-400" />
             <h3 className="text-white font-semibold">Signature Traits</h3>
-            <span className="text-gray-400 text-sm">What makes you unique</span>
+            <span className="text-gray-400 text-sm">
+              {activeProfile === 'preference' ? 'What makes your taste unique' : 'What makes your viewing unique'}
+            </span>
           </div>
           {expandedSection === 'signature' ? (
             <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -171,7 +247,7 @@ export function UltimateTraitDisplay({
         
         {expandedSection === 'signature' && (
           <div className="p-4 space-y-2">
-            {profile.topSignatureTraits.slice(0, 8).map((trait) => {
+            {currentProfile.topSignatureTraits.slice(0, 8).map((trait) => {
               const { trait: traitData, percentile } = getTraitWithPercentile(trait);
               return (
                 <TraitTooltip key={traitData.traitId} trait={traitData} percentile={percentile}>
@@ -185,6 +261,10 @@ export function UltimateTraitDisplay({
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-white font-medium">{traitData.name}</span>
+                        {/* Polarity label */}
+                        <span className={`px-2 py-0.5 rounded text-xs ${getPolarityInfo(traitData, activeProfile).bgColor} ${getPolarityInfo(traitData, activeProfile).color}`}>
+                          {getPolarityInfo(traitData, activeProfile).label}
+                        </span>
                         {percentile && percentile.percentile >= 75 && (
                           <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-xs">
                             {percentile.percentile}th percentile
@@ -202,15 +282,57 @@ export function UltimateTraitDisplay({
                       </div>
                     </div>
                     
+                    {/* Liked vs Tolerated breakdown */}
+                    {activeProfile === 'preference' && (() => {
+                      const breakdown = getLikedVsTolerated(traitData);
+                      return breakdown.hasData ? (
+                        <div className="mt-2 p-2 rounded bg-white/5 border border-white/10">
+                          <div className="text-xs text-gray-400 mb-1">Breakdown</div>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-green-400 text-xs">Loved</span>
+                                <span className="text-green-400 text-xs font-bold">{Math.round(breakdown.likedPercent)}%</span>
+                              </div>
+                              <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-green-500 rounded-full"
+                                  style={{ width: `${breakdown.likedPercent}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-orange-400 text-xs">Tolerated</span>
+                                <span className="text-orange-400 text-xs font-bold">{Math.round(breakdown.toleratedPercent)}%</span>
+                              </div>
+                              <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-orange-500 rounded-full"
+                                  style={{ width: `${breakdown.toleratedPercent}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-gray-500 text-[10px]">Your Strength</span>
+                          <span className="text-gray-500 text-[10px]">
+                            {activeProfile === 'preference' ? 'Preference Strength' : 'Exposure Strength'}
+                          </span>
                           <span className="text-white text-xs font-medium">{traitData.normalizedScore}</span>
                         </div>
                         <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                            className={`h-full rounded-full ${
+                              activeProfile === 'preference' 
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                                : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                            }`}
                             style={{ width: `${Math.min(traitData.normalizedScore, 100)}%` }}
                           />
                         </div>
@@ -223,8 +345,8 @@ export function UltimateTraitDisplay({
                       )}
                     </div>
                     
-                    {/* Affinity indicator */}
-                    {traitData.affinityDelta !== undefined && Math.abs(traitData.affinityDelta) > 15 && (
+                    {/* Affinity indicator - only show for preference profile */}
+                    {activeProfile === 'preference' && traitData.affinityDelta !== undefined && Math.abs(traitData.affinityDelta) > 15 && (
                       <div className="mt-2 flex items-center gap-1">
                         <TrendingUp className={`w-3 h-3 ${traitData.affinityDelta > 0 ? 'text-green-400' : 'text-red-400'}`} />
                         <span className={`text-xs ${traitData.affinityDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -241,7 +363,7 @@ export function UltimateTraitDisplay({
       </div>
 
       {/* Channel Breakdown */}
-      {Object.entries(profile.channels).map(([channel, traits]) => {
+      {Object.entries(currentProfile.channels).map(([channel, traits]) => {
         const ChannelIcon = CHANNEL_ICONS[channel as keyof typeof CHANNEL_ICONS];
         const channelColor = CHANNEL_COLORS[channel as keyof typeof CHANNEL_COLORS];
         
@@ -286,17 +408,37 @@ export function UltimateTraitDisplay({
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-white text-sm font-bold">{traitData.normalizedScore}</span>
+                            {/* Show rank and percentile instead of raw percentage */}
+                            <div className="text-right">
+                              <div className="text-white text-sm font-bold">
+                                #{Math.round(percentile?.percentile || 50)}th
+                              </div>
+                              <div className="text-gray-500 text-[10px]">percentile</div>
+                            </div>
                             <Info className="w-4 h-4 text-gray-500" />
                           </div>
                         </div>
                         
+                        {/* Show strength bar with better labeling */}
                         <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-gray-500 text-[10px]">
+                              {activeProfile === 'preference' ? 'Preference Strength' : 'Exposure Strength'}
+                            </span>
+                            <span className="text-white text-xs font-medium">{traitData.normalizedScore}</span>
+                          </div>
                           <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                             <div 
                               className={`h-full bg-linear-to-r ${channelColor} rounded-full`}
                               style={{ width: `${Math.min(traitData.normalizedScore, 100)}%` }}
                             />
+                          </div>
+                          {/* Add interpretation help */}
+                          <div className="mt-1 text-xs text-gray-500">
+                            {activeProfile === 'preference' 
+                              ? `How much you seek out ${traitData.name.toLowerCase()}`
+                              : `How often you encounter ${traitData.name.toLowerCase()}`
+                            }
                           </div>
                         </div>
                       </div>

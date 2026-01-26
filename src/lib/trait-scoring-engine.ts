@@ -48,6 +48,56 @@ function buildTagTraitMap(): void {
 // Initialize on module load
 buildTagTraitMap();
 
+// ============================================================================
+// CORE TRAIT ENTRY CONDITIONS
+// Prevent trait leakage by requiring stronger signals for broad traits
+// ============================================================================
+
+/**
+ * Check if a trait meets entry conditions based on tag strength and diversity
+ * Core traits (romance, action, comedy) require stronger evidence
+ */
+function meetsTraitEntryConditions(
+  traitId: string, 
+  contributions: TraitContribution[], 
+  totalTags: number
+): boolean {
+  // Define core traits that need stricter conditions
+  const CORE_TRAITS = new Set([
+    'romance', 'action', 'comedy', 'drama', 'fantasy', 
+    'sexual-content', 'ecchi', 'school', 'slice-of-life'
+  ]);
+  
+  const isCoreTrait = CORE_TRAITS.has(traitId);
+  
+  if (!isCoreTrait) {
+    // Non-core traits: normal entry conditions
+    return contributions.length > 0;
+  }
+  
+  // Core traits: require stronger evidence
+  const highWeightContributions = contributions.filter(c => c.weight >= 4);
+  const moderateWeightContributions = contributions.filter(c => c.weight >= 2);
+  
+  // Option 1: At least one defining tag (weight 4-5)
+  if (highWeightContributions.length >= 1) {
+    return true;
+  }
+  
+  // Option 2: Multiple moderate tags (weight 2-3) with good coverage
+  if (moderateWeightContributions.length >= 2 && 
+      moderateWeightContributions.length >= totalTags * 0.3) {
+    return true;
+  }
+  
+  // Option 3: Very strong tag density for this trait
+  if (contributions.length >= 3 && contributions.length >= totalTags * 0.4) {
+    return true;
+  }
+  
+  return false;
+}
+
 // Fast lookup function
 function getTraitContributions(tagName: string): TraitContribution[] {
   return TAG_TRAIT_MAP.get(tagName.toLowerCase()) || [];
@@ -354,9 +404,29 @@ class TraitScorer {
     // Track this tag for current media
     this.currentMediaTags.push({ name: tag, rank: tagRank });
     
+    // Collect all potential contributions for entry condition checking
+    const potentialContributions: Array<{traitId: string, weight: number, acc: TraitAccumulator}> = [];
+    
     for (const mapping of tagDef.mappings) {
       const acc = this.accumulators.get(mapping.traitId);
       if (!acc) continue;
+      
+      potentialContributions.push({
+        traitId: mapping.traitId,
+        weight: mapping.weight,
+        acc
+      });
+    }
+    
+    // Apply entry conditions for core traits
+    const totalTags = this.currentMediaTags.length;
+    for (const {traitId, weight, acc} of potentialContributions) {
+      // Check if this trait meets entry conditions
+      if (!meetsTraitEntryConditions(traitId, [{weight, traitId, diminishRate: acc.diminishRate}], totalTags)) {
+        // For core traits that don't meet conditions, skip this contribution
+        // But still track that we saw the tag for other traits
+        continue;
+      }
       
       // Calculate contribution with PER-TRAIT diminishing returns
       // Formula: 1 / (1 + diminishRate * hitCount)
@@ -365,12 +435,12 @@ class TraitScorer {
       // Floor to prevent major signature titles from being erased
       const diminishedWeight = Math.max(diminishing, 0.15);
       
-      const contribution = mapping.weight * diminishedWeight * rankModifier * definingBoost * engagementWeight;
+      const contribution = weight * diminishedWeight * rankModifier * definingBoost * engagementWeight;
       
       acc.rawScore += contribution;
       acc.hitCount++;
       acc.contributingTags.add(tag);
-      contributions.set(mapping.traitId, contribution);
+      contributions.set(traitId, contribution);
     }
     
     return contributions;
@@ -444,13 +514,18 @@ addMediaTags(
     }
     
     // Record contributions for explainability (top traits only)
+    // Apply 18% rule: no single title can contribute more than 18% of a trait's total score
     for (const [id, acc] of Array.from(this.accumulators.entries())) {
       const contribution = acc.rawScore - (preScores.get(id) || 0);
       if (contribution > 0.25) { // Track smaller contributions to surface rare traits
+        // Apply 18% cap to prevent trait bomb domination
+        const maxAllowedContribution = acc.rawScore * 0.18; // 18% of total trait score
+        const cappedContribution = Math.min(contribution, maxAllowedContribution);
+        
         acc.mediaContributions.push({
           mediaId: this.currentMediaId,
           title: this.currentMediaTitle,
-          contribution,
+          contribution: cappedContribution,
           tags: [...this.currentMediaTags],
         });
       }

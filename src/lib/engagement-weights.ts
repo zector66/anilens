@@ -50,6 +50,59 @@ export function calculateUserScoreStats(entries: MediaListEntry[]): UserScoreSta
 }
 
 /**
+ * Calculate Personal Meaning preference weight
+ * 
+ * This transforms raw AniList scores into meaningful preference weights
+ * by treating ratings relative to each user's personal baseline.
+ * 
+ * Key insight: "7/10" means different things to different users:
+ * - For a harsh rater (mean 5.5): 7/10 = strong preference
+ * - For a generous rater (mean 8.2): 7/10 = mild preference
+ * - For a romance lover: 7/10 romance = identity-defining
+ * - For a romance hater: 7/10 romance = tolerated
+ */
+export function calculatePersonalMeaningWeight(
+  score: number,
+  userStats: UserScoreStats
+): number {
+  // No score = neutral engagement (don't invent preference)
+  if (!score || score <= 0) {
+    return 1.0;
+  }
+  
+  // Calculate how far this rating is from user's personal baseline
+  const zScore = (score - userStats.mean) / userStats.std;
+  
+  // Apply a curve with hard "mid" cutoff and asymmetric response
+  // Below baseline: fast drop-off (tolerated)
+  // Above baseline: steep rise (enjoyed)
+  // Far above: saturates (can't exceed meaningful maximum)
+  
+  let preferenceWeight;
+  
+  if (zScore <= -0.5) {
+    // Well below user's mean = strong negative preference
+    // Fast drop-off: 0.3 to 0.7
+    preferenceWeight = 0.7 + (zScore + 0.5) * 0.4;
+    preferenceWeight = Math.max(0.3, preferenceWeight);
+  } else if (zScore <= 0.5) {
+    // Around user's mean = neutral to mild
+    // Narrow neutral zone: 0.7 to 1.1
+    preferenceWeight = 0.7 + (zScore + 0.5) * 0.4;
+  } else if (zScore <= 2.0) {
+    // Above user's mean = strong positive preference
+    // Steep rise: 1.1 to 1.8
+    preferenceWeight = 1.1 + (zScore - 0.5) * 0.47;
+  } else {
+    // Far above user's mean = maximum preference
+    // Saturate at 1.8 to prevent unrealistic dominance
+    preferenceWeight = 1.8;
+  }
+  
+  return preferenceWeight;
+}
+
+/**
  * Calculate z-score for a given score relative to user's personal scale
  */
 export function getZScore(score: number, stats: UserScoreStats): number {
@@ -74,14 +127,11 @@ export function calculateEngagementWeight(
     return { weight: 0, statusWeight: 0, scoreSignalWeight: 0, progressWeight: 0 };
   }
   
-  // 2. Score signal weight
-  // If score exists: 1 + clamp(zScore, -1.25, 1.25) * 0.25
-  // If no score: 1.0 (don't invent info)
+  // 2. Score signal weight using Personal Meaning transform
+  // This treats ratings relative to user's personal baseline, not absolute
   let scoreSignalWeight = 1.0;
   if (entry.score && entry.score > 0) {
-    const zScore = getZScore(entry.score, userStats);
-    const clampedZ = Math.max(-1.25, Math.min(1.25, zScore));
-    scoreSignalWeight = 1 + clampedZ * 0.25; // Range: 0.6875 to 1.3125
+    scoreSignalWeight = calculatePersonalMeaningWeight(entry.score, userStats);
   }
   
   // 3. Progress weight
@@ -198,4 +248,60 @@ export function filterByFormat(
   return entries.filter(entry => 
     entry.media?.format && includedFormats.includes(entry.media.format)
   );
+}
+
+/**
+ * Create Core Identity Subset - titles that truly define the user's taste
+ * 
+ * This filters to only the most meaningful entries:
+ * - Favorites (guaranteed identity-defining)
+ * - High ratings (well above user's personal baseline)
+ * - Rewatched (shows they returned to)
+ * - Strong completion (engaged deeply)
+ */
+export function createCoreIdentitySubset(
+  entries: MediaListEntry[],
+  userStats: UserScoreStats
+): MediaListEntry[] {
+  return entries.filter(entry => {
+    // 1. Favorites are always included (guaranteed preference)
+    // AniList uses custom lists for favorites, so check if it's in a favorites list
+    if (entry.customLists && entry.customLists.some(list => 
+      list.toLowerCase().includes('favorite') || list.toLowerCase().includes('favourite')
+    )) {
+      return true;
+    }
+    
+    // 2. Rewatched content shows strong preference
+    if (entry.repeat && entry.repeat > 0) {
+      return true;
+    }
+    
+    // 3. High ratings relative to user's personal baseline
+    if (entry.score && entry.score > 0) {
+      const zScore = (entry.score - userStats.mean) / userStats.std;
+      // Include if rating is 0.7 std dev above user's mean
+      if (zScore >= 0.7) {
+        return true;
+      }
+    }
+    
+    // 4. Strong completion of substantial content
+    if (entry.status === 'COMPLETED') {
+      const total = entry.media?.episodes || entry.media?.chapters || 1;
+      const progress = entry.progress || 0;
+      
+      // For longer series, require significant engagement
+      if (total >= 12 && progress >= total * 0.9) {
+        return true;
+      }
+      
+      // For shorter series, completion alone is enough
+      if (total < 12 && progress >= total) {
+        return true;
+      }
+    }
+    
+    return false;
+  });
 }

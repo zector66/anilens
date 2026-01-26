@@ -435,10 +435,11 @@ export async function computeUltimateAccuracyV2(entries: MediaListEntry[]): Prom
   const enhancedExposureProfile = enhanceTraitsWithDistinctiveness(exposureProfile.topTraits);
   const enhancedPreferenceProfile = enhanceTraitsWithDistinctiveness(preferenceProfile.topTraits);
   
-  // Get top signature traits
-  const signatureTraits = getTopSignatureTraits(enhancedExposureProfile, 10);
+  // Get top signature traits for both profiles
+  const exposureSignatureTraits = getTopSignatureTraits(enhancedExposureProfile, 10);
+  const preferenceSignatureTraits = getTopSignatureTraits(enhancedPreferenceProfile, 10);
   
-  // Calculate population percentiles
+  // Calculate population percentiles (use exposure as baseline)
   const percentiles = calculateTraitPercentiles(enhancedExposureProfile);
   
   // Calculate confidence metrics
@@ -450,16 +451,18 @@ export async function computeUltimateAccuracyV2(entries: MediaListEntry[]): Prom
   return {
     exposureProfile: {
       ...exposureProfile,
-      topTraits: enhancedExposureProfile
+      topTraits: enhancedExposureProfile,
+      topSignatureTraits: exposureSignatureTraits
     },
     preferenceProfile: {
       ...preferenceProfile,
-      topTraits: enhancedPreferenceProfile
+      topTraits: enhancedPreferenceProfile,
+      topSignatureTraits: preferenceSignatureTraits
     },
     percentiles,
-    signatureTraits,
+    signatureTraits: preferenceSignatureTraits, // Default to preference for backward compatibility
     confidence,
-    dataQuality
+    dataQuality,
   };
 }
 
