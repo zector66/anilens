@@ -694,7 +694,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                 <Tag className="w-5 h-5 text-white" />
               </div>
               Deep Taste Intelligence
