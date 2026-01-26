@@ -63,7 +63,7 @@ export const GENRE_DNA_TRAITS: TraitDefinition[] = [
   { id: 'adventure', name: 'Adventure', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
   { id: 'comedy', name: 'Comedy', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.25 },
   { id: 'drama', name: 'Drama', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.25 },
-  { id: 'romance', name: 'Romance', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
+  { id: 'romance', name: 'Romance', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.15 }, // Slower diminish for identity trait
   { id: 'slice_of_life', name: 'Slice of Life', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.20 },
   { id: 'fantasy', name: 'Fantasy', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.22 },
   { id: 'sci_fi', name: 'Sci-Fi', category: 'genre_dna', channel: 'identity', role: 'core', diminishRate: 0.18 },
@@ -299,10 +299,11 @@ export const COMBAT_POWER_TRAITS: TraitDefinition[] = [
 // ============================================================================
 
 export const ROMANCE_CONFIG_TRAITS: TraitDefinition[] = [
-  { id: 'romance_primary', name: 'Romance Primary', category: 'romance_config', channel: 'structure' },
-  { id: 'romance_secondary', name: 'Romance Secondary', category: 'romance_config', channel: 'structure' },
-  { id: 'slow_burn', name: 'Slow Burn', category: 'romance_config', channel: 'structure' },
-  { id: 'fast_burn', name: 'Fast Burn', category: 'romance_config', channel: 'structure' },
+  // Romance Structure (how the romance is configured)
+  { id: 'romance_primary', name: 'Romance Primary', category: 'romance_config', channel: 'structure', description: 'Romance is the main focus of the story' },
+  { id: 'romance_secondary', name: 'Romance Secondary', category: 'romance_config', channel: 'structure', description: 'Romance is a subplot but still significant' },
+  { id: 'slow_burn', name: 'Slow Burn', category: 'romance_config', channel: 'structure', description: 'Romance develops gradually over time' },
+  { id: 'fast_burn', name: 'Fast Burn', category: 'romance_config', channel: 'structure', description: 'Romance develops quickly and intensely' },
   { id: 'love_triangle', name: 'Love Triangle', category: 'romance_config', channel: 'structure' },
   { id: 'harem', name: 'Harem', category: 'romance_config', channel: 'structure' },
   { id: 'reverse_harem', name: 'Reverse Harem', category: 'romance_config', channel: 'structure' },
@@ -317,6 +318,17 @@ export const ROMANCE_CONFIG_TRAITS: TraitDefinition[] = [
   { id: 'forbidden_romance', name: 'Forbidden Romance', category: 'romance_config', channel: 'structure' },
   { id: 'bl', name: 'BL', category: 'romance_config', channel: 'structure' },
   { id: 'yuri', name: 'Yuri', category: 'romance_config', channel: 'structure' },
+  
+  // Romantic Voltage (emotional intensity of romance) - NEW
+  { id: 'romantic_voltage_high', name: 'High Romantic Voltage', category: 'romance_config', channel: 'vibe', description: 'Intense, passionate romantic moments', diminishRate: 0.15 },
+  { id: 'romantic_voltage_low', name: 'Low Romantic Voltage', category: 'romance_config', channel: 'vibe', description: 'Subtle, understated romantic connection', diminishRate: 0.15 },
+  { id: 'emotionally_intimate', name: 'Emotionally Intimate', category: 'romance_config', channel: 'vibe', description: 'Deep emotional connection and vulnerability', diminishRate: 0.12 },
+  
+  // Romantic Vibe (emotional tone of romance) - NEW
+  { id: 'romantic_vibe_warm', name: 'Warm Romance', category: 'romance_config', channel: 'vibe', description: 'Cozy, heartwarming romantic feelings', diminishRate: 0.15 },
+  { id: 'romantic_vibe_bittersweet', name: 'Bittersweet Romance', category: 'romance_config', channel: 'vibe', description: 'Romance mixed with sadness or sacrifice', diminishRate: 0.12 },
+  { id: 'romantic_vibe_tragic', name: 'Tragic Romance', category: 'romance_config', channel: 'vibe', description: 'Romance that ends in tragedy or heartbreak', diminishRate: 0.10 },
+  { id: 'romantic_vibe_messy', name: 'Messy Romance', category: 'romance_config', channel: 'vibe', description: 'Complicated, drama-filled romantic situations', diminishRate: 0.12 },
 ];
 
 // ============================================================================

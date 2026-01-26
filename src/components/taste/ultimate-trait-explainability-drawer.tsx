@@ -243,12 +243,55 @@ export function UltimateTraitExplainabilityDrawer({
 
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(90vh-120px)] p-6 space-y-6">
+          {/* SPECIAL: Warning Trait Explainer for Intensity Channel */}
+          {trait.channel === 'intensity' && (
+            <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30">
+              <div className="flex items-center gap-3 mb-3">
+                <AlertCircle className="w-5 h-5 text-orange-400" />
+                <h3 className="text-orange-300 font-semibold">Content Warning Trait</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <p className="text-orange-200">
+                  <strong>Important:</strong> This trait shows <em>content presence</em>, not preference.
+                </p>
+                <p className="text-gray-400">
+                  A high score here means you&apos;ve watched shows containing &quot;{trait.name}&quot; content. 
+                  It does NOT mean you seek it out or prefer it.
+                </p>
+                <div className="mt-3 p-3 rounded-lg bg-black/20">
+                  <p className="text-gray-500 text-xs mb-2">Why you&apos;re seeing this:</p>
+                  <ul className="text-gray-400 text-xs space-y-1">
+                    <li>• <strong>{contributors.length || trait.contributingTags?.length || 0} titles</strong> in your list triggered this trait</li>
+                    <li>• These shows had tags like: {trait.contributingTags?.slice(0, 3).join(', ') || 'various content tags'}</li>
+                    <li>• This is exposure data, not a preference signal</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Ultimate Accuracy Overview */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-              <p className="text-gray-400 text-xs mb-1">Your Score</p>
-              <p className="text-white text-2xl font-bold">{trait.normalizedScore}</p>
-            </div>
+            {/* For warning traits, show different metrics */}
+            {trait.channel === 'intensity' ? (
+              <>
+                <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <p className="text-orange-300 text-xs mb-1">Titles with Content</p>
+                  <p className="text-white text-2xl font-bold">
+                    {contributors.length || trait.contributingTags?.length || 0}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-gray-400 text-xs mb-1">Exposure Level</p>
+                  <p className="text-white text-2xl font-bold">{Math.round(trait.rawScore || 0)}</p>
+                </div>
+              </>
+            ) : (
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-gray-400 text-xs mb-1">Your Score</p>
+                <p className="text-white text-2xl font-bold">{trait.normalizedScore}</p>
+              </div>
+            )}
             
             {trait.signatureScore !== undefined && (
               <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
@@ -313,7 +356,7 @@ export function UltimateTraitExplainabilityDrawer({
                   <>Your ratings for {trait.name} content align with your overall average. Neutral preference.</>
                 )}
                 {trait.affinityDelta < -10 && (
-                  <>You rate {trait.name} content <strong className="text-red-400">{Math.round(trait.affinityDelta)}%</strong> lower than your average. You watch it but don't rate it highly.</>
+                  <>You rate {trait.name} content <strong className="text-red-400">{Math.round(trait.affinityDelta)}%</strong> lower than your average. You watch it but don&apos;t rate it highly.</>
                 )}
               </p>
               {affinityDisplay.intensity === 'strong' && (
