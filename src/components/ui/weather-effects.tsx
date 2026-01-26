@@ -108,12 +108,16 @@ function Lightning({ active, intensity }: { active: boolean; intensity: number }
 }
 
 // Enhanced Sun with subtle, realistic lighting
-function SunRays() {
+function SunRays({ isDarkMode }: { isDarkMode: boolean }) {
   return (
     <div className="absolute top-8 right-16 pointer-events-none">
       <div className="relative w-32 h-32">
         {/* Soft outer glow - much more subtle */}
-        <div className="absolute inset-0 bg-gradient-radial from-yellow-100/20 via-orange-100/10 to-transparent rounded-full animate-pulse-slow blur-2xl" />
+        <div className={`absolute inset-0 rounded-full animate-pulse-slow blur-2xl ${
+          isDarkMode 
+            ? 'bg-gradient-radial from-yellow-200/15 via-orange-200/8 to-transparent'
+            : 'bg-gradient-radial from-yellow-100/20 via-orange-100/10 to-transparent'
+        }`} />
         
         {/* Subtle light rays - fewer and softer */}
         {[...Array(8)].map((_, i) => (
@@ -123,7 +127,9 @@ function SunRays() {
             style={{
               width: '1px',
               height: '120px',
-              background: 'linear-gradient(to bottom, rgba(255,220,100,0.2), transparent)',
+              background: isDarkMode 
+                ? 'linear-gradient(to bottom, rgba(255,220,100,0.15), transparent)'
+                : 'linear-gradient(to bottom, rgba(255,220,100,0.2), transparent)',
               transform: `translate(-50%, -50%) rotate(${i * 45}deg)`,
               animationDelay: `${i * 0.7}s`,
               filter: 'blur(1px)',
@@ -132,17 +138,29 @@ function SunRays() {
         ))}
         
         {/* Soft middle glow */}
-        <div className="absolute inset-2 bg-gradient-radial from-yellow-50/30 via-orange-100/15 to-transparent rounded-full blur-lg" />
+        <div className={`absolute inset-2 rounded-full blur-lg ${
+          isDarkMode
+            ? 'bg-gradient-radial from-yellow-100/20 via-orange-100/10 to-transparent'
+            : 'bg-gradient-radial from-yellow-50/30 via-orange-100/15 to-transparent'
+        }`} />
         
         {/* Sun core - softer and smaller */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12">
-          <div className="w-full h-full rounded-full bg-gradient-radial from-yellow-50/90 via-yellow-100/70 to-orange-200/50 shadow-lg shadow-yellow-400/20 animate-pulse-slow" />
-          <div className="absolute inset-0.5 rounded-full bg-gradient-radial from-white/60 to-transparent blur-sm" />
+          <div className={`w-full h-full rounded-full shadow-lg animate-pulse-slow ${
+            isDarkMode
+              ? 'bg-gradient-radial from-yellow-200/80 via-yellow-300/60 to-orange-400/40 shadow-yellow-300/20'
+              : 'bg-gradient-radial from-yellow-50/90 via-yellow-100/70 to-orange-200/50 shadow-yellow-400/20'
+          }`} />
+          <div className={`absolute inset-0.5 rounded-full blur-sm ${
+            isDarkMode 
+              ? 'bg-gradient-radial from-yellow-100/40 to-transparent'
+              : 'bg-gradient-radial from-white/60 to-transparent'
+          }`} />
         </div>
         
         {/* Subtle lens flares - fewer and more transparent */}
-        <div className="absolute top-[60%] left-[20%] w-4 h-4 bg-gradient-radial from-yellow-200/10 to-transparent rounded-full blur-md animate-flare" />
-        <div className="absolute top-[70%] left-[30%] w-2 h-2 bg-gradient-radial from-orange-200/10 to-transparent rounded-full blur-sm animate-flare" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute top-[60%] left-[20%] w-4 h-4 bg-gradient-radial from-yellow-200/8 to-transparent rounded-full blur-md animate-flare" />
+        <div className="absolute top-[70%] left-[30%] w-2 h-2 bg-gradient-radial from-orange-200/8 to-transparent rounded-full blur-sm animate-flare" style={{ animationDelay: '0.5s' }} />
       </div>
     </div>
   );
@@ -334,6 +352,8 @@ function Stars() {
 export function WeatherEffects({ condition, isDay, intensity = 'medium', className = '' }: WeatherEffectsProps) {
   const [lightningActive, setLightningActive] = useState(false);
   const [lightningIntensity, setLightningIntensity] = useState(1);
+  const { theme } = useUI(); // Get current theme
+  const isDarkMode = theme === 'dark';
 
   // Calculate number of particles based on intensity
   const particleCount = {
@@ -439,7 +459,7 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
       )}
 
       {/* Sun or Moon */}
-      {condition === 'clear' && (isDay ? <SunRays /> : <Moon />)}
+      {condition === 'clear' && (isDay ? <SunRays isDarkMode={isDarkMode} /> : <Moon />)}
       
       {/* Moon also shows for cloudy nights */}
       {!isDay && condition !== 'clear' && condition !== 'thunderstorm' && <Moon />}
@@ -479,17 +499,19 @@ export function WeatherEffects({ condition, isDay, intensity = 'medium', classNa
       <div 
         className={`absolute inset-0 transition-colors duration-1000 ${
           condition === 'rain' 
-            ? 'bg-blue-900/10'
+            ? isDarkMode ? 'bg-blue-900/20' : 'bg-blue-900/10'
             : condition === 'thunderstorm'
-            ? 'bg-purple-900/15'
+            ? isDarkMode ? 'bg-purple-900/25' : 'bg-purple-900/15'
             : condition === 'snow'
-            ? 'bg-blue-100/5'
+            ? isDarkMode ? 'bg-blue-200/5' : 'bg-blue-100/5'
             : condition === 'fog'
-            ? 'bg-gray-400/15'
+            ? isDarkMode ? 'bg-gray-500/20' : 'bg-gray-400/15'
             : condition === 'cloudy'
-            ? 'bg-gray-600/5'
+            ? isDarkMode ? 'bg-gray-700/10' : 'bg-gray-600/5'
             : isDay && condition === 'clear'
-            ? 'bg-linear-to-br from-yellow-50/5 via-orange-50/3 to-transparent'
+            ? isDarkMode 
+              ? 'bg-linear-to-br from-yellow-200/3 via-orange-200/2 to-transparent'
+              : 'bg-linear-to-br from-yellow-50/5 via-orange-50/3 to-transparent'
             : ''
         }`}
       />

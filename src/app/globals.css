@@ -70,6 +70,11 @@ body {
     border-color: var(--card-border) !important;
   }
   
+  .bg-white\/10 {
+    background-color: var(--secondary) !important;
+    border-color: var(--border) !important;
+  }
+  
   /* Text colors in light mode */
   .text-white {
     color: var(--foreground) !important;
@@ -79,9 +84,50 @@ body {
     color: var(--muted) !important;
   }
   
+  .text-gray-300 {
+    color: var(--muted-foreground) !important;
+  }
+  
   /* Border colors in light mode */
   .border-white\/10, .border-white\/20 {
     border-color: var(--border) !important;
+  }
+  
+  /* Background colors */
+  .bg-black\/20 {
+    background-color: var(--card-bg) !important;
+  }
+  
+  .bg-black\/30 {
+    background-color: var(--secondary) !important;
+  }
+  
+  /* Hover states */
+  .hover\:bg-white\/10:hover {
+    background-color: var(--secondary) !important;
+  }
+  
+  .hover\:bg-white\/20:hover {
+    background-color: var(--card-bg) !important;
+  }
+  
+  /* Scrollbar in light mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 }
 
