@@ -13,7 +13,8 @@ import {
   ChevronUp,
   Info,
   TrendingUp,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useTaste, TasteResult } from '@/lib/taste';
 import { UltimateTraitExplainabilityDrawer } from './ultimate-trait-explainability-drawer';
@@ -276,6 +277,76 @@ export function UnifiedTraitDisplay({
             </div>
           );
         })}
+      </div>
+
+      {/* What Shaped Me */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Flame className="w-5 h-5 text-orange-400" />
+          <h3 className="text-lg font-semibold text-white">What Shaped You</h3>
+        </div>
+        
+        <div className="space-y-3">
+          {taste.shapedBy.topShapers.slice(0, 5).map((shaper, index) => (
+            <div key={shaper.mediaId} className="p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-white font-medium">{shaper.mediaTitle}</span>
+                    <span className="text-xs text-gray-400">#{index + 1}</span>
+                  </div>
+                  <p className="text-sm text-gray-300 mb-2">{shaper.explanation}</p>
+                  
+                  {/* Top shaped traits */}
+                  <div className="flex flex-wrap gap-1">
+                    {shaper.shapedTraits.slice(0, 3).map(trait => (
+                      <span 
+                        key={trait.trait}
+                        className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300"
+                      >
+                        {trait.trait}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <div className="text-sm text-gray-400">Influence</div>
+                  <div className="text-lg font-bold text-orange-400">
+                    {Math.round(shaper.impactScore * 100)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Shaping Axes */}
+        <div className="grid grid-cols-2 gap-3 mt-6">
+          {Object.entries({
+            identity: { icon: Brain, label: 'Identity', color: 'text-purple-400' },
+            emotional: { icon: Heart, label: 'Emotional', color: 'text-pink-400' },
+            cerebral: { icon: Target, label: 'Cerebral', color: 'text-blue-400' },
+            edge: { icon: AlertTriangle, label: 'Edge', color: 'text-red-400' }
+          }).map(([axis, config]) => {
+            const titles = taste.shapedBy.shapingAxes[axis as keyof typeof taste.shapedBy.shapingAxes];
+            if (titles.length === 0) return null;
+            
+            const Icon = config.icon;
+            return (
+              <div key={axis} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={`w-4 h-4 ${config.color}`} />
+                  <span className="text-sm font-medium text-white">{config.label}</span>
+                </div>
+                <div className="text-xs text-gray-300">
+                  {titles[0]?.mediaTitle}
+                  {titles.length > 1 && ` +${titles.length - 1}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Explainability Drawer */}

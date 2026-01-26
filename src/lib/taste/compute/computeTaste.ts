@@ -1,9 +1,10 @@
 import { MediaListEntry } from '@/types/anilist';
-import { computeTraitProfile } from '../../trait-scoring-engine';
+import { computeTraitProfile, TraitProfile } from '../../trait-scoring-engine';
 import { computeImpactScores } from '../../impact-scoring';
 import { TasteResult, ComputeTasteOptions, TraitView } from '../types/TasteResult';
 import { TasteAnalyzer } from '../../taste-analyzer';
 import { adaptToLegacy } from '../adapters/legacyAdapter';
+import { calculateEngagementWeight } from '../../engagement-weights';
 
 /**
  * ONE CANONICAL PIPELINE for taste computation
@@ -52,17 +53,9 @@ export async function computeTaste(
     diversityIndex: calculateDiversityIndex(entries)
   };
   
-  // Create shaped by from impact analysis
-  const shapedBy = {
-    topShapers: impactAnalysis.impacts.slice(0, 10).map(impact => ({
-      mediaId: impact.mediaId,
-      mediaTitle: impact.title,
-      impactScore: impact.impact,
-      reason: impact.impactType
-    })),
-    totalImpact: impactAnalysis.impacts.reduce((sum, i) => sum + i.impact, 0),
-    confidence: 0.8 // TODO: Calculate actual confidence
-  };
+  // Create shaped by from impact analysis - focus on preference + signature influence
+  const definingTraits = getDefiningTraits(traits);
+  const shapedBy = computeShapedBy(impactAnalysis.impacts, definingTraits, entries);
 
   // 3. Compute views (if requested)
   const views = includeViews ? {
@@ -123,7 +116,7 @@ function normalizeEntries(entries: MediaListEntry[]) {
         isMediaSpoiler: tag.isMediaSpoiler || false,
         isAdult: tag.isAdult || false
       })) || [],
-      engagementWeight: getEngagementWeight(e),
+      engagementWeight: calculateEngagementWeight(e, { mean: 7, std: 1.5, count: 100 }).weight,
       score: e.score || undefined,
       id: e.media?.id,
       title: e.media?.title?.userPreferred || e.media?.title?.english || e.media?.title?.romaji || 'Unknown'
@@ -208,32 +201,6 @@ function computeSignatureView(traits: any, derived: any): TraitView {
 /**
  * Helper functions
  */
-function getEngagementWeight(entry: MediaListEntry): number {
-  const status = entry.status;
-  const progress = entry.progress || 0;
-  const progressTotal = entry.media?.episodes || 1;
-  const score = entry.score || 0;
-  
-  let weight = 1;
-  
-  // Status weight
-  if (status === 'COMPLETED') weight *= 2;
-  else if (status === 'CURRENT') weight *= 1.5;
-  else if (status === 'DROPPED') weight *= 0.5;
-  else if (status === 'PAUSED') weight *= 0.8;
-  
-  // Progress weight
-  const progressRatio = progress / progressTotal;
-  weight *= (0.5 + progressRatio * 0.5);
-  
-  // Score weight
-  if (score > 0) {
-    weight *= (0.7 + (score / 10) * 0.3);
-  }
-  
-  return weight;
-}
-
 function getStrength(score: number): 'weak' | 'moderate' | 'strong' | 'intense' {
   if (score < 0.3) return 'weak';
   if (score < 0.6) return 'moderate';
@@ -297,4 +264,197 @@ function calculateExperimentalIndex(entries: MediaListEntry[]): number {
 function calculateDiversityIndex(entries: MediaListEntry[]): number {
   // Simple implementation - TODO: Improve
   return 0.5;
+}
+
+/**
+ * Get the user's defining traits - the ones that make them unique
+ * Combines preference strength with signature rarity
+ */
+function getDefiningTraits(traits: TraitProfile): { trait: string; importance: number; channel: string }[] {
+  // Combine preference and signature traits
+  const preferenceTraits = traits.topSignatureTraits || traits.topTraits;
+  const signatureTraits = traits.topSignatureTraits || [];
+  
+  // Calculate importance for each trait
+  const traitImportance = new Map<string, { importance: number; channel: string }>();
+  
+  // Process preference traits (what they love)
+  preferenceTraits.forEach(trait => {
+    const baseImportance = (trait.enjoymentScore || 0) / 100;
+    const rarityBoost = trait.rarity === 'rare' ? 1.5 : trait.rarity === 'very_rare' ? 2 : 1;
+    const channelWeight = trait.channel === 'identity' ? 1.2 : trait.channel === 'vibe' ? 1.1 : 1;
+    
+    traitImportance.set(trait.name, {
+      importance: baseImportance * rarityBoost * channelWeight,
+      channel: trait.channel
+    });
+  });
+  
+  // Boost signature traits further
+  signatureTraits.forEach(trait => {
+    const existing = traitImportance.get(trait.name);
+    if (existing) {
+      existing.importance *= 1.5; // Signature boost
+    }
+  });
+  
+  // Filter out generic traits unless unusually high
+  const genericTraits = ['Drama', 'Comedy', 'Action', 'Romance', 'Fantasy', 'Sci-Fi'];
+  
+  return Array.from(traitImportance.entries())
+    .filter(([name, data]) => {
+      // Keep generic traits only if they're very strong
+      if (genericTraits.includes(name)) {
+        return data.importance > 0.8;
+      }
+      return true;
+    })
+    .map(([name, data]) => ({
+      trait: name,
+      importance: data.importance,
+      channel: data.channel
+    }))
+    .sort((a, b) => b.importance - a.importance)
+    .slice(0, 20); // Top 20 defining traits
+}
+
+/**
+ * Compute what shaped the user's taste based on influence on defining traits
+ */
+function computeShapedBy(
+  impacts: any[], 
+  definingTraits: { trait: string; importance: number; channel: string }[],
+  entries: MediaListEntry[]
+): {
+  topShapers: Array<{
+    mediaId: number;
+    mediaTitle: string;
+    impactScore: number;
+    reason: string;
+    shapedTraits: Array<{ trait: string; contribution: number; importance: number }>;
+    explanation: string;
+  }>;
+  totalImpact: number;
+  confidence: number;
+  shapingAxes: {
+    identity: Array<typeof topShapers[0]>;
+    emotional: Array<typeof topShapers[0]>;
+    cerebral: Array<typeof topShapers[0]>;
+    edge: Array<typeof topShapers[0]>;
+  };
+} {
+  // Create a map of trait importance for quick lookup
+  const traitImportanceMap = new Map(
+    definingTraits.map(t => [t.trait, t.importance])
+  );
+  
+  // Score each title based on its influence on defining traits
+  const scoredImpacts = impacts.map(impact => {
+    // Only count contributions to defining traits
+    const relevantTraits = (impact.shapedTraits || []).filter((trait: string) => 
+      traitImportanceMap.has(trait)
+    );
+    
+    if (relevantTraits.length === 0) {
+      return { ...impact, influenceScore: 0 };
+    }
+    
+    // Calculate influence based on trait importance and contribution
+    let traitInfluence = 0;
+    const shapedTraits = relevantTraits.map((traitName: string) => {
+      const contribution = 1 / relevantTraits.length; // Simplified - should use actual contribution
+      const importance = traitImportanceMap.get(traitName) || 0;
+      traitInfluence += contribution * importance;
+      
+      return {
+        trait: traitName,
+        contribution,
+        importance
+      };
+    });
+    
+    // Apply engagement weight
+    const entry = entries.find(e => e.media?.id === impact.mediaId);
+    const engagementWeight = entry ? calculateEngagementWeight(entry, { mean: 7, std: 1.5, count: 100 }).weight : 1;
+    
+    // Apply anti-tag-spam penalty
+    const traitCount = impact.shapedTraits?.length || 0;
+    const spamPenalty = Math.min(1, 6 / Math.max(traitCount, 6)); // Normalize to top 6 traits
+    
+    // Final influence score
+    const influenceScore = traitInfluence * engagementWeight * spamPenalty * (impact.preferenceWeight || 1);
+    
+    return {
+      ...impact,
+      influenceScore,
+      shapedTraits,
+      engagementWeight,
+      spamPenalty
+    };
+  });
+  
+  // Sort by influence and take top 20
+  const topShapers = scoredImpacts
+    .filter(impact => impact.influenceScore > 0)
+    .sort((a, b) => b.influenceScore - a.influenceScore)
+    .slice(0, 20)
+    .map((impact, index) => ({
+      mediaId: impact.mediaId,
+      mediaTitle: impact.title,
+      impactScore: impact.influenceScore,
+      reason: impact.impactType || 'defining',
+      shapedTraits: impact.shapedTraits || [],
+      explanation: generateExplanation(impact, index + 1)
+    }));
+  
+  // Organize into shaping axes
+  const shapingAxes = {
+    identity: topShapers.filter(s => 
+      s.shapedTraits.some((t: { trait: string }) => t.trait.includes('Psychological') || t.trait.includes('Identity'))
+    ),
+    emotional: topShapers.filter(s => 
+      s.shapedTraits.some((t: { trait: string }) => t.trait.includes('Emotional') || t.trait.includes('Heartbreak') || t.trait.includes('Romance'))
+    ),
+    cerebral: topShapers.filter(s => 
+      s.shapedTraits.some((t: { trait: string }) => t.trait.includes('Mind Game') || t.trait.includes('Strategy') || t.trait.includes('Complex'))
+    ),
+    edge: topShapers.filter(s => 
+      s.shapedTraits.some((t: { trait: string }) => t.trait.includes('Dark') || t.trait.includes('Gore') || t.trait.includes('Psychological Horror'))
+    )
+  };
+  
+  return {
+    topShapers,
+    totalImpact: topShapers.reduce((sum, s) => sum + s.impactScore, 0),
+    confidence: Math.min(0.95, 0.5 + (topShapers.length / 20)), // More titles = higher confidence
+    shapingAxes
+  };
+}
+
+/**
+ * Generate human-readable explanation for why a title shaped the user's taste
+ */
+function generateExplanation(impact: any, rank: number): string {
+  const reasons = [];
+  
+  if (impact.engagementWeight > 1.5) {
+    reasons.push('highly rated');
+  }
+  if (impact.spamPenalty < 1) {
+    reasons.push('focused impact');
+  }
+  if (impact.impactType === 'transformative') {
+    reasons.push('changed your taste');
+  }
+  
+  const traitCount = impact.shapedTraits?.length || 0;
+  if (traitCount > 5) {
+    reasons.push('shaped multiple traits');
+  }
+  
+  if (reasons.length === 0) {
+    return `#${rank} influence on your defining traits`;
+  }
+  
+  return `#${rank} - ${reasons.join(', ')}`;
 }

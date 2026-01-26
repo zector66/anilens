@@ -15,9 +15,22 @@ export type DerivedIndices = {
 };
 
 export type ShapedByResult = {
-  topShapers: any[];
+  topShapers: Array<{
+    mediaId: number;
+    mediaTitle: string;
+    impactScore: number;
+    reason: string;
+    shapedTraits: Array<{ trait: string; contribution: number; importance: number }>;
+    explanation: string;
+  }>;
   totalImpact: number;
   confidence: number;
+  shapingAxes: {
+    identity: Array<ShapedByResult['topShapers'][0]>;
+    emotional: Array<ShapedByResult['topShapers'][0]>;
+    cerebral: Array<ShapedByResult['topShapers'][0]>;
+    edge: Array<ShapedByResult['topShapers'][0]>;
+  };
 };
 
 export interface TraitView {
