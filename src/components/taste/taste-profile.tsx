@@ -776,7 +776,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               style={{ width: `${(traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) * 10}%` }}
             />
           </div>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-400 mb-3">
             {(traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) > 7 
               ? "You love to suffer. Tragedy is your middle name."
               : (traitStats?.personalityTraits.emotionalDamageIndex ?? tasteProfile.personalityTraits.emotionalDamageIndex) > 4
@@ -784,6 +784,28 @@ export function TasteProfile({ userId }: TasteProfileProps) {
               : "You prefer to keep things light and fun."
             }
           </p>
+          
+          {/* Top Contributors */}
+          {(() => {
+            const contributors = TasteAnalyzer.getEmotionalDamageContributors(analyzedEntries, 3);
+            if (contributors.length === 0) return null;
+            return (
+              <div className="pt-3 border-t border-white/10">
+                <p className="text-xs text-gray-500 mb-2">Top contributors:</p>
+                <div className="space-y-1.5">
+                  {contributors.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-300 truncate max-w-[60%]">{c.title}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-red-400/70">{c.tags[0]}</span>
+                        <span className="text-gray-500">★{c.score}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Chaos Level - 4-Component Composite Index */}

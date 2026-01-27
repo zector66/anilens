@@ -19,7 +19,9 @@ export function useTaste(options: UseTasteOptions = {}) {
     userId = 0, 
     mediaType = 'ANIME',
     enableCache = true,
-    ...computeOptions 
+    forceRecompute = false,
+    includeViews = true,
+    includeLegacy = false
   } = options;
 
   const [taste, setTaste] = useState<TasteResult | null>(null);
@@ -43,7 +45,7 @@ export function useTaste(options: UseTasteOptions = {}) {
       .filter(entry => validStatuses.includes(entry.status || ''));
   }, [listData]);
 
-  // Compute taste
+  // Compute taste - use primitive values in dependency array for proper reactivity
   useEffect(() => {
     async function compute() {
       if (isLoadingList) return;
@@ -53,7 +55,7 @@ export function useTaste(options: UseTasteOptions = {}) {
 
       try {
         // Try to load from cache first (but skip if forcing recompute)
-        if (enableCache && !computeOptions.forceRecompute) {
+        if (enableCache && !forceRecompute) {
           const cached = await loadSnapshot(userId, mediaType);
           if (cached) {
             setTaste(cached);
@@ -63,11 +65,12 @@ export function useTaste(options: UseTasteOptions = {}) {
         }
 
         // Delete existing cache if forcing recompute
-        if (enableCache && computeOptions.forceRecompute) {
+        if (enableCache && forceRecompute) {
           await deleteSnapshot(userId, mediaType);
         }
 
         // Compute fresh taste
+        const computeOptions = { includeViews, includeLegacy, forceRecompute };
         const result = await computeTaste(entries, mediaType, userId, computeOptions);
         setTaste(result);
 
@@ -84,7 +87,7 @@ export function useTaste(options: UseTasteOptions = {}) {
     }
 
     compute();
-  }, [entries, mediaType, userId, isLoadingList, enableCache, computeOptions]);
+  }, [entries, mediaType, userId, isLoadingList, enableCache, forceRecompute, includeViews, includeLegacy]);
 
   // Convenience getters for common use cases
   const convenience = useMemo(() => {

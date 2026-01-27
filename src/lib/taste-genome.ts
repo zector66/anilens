@@ -409,23 +409,8 @@ function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
  * This is the NEW trait-based analysis system
  */
 export function extractTraitProfile(entries: MediaListEntry[]): TraitProfile {
-  // DEBUG: Check if entries have tags
-  const totalTags = entries.flatMap(e => e.media?.tags ?? []).length;
-  console.log("[extractTraitProfile] entries with tags:", {
-    entryCount: entries.length,
-    totalTags,
-    firstEntryTags: entries[0]?.media?.tags?.length ?? 0,
-  });
-  
   const traitInputs = mediaEntriesToTraitInputs(entries);
-  console.log("[extractTraitProfile] traitInputs count:", traitInputs.length);
   const profile = computeTraitProfile(traitInputs);
-  console.log("[extractTraitProfile] profile channels:", {
-    identity: profile.channels.identity.length,
-    vibe: profile.channels.vibe.length,
-    structure: profile.channels.structure.length,
-    intensity: profile.channels.intensity.length,
-  });
   return profile;
 }
 
@@ -458,12 +443,6 @@ export function extractEnhancedGenome(
   
   // Compute trait profile from entries
   const traitProfile = extractTraitProfile(entries);
-  
-  console.log('[extractEnhancedGenome] traitProfile computed:', {
-    hasProfile: !!traitProfile,
-    identityCount: traitProfile?.channels?.identity?.length,
-    vibeCount: traitProfile?.channels?.vibe?.length,
-  });
   
   // Compute derived indices
   const derivedIndices = computeDerivedIndices(traitProfile);

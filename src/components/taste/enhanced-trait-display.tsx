@@ -109,7 +109,7 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
 
 export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
   const [selectedTrait, setSelectedTrait] = useState<TraitScore | null>(null);
-  const [expandedSection, setExpandedSection] = useState<string>('signature');
+  const [expandedSection, setExpandedSection] = useState<string>('');
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? '' : section);

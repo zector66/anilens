@@ -824,6 +824,55 @@ export class TasteAnalyzer {
     return Math.max(0, Math.min(10, adjustedIndex));
   }
 
+  /**
+   * Get top contributors to emotional damage index for explainability
+   */
+  public static getEmotionalDamageContributors(mediaList: MediaListEntry[], limit: number = 5): Array<{
+    title: string;
+    score: number;
+    tags: string[];
+    contribution: number;
+  }> {
+    const emotionalTags = [
+      'Tragedy', 'Drama', 'Psychological', 'Horror', 'Thriller', 'Gore', 'Tearjerker',
+      'Mental Illness', 'Depression', 'Suicide', 'Loneliness', 'Isolation', 'Post-Apocalyptic', 'Dystopian',
+      'Bittersweet', 'Melancholy', 'Existential', 'Death', 'Loss of a Loved One', 'Nihilism', 'Suffering'
+    ];
+    
+    const userScoreStats = this.calculateUserScoreStats(mediaList);
+    
+    const contributors = mediaList
+      .filter(entry => {
+        const score = entry.score || 0;
+        if (score === 0) return false;
+        const damageMatches = (entry.media?.tags || []).filter(t => 
+          emotionalTags.some(et => t.name.includes(et))
+        );
+        return damageMatches.length > 0;
+      })
+      .map(entry => {
+        const score = entry.score || 0;
+        const zScore = this.getScoreZScore(score, userScoreStats);
+        const damageMatches = (entry.media?.tags || []).filter(t => 
+          emotionalTags.some(et => t.name.includes(et))
+        );
+        const tagRelevance = damageMatches.reduce((sum, tag) => sum + (100 - (tag.rank || 50)), 0) / (damageMatches.length * 100);
+        const contribution = zScore > 0 ? (zScore * 0.7) + (tagRelevance * 0.3) : 0;
+        
+        return {
+          title: entry.media?.title?.userPreferred || entry.media?.title?.romaji || 'Unknown',
+          score: entry.score || 0,
+          tags: damageMatches.map(t => t.name).slice(0, 3),
+          contribution
+        };
+      })
+      .filter(c => c.contribution > 0)
+      .sort((a, b) => b.contribution - a.contribution)
+      .slice(0, limit);
+    
+    return contributors;
+  }
+
   private static calculateChaosLevel(mediaList: MediaListEntry[], type: 'ANIME' | 'MANGA' = 'ANIME'): number {
     const chaosTags = [
       // Meta & Surreal
