@@ -2,7 +2,7 @@ import { TasteResult } from '../types/TasteResult';
 import { supabase } from '@/lib/supabase';
 
 const SNAPSHOT_TABLE = 'taste_snapshots';
-const CACHE_VERSION = '2.0.0'; // Bump to invalidate old caches
+const CACHE_VERSION = '3.0.0'; // Bumped to invalidate old caches with stale taste data
 
 /**
  * Snapshot storage - SEPARATE from taste computation

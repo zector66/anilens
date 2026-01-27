@@ -46,11 +46,6 @@ export function useEnhancedGenome(
   }, [entries]);
 
   const result = useMemo<{ genome: TasteGenome | null; traitStats: TraitBasedStats | null }>(() => {
-    // DEBUG: Log entry count
-    console.log('[EnhancedGenome State]', {
-      entries: entries?.length,
-    });
-    
     if (entries.length === 0) return { genome: null, traitStats: null };
     
     // Only include relevant entries
@@ -62,15 +57,6 @@ export function useEnhancedGenome(
     // Get taste profile first (still needed for behavioral metrics)
     const tasteProfile = TasteAnalyzer.analyzeTaste(filteredEntries, 'ANIME');
     
-    // LOG #1: Confirm extractEnhancedGenome exists (detect circular dependency)
-    console.log('[EnhancedGenome] extractEnhancedGenome typeof:', typeof extractEnhancedGenome);
-    
-    // LOG #2: Confirm code path is reached
-    console.log('[EnhancedGenome] ABOUT TO BUILD GENOME', {
-      entries: filteredEntries?.length,
-      hasTasteProfile: !!tasteProfile,
-    });
-    
     // Extract enhanced genome with trait data - CATCH CRASHES
     let genome: TasteGenome | null = null;
     try {
@@ -78,36 +64,10 @@ export function useEnhancedGenome(
         includeStressDiet: options?.includeStressDiet ?? true,
         recentDays: options?.recentDays ?? 30,
       });
-      
-      console.log('[EnhancedGenome] BUILT GENOME', {
-        version: genome?.version,
-        hasTraitProfile: !!genome?.traitProfile,
-        hasDerived: !!genome?.derivedIndices,
-      });
     } catch (err) {
-      // LOG #3: Catch + print full error stack
-      console.error('[EnhancedGenome] GENOME BUILD FAILED', err);
-      console.error('[EnhancedGenome] ERROR STACK', (err as Error)?.stack);
-      // Return null genome but don't crash the app
+      console.error('[EnhancedGenome] Build failed:', err);
       return { genome: null, traitStats: null };
     }
-
-    // DEBUG: Comprehensive trait pipeline status
-    console.log('[useEnhancedGenome]', {
-      entries: entries?.length,
-      filteredEntries: filteredEntries?.length,
-      hasGenome: !!genome,
-      hasTraitProfile: !!genome?.traitProfile,
-      hasDerived: !!genome?.derivedIndices,
-      topIdentity: genome?.traitProfile?.channels?.identity?.[0],
-      channels: genome?.traitProfile ? {
-        identity: genome.traitProfile.channels.identity.length,
-        vibe: genome.traitProfile.channels.vibe.length,
-        structure: genome.traitProfile.channels.structure.length,
-        intensity: genome.traitProfile.channels.intensity.length,
-      } : null,
-      version: genome?.version,
-    });
 
     // If we have a trait profile, compute legacy-compatible stats from it
     // Don't hard-gate on derivedIndices - make it optional to prevent cascade failures
@@ -133,34 +93,16 @@ export function useEnhancedGenome(
           contradictions: detectAllContradictions(traitProfile, derivedIndices),
         };
 
-        console.log('[traitStats build]', { ok: !!traitStats });
         return { genome, traitStats };
       } catch (err) {
         const error = err as Error;
-        console.error('[TRAIT STATS BUILD FAILED]', {
-          message: error.message,
-          stack: error.stack,
-          traitProfileExists: !!traitProfile,
-          derivedIndicesCount: derivedIndices.length,
-        });
-        console.warn("TraitStats null -> FALLING BACK TO LEGACY");
+        console.error('[TraitStats] Build failed:', error.message);
         return { genome, traitStats: null };
       }
     }
 
-    console.warn("TraitStats null -> FALLING BACK TO LEGACY (no traitProfile)");
     return { genome, traitStats: null };
   }, [entries, entryKey, options?.includeStressDiet, options?.recentDays]);
-
-  // LOG #4: Final hook return payload
-  console.log('[EnhancedGenome] RETURNING', {
-    entries: entries?.length,
-    hasGenome: !!result.genome,
-    genomeVersion: result.genome?.version,
-    hasTraitProfile: !!result.genome?.traitProfile,
-    hasDerived: !!result.genome?.derivedIndices?.length,
-    hasTraitStats: !!result.traitStats,
-  });
 
   return { genome: result.genome, traitStats: result.traitStats };
 }
