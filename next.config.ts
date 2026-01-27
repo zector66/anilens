@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Force cache invalidation for deployments
+  generateBuildId: async () => {
+    // Use timestamp to ensure unique builds
+    return `build-${Date.now()}`;
+  },
   images: {
     remotePatterns: [
       {
