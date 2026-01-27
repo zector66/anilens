@@ -140,6 +140,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   
   // Force refresh all caches - nuclear option
   const handleForceRefresh = async () => {
+    console.log('[TasteProfile] Force refresh button clicked!');
+    alert('Clear Cache button clicked! This confirms the new code is running.');
     setIsRefreshing(true);
     try {
       // 1. Clear localStorage cache
@@ -537,10 +539,11 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         <button
           onClick={handleForceRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
-          title="Force refresh all data"
+          className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200 transition-all disabled:opacity-50 flex items-center gap-2"
+          title="Force refresh all data - clears cache and reloads"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="text-sm font-medium">Clear Cache</span>
         </button>
 
         {/* View Mode Toggle */}
