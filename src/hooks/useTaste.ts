@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAnimeList, useMangaList } from './use-anilist';
 import { computeTaste, TasteResult, ComputeTasteOptions } from '@/lib/taste';
-import { saveSnapshot, loadSnapshot } from '@/lib/taste/cache/snapshotStore';
+import { saveSnapshot, loadSnapshot, deleteSnapshot } from '@/lib/taste/cache/snapshotStore';
 
 interface UseTasteOptions extends ComputeTasteOptions {
   userId?: number;
@@ -52,14 +52,19 @@ export function useTaste(options: UseTasteOptions = {}) {
       setError(null);
 
       try {
-        // Try to load from cache first
-        if (enableCache) {
+        // Try to load from cache first (but skip if forcing recompute)
+        if (enableCache && !computeOptions.forceRecompute) {
           const cached = await loadSnapshot(userId, mediaType);
-          if (cached && !computeOptions.forceRecompute) {
+          if (cached) {
             setTaste(cached);
             setLoading(false);
             return;
           }
+        }
+
+        // Delete existing cache if forcing recompute
+        if (enableCache && computeOptions.forceRecompute) {
+          await deleteSnapshot(userId, mediaType);
         }
 
         // Compute fresh taste
