@@ -194,3 +194,64 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/genome/snapshot
+ * Delete all cached snapshots for a user to force refresh
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId' },
+        { status: 400 }
+      );
+    }
+
+    const db = getSupabase();
+
+    // Delete from taste_genome_snapshots
+    const { error: genomeError } = await db
+      .from('taste_genome_snapshots')
+      .delete()
+      .eq('anilist_id', userId);
+
+    if (genomeError) {
+      console.warn('Error deleting genome snapshots:', genomeError);
+    }
+
+    // Delete from taste_snapshots (if it exists)
+    const { error: tasteError } = await db
+      .from('taste_snapshots')
+      .delete()
+      .eq('user_id', userId);
+
+    if (tasteError) {
+      console.warn('Error deleting taste snapshots:', tasteError);
+    }
+
+    // Delete from taste_profile_cache (if it exists)
+    const { error: cacheError } = await db
+      .from('taste_profile_cache')
+      .delete()
+      .eq('user_id', userId);
+
+    if (cacheError) {
+      console.warn('Error deleting taste profile cache:', cacheError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'All cached data cleared for user'
+    });
+  } catch (error) {
+    console.error('Delete snapshot error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete snapshots' },
+      { status: 500 }
+    );
+  }
+}

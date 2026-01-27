@@ -41,7 +41,8 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  Tag
+  Tag,
+  RefreshCw
 } from 'lucide-react';
 import { TasteBattle } from './taste-battle';
 import { ShareableTasteCard } from './shareable-taste-card';
@@ -55,7 +56,7 @@ import {
 } from './elite-taste-visuals';
 import { ArchetypeGlossary, GlossaryButton } from './archetype-glossary';
 import { anilistClient } from '@/lib/anilist-client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalysisLoadingScreen, hasBootedThisSession, markAsBooted } from '@/components/ui/analysis-loading-screen';
 import { HotTakesCard } from './hot-takes-card';
 import { TasteLabCard } from './taste-lab-card';
@@ -134,6 +135,44 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   };
 
   const effectiveUserId = userId || user?.id || 0;
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Force refresh all caches - nuclear option
+  const handleForceRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Clear localStorage cache
+      localStorage.removeItem('anilens_query_cache');
+      
+      // 2. Invalidate React Query cache for this user's data
+      await queryClient.invalidateQueries({ queryKey: ['animeList', effectiveUserId] });
+      await queryClient.invalidateQueries({ queryKey: ['mangaList', effectiveUserId] });
+      await queryClient.invalidateQueries({ queryKey: ['favorites', effectiveUserId] });
+      await queryClient.invalidateQueries({ queryKey: ['tasteProfile'] });
+      
+      // 3. Clear Supabase taste snapshots via API
+      try {
+        await fetch('/api/genome/snapshot', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: effectiveUserId })
+        });
+      } catch (e) {
+        console.warn('Failed to clear Supabase cache:', e);
+      }
+      
+      // 4. Force refetch
+      await queryClient.refetchQueries({ queryKey: ['animeList', effectiveUserId] });
+      await queryClient.refetchQueries({ queryKey: ['mangaList', effectiveUserId] });
+      
+      console.log('[TasteProfile] Force refresh completed');
+    } catch (err) {
+      console.error('[TasteProfile] Force refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
@@ -494,7 +533,17 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </button>
         </div>
 
-        {/* Stats/Emotional Toggle */}
+        {/* Refresh Button */}
+        <button
+          onClick={handleForceRefresh}
+          disabled={isRefreshing}
+          className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+          title="Force refresh all data"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+
+        {/* View Mode Toggle */}
         <div className="inline-flex p-1 bg-white/5 border border-white/10 rounded-xl">
           <button
             onClick={() => setViewMode('stats')}
