@@ -44,6 +44,11 @@ export function TasteLabCard({ profile, entries, userStats, type, favoriteIds }:
   // Use new trait system for influencers if available
   // Pass entries, userStats, and favoriteIds for preference-based ranking
   const influencers = useMemo(() => {
+    console.log('[TasteLabCard] Computing influencers with favoriteIds:', {
+      hasFavoriteIds: !!favoriteIds,
+      favoriteIdsSize: favoriteIds?.size || 0,
+      favoriteIdsSample: favoriteIds ? Array.from(favoriteIds).slice(0, 3) : []
+    });
     if (enhancedGenome?.traitProfile) {
       return calculateWhatShapedMe(enhancedGenome.traitProfile, 10, entries, userStats, favoriteIds);
     }
