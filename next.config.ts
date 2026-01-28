@@ -9,10 +9,11 @@ const nextConfig: NextConfig = {
     return `build-${Date.now()}`;
   },
   // Disable aggressive caching that causes stale content in production
+  // Note: staleTimes minimum is 30 seconds, so we use the minimum allowed
   experimental: {
     staleTimes: {
-      dynamic: 0,
-      static: 0,
+      dynamic: 30,
+      static: 30,
     },
   },
   images: {
