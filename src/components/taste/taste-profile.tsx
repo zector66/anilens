@@ -281,9 +281,20 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
   // Create Set of favorite IDs for What Shaped Me boost
   const favoriteIds = useMemo(() => {
-    if (!favorites) return new Set<number>();
+    if (!favorites) {
+      console.log('[TasteProfile] No favorites data available');
+      return new Set<number>();
+    }
     const favList = activeTab === 'ANIME' ? favorites.anime : favorites.manga;
-    return new Set(favList.map((m: { id: number }) => m.id));
+    const ids = new Set(favList.map((m: { id: number }) => m.id));
+    console.log('[TasteProfile] Favorites loaded:', {
+      activeTab,
+      animeCount: favorites.anime?.length || 0,
+      mangaCount: favorites.manga?.length || 0,
+      selectedCount: favList.length,
+      sampleIds: Array.from(ids).slice(0, 5)
+    });
+    return ids;
   }, [favorites, activeTab]);
 
   const totalProgressWatched = useMemo(() => {

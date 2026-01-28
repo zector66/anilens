@@ -154,7 +154,8 @@ export function calculateWhatShapedMe(
   console.log('[What Shaped Me] Data available:', {
     entriesCount: entries?.length || 0,
     userStats: userStats ? `mean=${userStats.mean.toFixed(2)}, std=${userStats.std.toFixed(2)}` : 'none',
-    favoritesCount: favoriteIds?.size || 0
+    favoritesCount: favoriteIds?.size || 0,
+    favoriteIdsSample: favoriteIds ? Array.from(favoriteIds).slice(0, 5) : []
   });
   // Build media contribution map
   const mediaContributions = new Map<string, {
