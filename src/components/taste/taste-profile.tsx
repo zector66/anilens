@@ -64,6 +64,8 @@ import { TasteDriftCard } from './taste-drift-card';
 import { TraitInsightsCard } from './trait-insights-card';
 import { EnhancedTraitDisplay } from './enhanced-trait-display';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
+import { ProfileSummaryCard, InsightsPanel } from './enhanced-explainability-panel';
+import { generateProfileExplanation } from '@/lib/explainability-engine';
 
 const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -712,6 +714,25 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </div>
         </div>
       )}
+
+      {/* NEW: Profile-Level Explainability Summary */}
+      {genome?.traitProfile && (() => {
+        const profileExplanation = generateProfileExplanation(genome.traitProfile, { maxTraits: 10 });
+        return (
+          <div className="space-y-6">
+            {/* Profile Summary Card */}
+            <ProfileSummaryCard 
+              summary={profileExplanation.summary} 
+              dataQuality={profileExplanation.overallDataQuality} 
+            />
+            
+            {/* Key Insights */}
+            {profileExplanation.insights.length > 0 && (
+              <InsightsPanel insights={profileExplanation.insights} />
+            )}
+          </div>
+        );
+      })()}
 
       {/* NEW: Enhanced Trait System Display */}
       {genome?.traitProfile && (
