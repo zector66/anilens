@@ -4,7 +4,7 @@ import { computeImpactScores } from '../../impact-scoring';
 import { TasteResult, ComputeTasteOptions, TraitView } from '../types/TasteResult';
 import { TasteAnalyzer } from '../../taste-analyzer';
 import { adaptToLegacy } from '../adapters/legacyAdapter';
-import { calculateEngagementWeight } from '../../engagement-weights';
+import { calculateEngagementWeight, calculateUserScoreStats } from '../../engagement-weights';
 
 /**
  * ONE CANONICAL PIPELINE for taste computation
@@ -53,9 +53,12 @@ export async function computeTaste(
     diversityIndex: calculateDiversityIndex(entries)
   };
   
+  // Calculate actual user score stats for proper engagement weighting
+  const userScoreStats = calculateUserScoreStats(entries);
+  
   // Create shaped by from impact analysis - focus on preference + signature influence
   const definingTraits = getDefiningTraits(traits);
-  const shapedBy = computeShapedBy(impactAnalysis.impacts, definingTraits, entries);
+  const shapedBy = computeShapedBy(impactAnalysis.impacts, definingTraits, entries, userScoreStats);
 
   // 3. Compute views (if requested)
   const views = includeViews ? {
@@ -324,7 +327,8 @@ function getDefiningTraits(traits: TraitProfile): { trait: string; importance: n
 function computeShapedBy(
   impacts: any[], 
   definingTraits: { trait: string; importance: number; channel: string }[],
-  entries: MediaListEntry[]
+  entries: MediaListEntry[],
+  userScoreStats: { mean: number; std: number; count: number }
 ): {
   topShapers: Array<{
     mediaId: number;
@@ -373,16 +377,39 @@ function computeShapedBy(
       };
     });
     
-    // Apply engagement weight
+    // Apply engagement weight using actual user stats
     const entry = entries.find(e => e.media?.id === impact.mediaId);
-    const engagementWeight = entry ? calculateEngagementWeight(entry, { mean: 7, std: 1.5, count: 100 }).weight : 1;
+    const engagementWeight = entry ? calculateEngagementWeight(entry, userScoreStats).weight : 1;
+    
+    // Apply STRONG favorite and rewatch boost (user explicitly loves these)
+    let preferenceBoost = 1.0;
+    if (entry) {
+      // Rewatch boost: rewatching = strong signal of preference
+      if (entry.repeat && entry.repeat > 0) {
+        preferenceBoost *= 1.5 + Math.min(0.5, entry.repeat * 0.25); // 1.5x for 1 rewatch, up to 2x for 2+
+      }
+      
+      // High rating boost: scores significantly above user's mean
+      if (entry.score && entry.score > 0) {
+        const zScore = (entry.score - userScoreStats.mean) / userScoreStats.std;
+        if (zScore >= 1.5) {
+          preferenceBoost *= 1.8; // Very high rating = 1.8x
+        } else if (zScore >= 1.0) {
+          preferenceBoost *= 1.5; // High rating = 1.5x
+        } else if (zScore >= 0.5) {
+          preferenceBoost *= 1.25; // Above average = 1.25x
+        } else if (zScore < -0.5) {
+          preferenceBoost *= 0.5; // Below average = penalty
+        }
+      }
+    }
     
     // Apply anti-tag-spam penalty
     const traitCount = impact.shapedTraits?.length || 0;
     const spamPenalty = Math.min(1, 6 / Math.max(traitCount, 6)); // Normalize to top 6 traits
     
-    // Final influence score
-    const influenceScore = traitInfluence * engagementWeight * spamPenalty * (impact.preferenceWeight || 1);
+    // Final influence score - preference boost is now a major factor
+    const influenceScore = traitInfluence * engagementWeight * spamPenalty * preferenceBoost * (impact.preferenceWeight || 1);
     
     return {
       ...impact,
