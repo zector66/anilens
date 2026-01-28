@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
     // Use timestamp to ensure unique builds
     return `build-${Date.now()}`;
   },
+  // Disable aggressive caching that causes stale content in production
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
+  },
   images: {
     remotePatterns: [
       {

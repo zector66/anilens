@@ -4,6 +4,9 @@ import { getCachedTasteProfile, setCachedTasteProfile } from '@/lib/db';
 import { TasteAnalyzer } from '@/lib/taste-analyzer';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const ANALYSIS_VERSION = 'v1';
 
 export async function GET(request: NextRequest) {
