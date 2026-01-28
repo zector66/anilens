@@ -58,6 +58,10 @@ const ROLE_WEIGHTS: Record<string, number> = {
 const MAX_RARITY_BOOST = 2.0;
 const MIN_RARITY_BOOST = 0.5;
 
+// Anti-spam: shows contributing to too many traits are likely generic/popular
+const TRAIT_COUNT_PENALTY_THRESHOLD = 6;
+const MAX_TRAIT_COUNT_PENALTY = 0.4; // At 12+ traits, score is reduced to 40%
+
 // ============================================================================
 // HOW EXPLANATION GENERATION
 // ============================================================================
@@ -222,33 +226,36 @@ export function calculateWhatShapedMe(
     const entry = media.mediaId ? entryMap.get(media.mediaId) : undefined;
     const isFavorite = media.mediaId && favoriteIds?.has(media.mediaId);
     
-    // Favorite boost: favorites are HUGE preference signal (2.5x)
+    // Favorite boost: favorites are MASSIVE preference signal (5x)
+    // This is the strongest signal we have that a show truly shaped them
     if (isFavorite) {
-      preferenceBoost *= 2.5;
+      preferenceBoost *= 5.0;
     }
     
     if (entry) {
-      // Rewatch boost: rewatching = strong signal of preference
+      // Rewatch boost: rewatching = very strong signal (3x for 1, up to 4x for 2+)
       if (entry.repeat && entry.repeat > 0) {
-        preferenceBoost *= 1.5 + Math.min(0.5, entry.repeat * 0.25); // 1.5x for 1 rewatch, up to 2x for 2+
+        preferenceBoost *= 2.5 + Math.min(1.5, entry.repeat * 0.5);
       }
       
       // High rating boost: scores significantly above user's mean
       if (entry.score && entry.score > 0 && userStats) {
         const zScore = (entry.score - userStats.mean) / Math.max(userStats.std, 0.5);
         if (zScore >= 1.5) {
-          preferenceBoost *= 1.8; // Very high rating = 1.8x
+          preferenceBoost *= 2.5; // Very high rating = 2.5x
         } else if (zScore >= 1.0) {
-          preferenceBoost *= 1.5; // High rating = 1.5x
+          preferenceBoost *= 2.0; // High rating = 2.0x
         } else if (zScore >= 0.5) {
-          preferenceBoost *= 1.25; // Above average = 1.25x
+          preferenceBoost *= 1.5; // Above average = 1.5x
         } else if (zScore < -0.5) {
-          preferenceBoost *= 0.5; // Below average = penalty
+          preferenceBoost *= 0.3; // Below average = strong penalty
+        } else if (zScore < 0) {
+          preferenceBoost *= 0.7; // Slightly below average = mild penalty
         }
       }
       
       // Debug first few entries with preference boost
-      if (debugLogCount < 3 && preferenceBoost > 1.0) {
+      if (debugLogCount < 5 && (preferenceBoost > 1.0 || isFavorite)) {
         console.log('[What Shaped Me] Preference boost applied:', {
           title: media.title,
           isFavorite,
@@ -256,7 +263,21 @@ export function calculateWhatShapedMe(
           score: entry.score,
           preferenceBoost: preferenceBoost.toFixed(2)
         });
+        debugLogCount++;
       }
+    }
+    
+    // Anti-spam penalty: shows with too many trait contributions are likely generic
+    // This prevents "Attack on Titan" syndrome where a popular show dominates by sheer volume
+    const traitCount = media.traitContributions.length;
+    let traitCountPenalty = 1.0;
+    if (traitCount > TRAIT_COUNT_PENALTY_THRESHOLD) {
+      // Linear penalty from 1.0 at threshold to MAX_TRAIT_COUNT_PENALTY at 2x threshold
+      const excess = traitCount - TRAIT_COUNT_PENALTY_THRESHOLD;
+      traitCountPenalty = Math.max(
+        MAX_TRAIT_COUNT_PENALTY,
+        1.0 - (excess / TRAIT_COUNT_PENALTY_THRESHOLD) * (1.0 - MAX_TRAIT_COUNT_PENALTY)
+      );
     }
     
     for (const tc of media.traitContributions) {
@@ -268,8 +289,8 @@ export function calculateWhatShapedMe(
       const rawRarityBoost = 1 / (tc.occurrenceRate * 10 + 0.1);
       const rarityBoost = Math.max(MIN_RARITY_BOOST, Math.min(MAX_RARITY_BOOST, rawRarityBoost));
       
-      // Weighted contribution - preference boost is now a major factor
-      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * preferenceBoost;
+      // Weighted contribution - preference boost is major, trait count penalty prevents spam
+      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * preferenceBoost * traitCountPenalty;
       globalImpact += weightedContribution;
       
       // DEBUG: Log first media's calculation
