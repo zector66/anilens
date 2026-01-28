@@ -22,9 +22,10 @@ interface TasteLabCardProps {
   entries: MediaListEntry[];
   userStats: { mean: number; std: number };
   type: 'ANIME' | 'MANGA';
+  favoriteIds?: Set<number>;
 }
 
-export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCardProps) {
+export function TasteLabCard({ profile, entries, userStats, type, favoriteIds }: TasteLabCardProps) {
   const [activeTab, setActiveTab] = useState<'contradictions' | 'influencers' | 'genome'>('contradictions');
   const [showAll, setShowAll] = useState(false);
   const { openDrawer, DrawerComponent } = useExplainabilityDrawer();
@@ -41,13 +42,13 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
   );
   
   // Use new trait system for influencers if available
-  // Pass entries and userStats for preference-based ranking
+  // Pass entries, userStats, and favoriteIds for preference-based ranking
   const influencers = useMemo(() => {
     if (enhancedGenome?.traitProfile) {
-      return calculateWhatShapedMe(enhancedGenome.traitProfile, 10, entries, userStats);
+      return calculateWhatShapedMe(enhancedGenome.traitProfile, 10, entries, userStats, favoriteIds);
     }
     return [];
-  }, [enhancedGenome, entries, userStats]);
+  }, [enhancedGenome, entries, userStats, favoriteIds]);
 
   // Categorize contradictions with CLEAN 3-bucket classification
   const onBrandFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');

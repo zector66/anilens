@@ -133,7 +133,8 @@ export function calculateWhatShapedMe(
   profile: TraitProfile,
   limit: number = 10,
   entries?: MediaListEntry[],
-  userStats?: { mean: number; std: number }
+  userStats?: { mean: number; std: number },
+  favoriteIds?: Set<number>
 ): MediaImpact[] {
   // Build entry lookup map for preference boost
   const entryMap = new Map<number, MediaListEntry>();
@@ -144,6 +145,13 @@ export function calculateWhatShapedMe(
       }
     }
   }
+  
+  // Debug: Log if we have entries and userStats
+  console.log('[What Shaped Me] Data available:', {
+    entriesCount: entries?.length || 0,
+    userStats: userStats ? `mean=${userStats.mean.toFixed(2)}, std=${userStats.std.toFixed(2)}` : 'none',
+    favoritesCount: favoriteIds?.size || 0
+  });
   // Build media contribution map
   const mediaContributions = new Map<string, {
     mediaId?: number;
@@ -209,17 +217,24 @@ export function calculateWhatShapedMe(
   for (const [_, media] of mediaContributions) {
     let globalImpact = 0;
     
-    // Calculate preference boost from user's actual rating and rewatch data
+    // Calculate preference boost from user's actual rating, rewatch, and favorite data
     let preferenceBoost = 1.0;
     const entry = media.mediaId ? entryMap.get(media.mediaId) : undefined;
-    if (entry && userStats) {
+    const isFavorite = media.mediaId && favoriteIds?.has(media.mediaId);
+    
+    // Favorite boost: favorites are HUGE preference signal (2.5x)
+    if (isFavorite) {
+      preferenceBoost *= 2.5;
+    }
+    
+    if (entry) {
       // Rewatch boost: rewatching = strong signal of preference
       if (entry.repeat && entry.repeat > 0) {
         preferenceBoost *= 1.5 + Math.min(0.5, entry.repeat * 0.25); // 1.5x for 1 rewatch, up to 2x for 2+
       }
       
       // High rating boost: scores significantly above user's mean
-      if (entry.score && entry.score > 0) {
+      if (entry.score && entry.score > 0 && userStats) {
         const zScore = (entry.score - userStats.mean) / Math.max(userStats.std, 0.5);
         if (zScore >= 1.5) {
           preferenceBoost *= 1.8; // Very high rating = 1.8x
@@ -230,6 +245,17 @@ export function calculateWhatShapedMe(
         } else if (zScore < -0.5) {
           preferenceBoost *= 0.5; // Below average = penalty
         }
+      }
+      
+      // Debug first few entries with preference boost
+      if (debugLogCount < 3 && preferenceBoost > 1.0) {
+        console.log('[What Shaped Me] Preference boost applied:', {
+          title: media.title,
+          isFavorite,
+          repeat: entry.repeat,
+          score: entry.score,
+          preferenceBoost: preferenceBoost.toFixed(2)
+        });
       }
     }
     
