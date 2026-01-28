@@ -9,6 +9,7 @@
  */
 
 import type { TraitProfile, TraitScore } from './trait-scoring-engine';
+import type { MediaListEntry } from '@/types/anilist';
 
 // ============================================================================
 // TYPES
@@ -126,12 +127,23 @@ function generateHowExplanation(
 
 /**
  * Calculate global impact score for each media across all traits
- * Uses role-weighting and rarity boost
+ * Uses role-weighting, rarity boost, and user preference data
  */
 export function calculateWhatShapedMe(
   profile: TraitProfile,
-  limit: number = 10
+  limit: number = 10,
+  entries?: MediaListEntry[],
+  userStats?: { mean: number; std: number }
 ): MediaImpact[] {
+  // Build entry lookup map for preference boost
+  const entryMap = new Map<number, MediaListEntry>();
+  if (entries) {
+    for (const entry of entries) {
+      if (entry.media?.id) {
+        entryMap.set(entry.media.id, entry);
+      }
+    }
+  }
   // Build media contribution map
   const mediaContributions = new Map<string, {
     mediaId?: number;
@@ -197,6 +209,30 @@ export function calculateWhatShapedMe(
   for (const [_, media] of mediaContributions) {
     let globalImpact = 0;
     
+    // Calculate preference boost from user's actual rating and rewatch data
+    let preferenceBoost = 1.0;
+    const entry = media.mediaId ? entryMap.get(media.mediaId) : undefined;
+    if (entry && userStats) {
+      // Rewatch boost: rewatching = strong signal of preference
+      if (entry.repeat && entry.repeat > 0) {
+        preferenceBoost *= 1.5 + Math.min(0.5, entry.repeat * 0.25); // 1.5x for 1 rewatch, up to 2x for 2+
+      }
+      
+      // High rating boost: scores significantly above user's mean
+      if (entry.score && entry.score > 0) {
+        const zScore = (entry.score - userStats.mean) / Math.max(userStats.std, 0.5);
+        if (zScore >= 1.5) {
+          preferenceBoost *= 1.8; // Very high rating = 1.8x
+        } else if (zScore >= 1.0) {
+          preferenceBoost *= 1.5; // High rating = 1.5x
+        } else if (zScore >= 0.5) {
+          preferenceBoost *= 1.25; // Above average = 1.25x
+        } else if (zScore < -0.5) {
+          preferenceBoost *= 0.5; // Below average = penalty
+        }
+      }
+    }
+    
     for (const tc of media.traitContributions) {
       // Get role weight
       const roleWeight = ROLE_WEIGHTS[tc.role] || 0.5;
@@ -206,11 +242,8 @@ export function calculateWhatShapedMe(
       const rawRarityBoost = 1 / (tc.occurrenceRate * 10 + 0.1);
       const rarityBoost = Math.max(MIN_RARITY_BOOST, Math.min(MAX_RARITY_BOOST, rawRarityBoost));
       
-      // Get engagement factor if available (user's rating matters!)
-      const engagementFactor = (tc as { engagementFactor?: number }).engagementFactor ?? 1.0;
-      
-      // Weighted contribution - engagement is now a major factor
-      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * engagementFactor;
+      // Weighted contribution - preference boost is now a major factor
+      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * preferenceBoost;
       globalImpact += weightedContribution;
       
       // DEBUG: Log first media's calculation

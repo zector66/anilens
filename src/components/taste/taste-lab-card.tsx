@@ -41,12 +41,13 @@ export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCard
   );
   
   // Use new trait system for influencers if available
+  // Pass entries and userStats for preference-based ranking
   const influencers = useMemo(() => {
     if (enhancedGenome?.traitProfile) {
-      return calculateWhatShapedMe(enhancedGenome.traitProfile, 10);
+      return calculateWhatShapedMe(enhancedGenome.traitProfile, 10, entries, userStats);
     }
     return [];
-  }, [enhancedGenome]);
+  }, [enhancedGenome, entries, userStats]);
 
   // Categorize contradictions with CLEAN 3-bucket classification
   const onBrandFavorites = contradictions.filter(c => c.contradictionType === 'ON_BRAND_FAVORITE');
