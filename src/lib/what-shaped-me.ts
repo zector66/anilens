@@ -21,6 +21,8 @@ export interface MediaImpact {
   topTraits: MediaTraitImpact[]; // Top 5 traits this media shaped
   impactLevel: ImpactLevel;
   summary: string;             // "Shaped 18% of your Psychological DNA"
+  howExplanation: string;      // "Through its psychological depth and complex characters"
+  engagementScore?: number;    // User's rating/engagement with this show
 }
 
 export interface MediaTraitImpact {
@@ -46,10 +48,77 @@ export type ImpactLevel =
 
 const ROLE_WEIGHTS: Record<string, number> = {
   core: 1.0,        // Identity traits matter most
-  modifier: 0.65,   // Vibe traits matter less
-  mechanic: 0.50,   // Structure traits matter even less
-  warning: 0.25,    // Intensity warnings matter least
+  modifier: 0.8,    // Vibe traits matter slightly less
+  mechanic: 0.6,    // Structure traits matter somewhat less
+  warning: 0.3,     // Intensity warnings matter least
 };
+
+// Limit rarity boost to prevent niche shows from dominating
+const MAX_RARITY_BOOST = 2.0;
+const MIN_RARITY_BOOST = 0.5;
+
+// ============================================================================
+// HOW EXPLANATION GENERATION
+// ============================================================================
+
+/**
+ * Generate a human-readable explanation of HOW a show shaped the user's taste
+ */
+function generateHowExplanation(
+  topTraitNames: string[],
+  sortedTraits: MediaTraitImpact[]
+): string {
+  if (topTraitNames.length === 0) {
+    return 'Minor contribution to your overall taste';
+  }
+  
+  // Build explanation based on trait types
+  const traitDescriptions: string[] = [];
+  
+  for (const trait of sortedTraits.slice(0, 3)) {
+    const name = trait.traitName.toLowerCase();
+    const percent = Math.round(trait.shareOfTrait * 100);
+    
+    // Generate specific description based on trait type
+    if (name.includes('psycholog')) {
+      traitDescriptions.push(`psychological depth (${percent}%)`);
+    } else if (name.includes('comedy') || name.includes('humor')) {
+      traitDescriptions.push(`comedic timing (${percent}%)`);
+    } else if (name.includes('action')) {
+      traitDescriptions.push(`action sequences (${percent}%)`);
+    } else if (name.includes('romance')) {
+      traitDescriptions.push(`romantic elements (${percent}%)`);
+    } else if (name.includes('drama')) {
+      traitDescriptions.push(`dramatic storytelling (${percent}%)`);
+    } else if (name.includes('fantasy') || name.includes('isekai')) {
+      traitDescriptions.push(`fantasy worldbuilding (${percent}%)`);
+    } else if (name.includes('mystery') || name.includes('thriller')) {
+      traitDescriptions.push(`mystery and suspense (${percent}%)`);
+    } else if (name.includes('slice') || name.includes('life')) {
+      traitDescriptions.push(`slice-of-life moments (${percent}%)`);
+    } else if (name.includes('dark') || name.includes('grim')) {
+      traitDescriptions.push(`dark themes (${percent}%)`);
+    } else if (name.includes('wholesome') || name.includes('heal')) {
+      traitDescriptions.push(`wholesome vibes (${percent}%)`);
+    } else if (name.includes('emotional') || name.includes('tear')) {
+      traitDescriptions.push(`emotional impact (${percent}%)`);
+    } else if (name.includes('hype') || name.includes('epic')) {
+      traitDescriptions.push(`epic moments (${percent}%)`);
+    } else if (name.includes('cute') || name.includes('moe')) {
+      traitDescriptions.push(`cute aesthetics (${percent}%)`);
+    } else {
+      traitDescriptions.push(`${name} elements (${percent}%)`);
+    }
+  }
+  
+  if (traitDescriptions.length === 1) {
+    return `Through its ${traitDescriptions[0]}`;
+  } else if (traitDescriptions.length === 2) {
+    return `Through its ${traitDescriptions[0]} and ${traitDescriptions[1]}`;
+  } else {
+    return `Through its ${traitDescriptions[0]}, ${traitDescriptions[1]}, and ${traitDescriptions[2]}`;
+  }
+}
 
 // ============================================================================
 // GLOBAL IMPACT CALCULATION
@@ -133,11 +202,15 @@ export function calculateWhatShapedMe(
       const roleWeight = ROLE_WEIGHTS[tc.role] || 0.5;
       
       // Calculate rarity boost (inverse of occurrence rate)
-      // Rare traits (low occurrence) get higher boost
-      const rarityBoost = 1 / (tc.occurrenceRate * 10 + 0.1);
+      // Rare traits get higher boost BUT capped to prevent domination
+      const rawRarityBoost = 1 / (tc.occurrenceRate * 10 + 0.1);
+      const rarityBoost = Math.max(MIN_RARITY_BOOST, Math.min(MAX_RARITY_BOOST, rawRarityBoost));
       
-      // Weighted contribution
-      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost;
+      // Get engagement factor if available (user's rating matters!)
+      const engagementFactor = (tc as { engagementFactor?: number }).engagementFactor ?? 1.0;
+      
+      // Weighted contribution - engagement is now a major factor
+      const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * engagementFactor;
       globalImpact += weightedContribution;
       
       // DEBUG: Log first media's calculation
@@ -177,6 +250,10 @@ export function calculateWhatShapedMe(
       ? `Shaped ${Math.round(topTrait.shareOfTrait * 100)}% of your ${topTrait.traitName} DNA`
       : 'Minor influence';
     
+    // Generate HOW explanation from top 3 traits
+    const topTraitNames = sortedTraits.slice(0, 3).map(t => t.traitName.toLowerCase());
+    const howExplanation = generateHowExplanation(topTraitNames, sortedTraits);
+    
     impacts.push({
       mediaId: media.mediaId,
       title: media.title,
@@ -184,6 +261,7 @@ export function calculateWhatShapedMe(
       topTraits: sortedTraits,
       impactLevel: 'moderate', // Will be set after sorting
       summary,
+      howExplanation,
     });
   }
   

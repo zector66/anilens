@@ -67,15 +67,9 @@ function calculateSeasonalTourist(traits: TraitProfile): number {
     return Math.min(10, (currentSeasonTraits[0].enjoymentScore || 0) / 10);
   }
   
-  // Fallback: inverse of nostalgia
-  const nostalgiaTraits = traits.topTraits.filter(t => 
-    t.name.includes('Classic') || 
-    t.name.includes('Retro') ||
-    t.name.includes('Vintage')
-  );
-  
-  const nostalgiaScore = nostalgiaTraits.reduce((sum, t) => sum + (t.enjoymentScore || 0), 0);
-  return Math.max(0, 10 - nostalgiaScore * 5);
+  // No current season traits found - return 0 (not watching current season)
+  // Previously used inverse of nostalgia which was incorrect
+  return 0;
 }
 
 function calculateCultHunter(traits: TraitProfile): number {

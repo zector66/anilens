@@ -213,9 +213,10 @@ export function traitProfileToLegacyPersonality(
   // Avant-Garde: Look for experimental/artistic traits  
   const avantGarde = findTraitScore(['experimental', 'avant_garde', 'artistic', 'surreal', 'abstract']);
 
-  // Seasonal Tourist: Now based on current season (Winter 2026) engagement only
-  // This will be calculated directly in taste-analyzer, keeping the approximation for now
-  const seasonalTourist = 10 - nostalgiaAddict; // Temporary - will be overridden by actual calculation
+  // Seasonal Tourist: Should be 0 when no current season shows are watched
+  // This is a fallback - the actual calculation happens in taste-analyzer.ts
+  // But if we get here, it means no seasonal data exists, so return 0
+  const seasonalTourist = 0; // Default to 0 - actual calculation should override this
 
   return {
     completionist: (behavioralMetrics?.completionRate ?? 0.7) * 10,
