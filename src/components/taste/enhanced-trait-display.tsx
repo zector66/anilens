@@ -13,11 +13,14 @@ import {
   ChevronDown,
   ChevronUp,
   Play,
-  Tag
+  Tag,
+  Target,
+  BarChart2
 } from 'lucide-react';
 import type { TraitProfile, TraitScore } from '@/lib/trait-scoring-engine';
 import { TraitExplainabilityDrawer } from './trait-explainability-drawer';
 import { getRarityColor, getRarityLabel } from '@/lib/trait-distinctiveness';
+import { generateTraitExplanation, type TraitExplanation } from '@/lib/explainability-engine';
 
 const CHANNEL_ICONS = {
   identity: Brain,
@@ -37,8 +40,28 @@ interface EnhancedTraitDisplayProps {
   profile: TraitProfile;
 }
 
-// Hover tooltip component
-function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.ReactNode }) {
+// Confidence badge component
+function ConfidenceBadge({ confidence }: { confidence: number }) {
+  const level = confidence >= 0.7 ? 'high' : confidence >= 0.4 ? 'medium' : 'low';
+  const colors = {
+    high: 'bg-green-500/20 text-green-400 border-green-500/30',
+    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    low: 'bg-red-500/20 text-red-400 border-red-500/30',
+  };
+  
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${colors[level]}`}>
+      {Math.round(confidence * 100)}%
+    </span>
+  );
+}
+
+// Hover tooltip component with enhanced explainability
+function TraitTooltip({ trait, explanation, children }: { 
+  trait: TraitScore; 
+  explanation?: TraitExplanation | null;
+  children: React.ReactNode 
+}) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -50,19 +73,55 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
       {children}
       {isVisible && (
         <div className="absolute z-50 w-80 p-4 bg-gray-900 border border-gray-700 rounded-lg shadow-xl -top-2 left-full ml-2">
+          {/* Header with confidence */}
           <div className="mb-3">
-            <h4 className="text-white font-semibold mb-1">{trait.name}</h4>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-white font-semibold">{trait.name}</h4>
+              {explanation && (
+                <ConfidenceBadge confidence={explanation.confidence.score} />
+              )}
+            </div>
+            {explanation?.headline && (
+              <p className="text-purple-300 text-sm mb-1">{explanation.headline}</p>
+            )}
             {trait.description && (
-              <p className="text-gray-300 text-sm">{trait.description}</p>
+              <p className="text-gray-400 text-xs">{trait.description}</p>
             )}
           </div>
+          
+          {/* Confidence interval */}
+          {explanation && (
+            <div className="mb-3 p-2 rounded bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="w-3 h-3 text-purple-400" />
+                <span className="text-xs text-gray-400">Confidence Range</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{explanation.confidence.lowerBound}</span>
+                <div className="flex-1 h-1.5 bg-white/10 rounded-full relative">
+                  <div 
+                    className="absolute h-full bg-purple-500/30 rounded-full"
+                    style={{ 
+                      left: `${explanation.confidence.lowerBound}%`, 
+                      width: `${explanation.confidence.upperBound - explanation.confidence.lowerBound}%` 
+                    }}
+                  />
+                  <div 
+                    className="absolute h-full w-1 bg-purple-400 rounded-full"
+                    style={{ left: `${trait.normalizedScore}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500">{explanation.confidence.upperBound}</span>
+              </div>
+            </div>
+          )}
           
           {/* Top Contributors */}
           {trait.topContributors && trait.topContributors.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
                 <Play className="w-3 h-3" />
-                TOP ANIME
+                TOP CONTRIBUTORS
               </div>
               {trait.topContributors.slice(0, 3).map((contributor, index) => (
                 <div key={index} className="flex items-center justify-between text-sm">
@@ -70,15 +129,38 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
                     href={`https://anilist.co/anime/${contributor.mediaId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-300 hover:text-blue-200 transition-colors"
+                    className="text-blue-300 hover:text-blue-200 transition-colors truncate max-w-[180px]"
                   >
                     {contributor.title}
                   </a>
-                  <span className="text-gray-400 text-xs">
-                    {Math.round((contributor.shareOfTrait || 0) * 100)}%
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-purple-500 rounded-full"
+                        style={{ width: `${Math.round((contributor.shareOfTrait || 0) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-gray-400 text-xs w-8 text-right">
+                      {Math.round((contributor.shareOfTrait || 0) * 100)}%
+                    </span>
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+          
+          {/* Stability indicator */}
+          {explanation?.contributionBreakdown && (
+            <div className="mt-3 p-2 rounded bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-3 h-3 text-blue-400" />
+                <span className="text-xs text-gray-300 capitalize">
+                  {explanation.contributionBreakdown.stability.level} score
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {explanation.contributionBreakdown.stability.description}
+              </p>
             </div>
           )}
           
@@ -93,7 +175,7 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
                 {trait.contributingTags.slice(0, 6).map((tag, index) => (
                   <span 
                     key={index}
-                    className="px-2 py-1 bg-gray-800 text-gray-300 text-xs rounded"
+                    className="px-2 py-0.5 bg-gray-800 text-gray-300 text-[10px] rounded"
                   >
                     {tag}
                   </span>
@@ -101,6 +183,11 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
               </div>
             </div>
           )}
+          
+          {/* Click hint */}
+          <p className="text-[10px] text-gray-600 mt-3 text-center">
+            Click for detailed explanation
+          </p>
         </div>
       )}
     </div>
@@ -110,6 +197,11 @@ function TraitTooltip({ trait, children }: { trait: TraitScore; children: React.
 export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
   const [selectedTrait, setSelectedTrait] = useState<TraitScore | null>(null);
   const [expandedSection, setExpandedSection] = useState<string>('');
+  
+  // Generate explanations for traits (cached per trait)
+  const getExplanation = (trait: TraitScore): TraitExplanation => {
+    return generateTraitExplanation(trait, profile.totalMediaCount);
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? '' : section);
@@ -157,7 +249,7 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
         {expandedSection === 'signature' && (
           <div className="space-y-2">
             {profile.topSignatureTraits.slice(0, 10).map((trait) => (
-              <TraitTooltip key={trait.traitId} trait={trait}>
+              <TraitTooltip key={trait.traitId} trait={trait} explanation={getExplanation(trait)}>
                 <div 
                   className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
                   onClick={(e) => {
@@ -239,7 +331,7 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
               .filter(t => t.role !== 'warning')
               .slice(0, 12)
               .map((trait) => (
-                <TraitTooltip key={trait.traitId} trait={trait}>
+                <TraitTooltip key={trait.traitId} trait={trait} explanation={getExplanation(trait)}>
                   <div 
                     className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
                     onClick={(e) => {
@@ -291,7 +383,7 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
         {expandedSection === 'vibe' && (
           <div className="grid grid-cols-2 gap-3">
             {profile.channels.vibe.slice(0, 8).map((trait) => (
-              <TraitTooltip key={trait.traitId} trait={trait}>
+              <TraitTooltip key={trait.traitId} trait={trait} explanation={getExplanation(trait)}>
                 <div 
                   className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
                   onClick={(e) => {
@@ -336,7 +428,7 @@ export function EnhancedTraitDisplay({ profile }: EnhancedTraitDisplayProps) {
           {expandedSection === 'warnings' && (
             <div className="space-y-3">
               {profile.warningTraits.slice(0, 6).map((trait) => (
-                <TraitTooltip key={trait.traitId} trait={trait}>
+                <TraitTooltip key={trait.traitId} trait={trait} explanation={getExplanation(trait)}>
                   <div 
                     className="p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
                     onClick={(e) => {
