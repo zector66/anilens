@@ -16,16 +16,28 @@ import { TasteProfile, MediaListEntry } from '@/types/anilist';
 import { calculateWhatShapedMe, type MediaImpact } from '@/lib/what-shaped-me';
 import { useEnhancedGenome } from '@/hooks/use-enhanced-genome';
 import { useExplainabilityDrawer } from './explainability-drawer';
+import { useFavorites } from '@/hooks/use-anilist';
+import { useAuth } from '@/hooks/use-auth';
 
 interface TasteLabCardProps {
   profile: TasteProfile;
   entries: MediaListEntry[];
   userStats: { mean: number; std: number };
   type: 'ANIME' | 'MANGA';
-  favoriteIds?: Set<number>;
 }
 
-export function TasteLabCard({ profile, entries, userStats, type, favoriteIds }: TasteLabCardProps) {
+export function TasteLabCard({ profile, entries, userStats, type }: TasteLabCardProps) {
+  // Fetch favorites directly - more reliable than prop passing
+  const { user } = useAuth();
+  const { data: favorites } = useFavorites(user?.id || 0);
+  
+  // Create favoriteIds Set from fetched favorites
+  const favoriteIds = useMemo(() => {
+    if (!favorites) return new Set<number>();
+    const favList = type === 'ANIME' ? favorites.anime : favorites.manga;
+    if (!favList) return new Set<number>();
+    return new Set(favList.map((m: { id: number }) => m.id));
+  }, [favorites, type]);
   const [activeTab, setActiveTab] = useState<'contradictions' | 'influencers' | 'genome'>('contradictions');
   const [showAll, setShowAll] = useState(false);
   const { openDrawer, DrawerComponent } = useExplainabilityDrawer();
@@ -44,11 +56,6 @@ export function TasteLabCard({ profile, entries, userStats, type, favoriteIds }:
   // Use new trait system for influencers if available
   // Pass entries, userStats, and favoriteIds for preference-based ranking
   const influencers = useMemo(() => {
-    console.log('[TasteLabCard] Computing influencers with favoriteIds:', {
-      hasFavoriteIds: !!favoriteIds,
-      favoriteIdsSize: favoriteIds?.size || 0,
-      favoriteIdsSample: favoriteIds ? Array.from(favoriteIds).slice(0, 3) : []
-    });
     if (enhancedGenome?.traitProfile) {
       return calculateWhatShapedMe(enhancedGenome.traitProfile, 10, entries, userStats, favoriteIds);
     }

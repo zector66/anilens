@@ -150,13 +150,6 @@ export function calculateWhatShapedMe(
     }
   }
   
-  // Debug: Log if we have entries and userStats
-  console.log('[What Shaped Me] Data available:', {
-    entriesCount: entries?.length || 0,
-    userStats: userStats ? `mean=${userStats.mean.toFixed(2)}, std=${userStats.std.toFixed(2)}` : 'none',
-    favoritesCount: favoriteIds?.size || 0,
-    favoriteIdsSample: favoriteIds ? Array.from(favoriteIds).slice(0, 5) : []
-  });
   // Build media contribution map
   const mediaContributions = new Map<string, {
     mediaId?: number;
@@ -218,7 +211,6 @@ export function calculateWhatShapedMe(
   // Calculate global impact for each media
   const impacts: MediaImpact[] = [];
   
-  let debugLogCount = 0;
   for (const [_, media] of mediaContributions) {
     let globalImpact = 0;
     
@@ -255,17 +247,6 @@ export function calculateWhatShapedMe(
         }
       }
       
-      // Debug first few entries with preference boost
-      if (debugLogCount < 5 && (preferenceBoost > 1.0 || isFavorite)) {
-        console.log('[What Shaped Me] Preference boost applied:', {
-          title: media.title,
-          isFavorite,
-          repeat: entry.repeat,
-          score: entry.score,
-          preferenceBoost: preferenceBoost.toFixed(2)
-        });
-        debugLogCount++;
-      }
     }
     
     // Anti-spam penalty: shows with too many trait contributions are likely generic
@@ -293,19 +274,6 @@ export function calculateWhatShapedMe(
       // Weighted contribution - preference boost is major, trait count penalty prevents spam
       const weightedContribution = tc.rawContribution * roleWeight * rarityBoost * preferenceBoost * traitCountPenalty;
       globalImpact += weightedContribution;
-      
-      // DEBUG: Log first media's calculation
-      if (debugLogCount === 0 && tc.rawContribution > 0) {
-        console.log("What Shaped Me - using rawContribution:", {
-          media: media.title,
-          trait: tc.traitName,
-          rawContribution: tc.rawContribution,
-          roleWeight,
-          rarityBoost,
-          weightedContribution,
-        });
-        debugLogCount++;
-      }
     }
     
     // Sort trait contributions by weighted impact
