@@ -318,9 +318,10 @@ export function calculateWhatShapedMe(
     }
     
     if (entry) {
-      // Rewatch boost: rewatching = very strong signal (3x for 1, up to 4x for 2+)
+      // Rewatch boost: rewatching = MASSIVE signal (5x for 1, up to 10x for 2+)
+      // Rewatching shows genuine love for a show - deserves huge boost
       if (entry.repeat && entry.repeat > 0) {
-        preferenceBoost *= 2.5 + Math.min(1.5, entry.repeat * 0.5);
+        preferenceBoost *= 5.0 + Math.min(5.0, entry.repeat * 2.5);
       }
       
       // High rating boost: scores significantly above user's mean
@@ -385,11 +386,25 @@ export function calculateWhatShapedMe(
       })
       .slice(0, 5);
     
-    // Generate summary from top trait
+    // Generate summary from top trait - use qualitative language, not raw percentages
+    // Raw percentages can feel low (1-4%) even when contribution is significant
     const topTrait = sortedTraits[0];
-    const summary = topTrait 
-      ? `Shaped ${Math.round(topTrait.shareOfTrait * 100)}% of your ${topTrait.traitName} DNA`
-      : 'Minor influence';
+    let summary = 'Minor influence';
+    if (topTrait) {
+      const sharePercent = topTrait.shareOfTrait * 100;
+      // Use qualitative tiers based on relative contribution
+      if (sharePercent >= 15) {
+        summary = `Defining your ${topTrait.traitName} taste`;
+      } else if (sharePercent >= 8) {
+        summary = `Major ${topTrait.traitName} influence`;
+      } else if (sharePercent >= 4) {
+        summary = `Key ${topTrait.traitName} contributor`;
+      } else if (sharePercent >= 2) {
+        summary = `Shaped your ${topTrait.traitName} preferences`;
+      } else {
+        summary = `Contributed to ${topTrait.traitName}`;
+      }
+    }
     
     // Generate HOW explanation from top 3 traits
     const topTraitNames = sortedTraits.slice(0, 3).map(t => t.traitName.toLowerCase());
