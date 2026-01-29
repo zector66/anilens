@@ -63,6 +63,98 @@ const TRAIT_COUNT_PENALTY_THRESHOLD = 6;
 const MAX_TRAIT_COUNT_PENALTY = 0.4; // At 12+ traits, score is reduced to 40%
 
 // ============================================================================
+// SERIES CONSOLIDATION
+// ============================================================================
+
+/**
+ * Extract base series name from a title (removes season/part indicators)
+ */
+function getSeriesBaseName(title: string): string {
+  if (!title) return '';
+  
+  // Common patterns to remove: Season X, Part X, S2, 2nd Season, etc.
+  const patterns = [
+    /\s*Season\s*\d+/gi,
+    /\s*Part\s*\d+/gi,
+    /\s*S\d+$/gi,
+    /\s*\d+(st|nd|rd|th)\s*Season/gi,
+    /\s*:\s*(Second|Third|Final)\s*Season/gi,
+    /\s*II+$/gi,  // Roman numerals at end
+    /\s*2$/gi,    // Just "2" at end
+    /\s*3$/gi,
+    /\s*:\s*Part\s*\d+/gi,
+    /\s*-\s*\d+$/gi,
+  ];
+  
+  let baseName = title;
+  for (const pattern of patterns) {
+    baseName = baseName.replace(pattern, '');
+  }
+  
+  return baseName.trim();
+}
+
+/**
+ * Consolidate series entries - merge seasons into single entry
+ */
+function consolidateSeries(impacts: MediaImpact[]): MediaImpact[] {
+  const seriesMap = new Map<string, MediaImpact[]>();
+  
+  // Group by base series name
+  for (const impact of impacts) {
+    const baseName = getSeriesBaseName(impact.title || '');
+    if (!seriesMap.has(baseName)) {
+      seriesMap.set(baseName, []);
+    }
+    seriesMap.get(baseName)!.push(impact);
+  }
+  
+  // Merge series entries
+  const consolidated: MediaImpact[] = [];
+  
+  for (const [baseName, entries] of seriesMap) {
+    if (entries.length === 1) {
+      // Single entry, no consolidation needed
+      consolidated.push(entries[0]);
+    } else {
+      // Multiple entries - merge them
+      // Use the entry with highest impact as the base
+      entries.sort((a, b) => b.globalImpact - a.globalImpact);
+      const primary = entries[0];
+      
+      // Sum up impacts from all entries
+      const totalImpact = entries.reduce((sum, e) => sum + e.globalImpact, 0);
+      
+      // Merge traits from all entries
+      const allTraits = new Map<string, MediaTraitImpact>();
+      for (const entry of entries) {
+        for (const trait of entry.topTraits) {
+          const existing = allTraits.get(trait.traitId);
+          if (!existing || trait.rawContribution > existing.rawContribution) {
+            allTraits.set(trait.traitId, trait);
+          }
+        }
+      }
+      
+      // Create merged entry
+      consolidated.push({
+        mediaId: primary.mediaId,
+        title: baseName, // Use clean base name
+        globalImpact: totalImpact,
+        topTraits: Array.from(allTraits.values())
+          .sort((a, b) => b.rawContribution - a.rawContribution)
+          .slice(0, 5),
+        impactLevel: primary.impactLevel,
+        summary: primary.summary,
+        howExplanation: primary.howExplanation,
+      });
+    }
+  }
+  
+  return consolidated;
+}
+
+// ============================================================================
 // HOW EXPLANATION GENERATION
 // ============================================================================
 
@@ -317,8 +409,14 @@ export function calculateWhatShapedMe(
   // Sort by global impact
   impacts.sort((a, b) => b.globalImpact - a.globalImpact);
   
+  // Consolidate series (merge seasons together) BEFORE taking top N
+  const consolidated = consolidateSeries(impacts);
+  
+  // Re-sort after consolidation
+  consolidated.sort((a, b) => b.globalImpact - a.globalImpact);
+  
   // Take top N for display
-  const topImpacts = impacts.slice(0, limit);
+  const topImpacts = consolidated.slice(0, limit);
   
   // Calculate influence as distribution - top N sum to 100%
   // This makes influence percentages feel accurate and meaningful
