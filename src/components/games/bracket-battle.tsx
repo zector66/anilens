@@ -223,28 +223,40 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         const targetType = battleType === 'openings' ? 'OP' : 'ED';
         const filtered: BattleItem[] = [];
         
-        // We need to find enough items with themes to fill the bracket
-        // We'll check entries one by one until we have bracketSize or run out
-        for (const entry of shuffledEntries) {
+        // Parallel batch processing - check themes in groups for speed
+        // Process up to 2x bracketSize candidates in parallel batches of 8
+        const candidates = shuffledEntries.slice(0, Math.min(bracketSize * 3, shuffledEntries.length));
+        const BATCH_SIZE = 8;
+        
+        for (let i = 0; i < candidates.length && filtered.length < bracketSize; i += BATCH_SIZE) {
           if (!active) return;
-          if (filtered.length >= bracketSize) break;
+          const batch = candidates.slice(i, i + BATCH_SIZE);
           
-          try {
-            const themes = await getAnimeThemes(entry.media?.id || 0);
-            const targetThemes = themes.filter(t => t.type === targetType);
-            const playableTheme = targetThemes.find(t => getThemeAudioUrl(t) !== null);
-            
-            if (playableTheme) {
-              filtered.push({
-                id: entry.media?.id || 0,
-                anilistId: entry.media?.id || 0,
-                title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
-                image: entry.media?.coverImage?.large || '',
-                subtitle: battleType === 'openings' ? 'Opening Theme' : 'Ending Theme',
-              });
-            }
-          } catch (e) {
-            console.error('Error checking theme for', entry.media?.title.english, e);
+          const results = await Promise.all(
+            batch.map(async (entry) => {
+              try {
+                const themes = await getAnimeThemes(entry.media?.id || 0);
+                const targetThemes = themes.filter(t => t.type === targetType);
+                const playableTheme = targetThemes.find(t => getThemeAudioUrl(t) !== null);
+                if (playableTheme) {
+                  return {
+                    id: entry.media?.id || 0,
+                    anilistId: entry.media?.id || 0,
+                    title: entry.media?.title.english || entry.media?.title.romaji || 'Unknown',
+                    image: entry.media?.coverImage?.large || '',
+                    subtitle: battleType === 'openings' ? 'Opening Theme' : 'Ending Theme',
+                  } as BattleItem;
+                }
+                return null;
+              } catch (e) {
+                console.error('Error checking theme for', entry.media?.title.english, e);
+                return null;
+              }
+            })
+          );
+          
+          for (const item of results) {
+            if (item && filtered.length < bracketSize) filtered.push(item);
           }
         }
         battleItems = filtered;

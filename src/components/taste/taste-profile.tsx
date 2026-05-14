@@ -539,16 +539,15 @@ export function TasteProfile({ userId }: TasteProfileProps) {
           </button>
         </div>
 
-        {/* Refresh Button */}
+        {/* Refresh Button - subtle icon */}
         <button
           onClick={handleForceRefresh}
           disabled={isRefreshing}
-          className="!px-4 !py-2 !rounded-lg !bg-red-600 !text-white !border-2 !border-red-400 !font-bold !text-base !shadow-lg !shadow-red-500/50 !hover:bg-red-700 !transition-all !disabled:opacity-50 !flex !items-center !gap-2"
-          style={{ display: 'flex', opacity: 1 }}
-          title="Force refresh all data - clears cache and reloads"
+          className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white transition-all disabled:opacity-50"
+          title="Refresh data"
+          aria-label="Refresh data"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>🔴 CLEAR CACHE 🔴</span>
         </button>
 
         {/* View Mode Toggle */}

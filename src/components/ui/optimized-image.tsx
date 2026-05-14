@@ -66,41 +66,34 @@ function OptimizedImageInner({
 
   // Intersection Observer for lazy loading (disabled for eager loading)
   useEffect(() => {
-    if (priority || isInView || eager) {
-      console.log('[OptimizedImage] Skipping observer - priority:', priority, 'isInView:', isInView, 'eager:', eager, 'src:', src);
-      return;
-    }
+    if (priority || isInView || eager) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          console.log('[OptimizedImage] Image entered viewport:', src);
           setIsInView(true);
           observer.disconnect();
         }
       },
       {
-        rootMargin: '200px', // Start loading 200px before visible
+        rootMargin: '300px',
         threshold: 0,
       }
     );
 
     if (imgRef.current) {
       observer.observe(imgRef.current);
-      console.log('[OptimizedImage] Observer attached for:', src);
     }
 
     return () => observer.disconnect();
   }, [priority, isInView, eager, src]);
 
   const handleLoad = () => {
-    console.log('[OptimizedImage] Image loaded successfully:', src);
     setIsLoaded(true);
     onLoad?.();
   };
 
   const handleError = () => {
-    console.error('[OptimizedImage] Image failed to load:', src);
     setHasError(true);
   };
 
@@ -126,16 +119,6 @@ function OptimizedImageInner({
     );
   }
 
-  console.log('[OptimizedImage] Render state:', {
-    src: src.substring(0, 50) + '...',
-    isInView,
-    isLoaded,
-    hasError,
-    priority,
-    eager,
-    fill
-  });
-
   return (
     <div
       ref={imgRef}
@@ -143,31 +126,48 @@ function OptimizedImageInner({
       style={!fill ? { width, height } : undefined}
       onClick={onClick}
     >
+      {/* Blur placeholder - always shown until loaded */}
+      {!isLoaded && (
+        <div
+          className="absolute inset-0 transition-opacity duration-300"
+          style={{ backgroundColor: placeholderColor }}
+        />
+      )}
+      
       {/* Actual image - only render when in view */}
-      {isInView ? (
+      {isInView && (
         fill ? (
-          <img
+          <Image
             src={src}
             alt={alt}
-            className={`absolute inset-0 w-full h-full object-cover`}
+            fill
+            sizes={sizes || '(max-width: 768px) 50vw, 33vw'}
+            quality={quality}
+            className={`object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={handleLoad}
             onError={handleError}
+            placeholder={placeholder}
+            blurDataURL={generatedBlurURL}
+            priority={priority}
+            unoptimized={src.includes('animethemes.moe')}
           />
         ) : (
-          <img
+          <Image
             src={src}
             alt={alt}
-            width={width}
-            height={height}
-            className={className}
+            width={width || 300}
+            height={height || 400}
+            sizes={sizes}
+            quality={quality}
+            className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
             onLoad={handleLoad}
             onError={handleError}
+            placeholder={placeholder}
+            blurDataURL={generatedBlurURL}
+            priority={priority}
+            unoptimized={src.includes('animethemes.moe')}
           />
         )
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 bg-gray-800">
-          Waiting for viewport...
-        </div>
       )}
     </div>
   );
