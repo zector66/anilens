@@ -91,13 +91,20 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
       onMouseLeave={handleMouseLeave}
     >
       <div className="relative overflow-hidden" style={{ paddingBottom: '133.33%' }}>
-        <img
-          src={rec.coverImage}
-          alt={rec.title}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out"
+        <div
+          className="absolute inset-0 transition-transform duration-500 ease-out"
           style={{ transform: isHovered ? 'scale(1.1)' : 'scale(1)' }}
-          loading={priority ? 'eager' : 'lazy'}
-        />
+        >
+          <OptimizedImage
+            src={rec.coverImage}
+            alt={rec.title}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            quality={80}
+            priority={priority}
+            className="w-full h-full"
+          />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none" />
         
         {/* Category Badge */}

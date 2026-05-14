@@ -30,14 +30,10 @@ export async function GET(request: NextRequest) {
       const cached = await getCachedTasteProfile(anilistId, type, ANALYSIS_VERSION);
       
       if (cached) {
-        // Fetch fresh list data to check if it's stale
-        const freshListData = type === 'ANIME'
-          ? await anilistClient.getAnimeList(anilistId)
-          : await anilistClient.getMangaList(anilistId);
+        // Lightweight query: only fetch updatedAt timestamps to check freshness
+        const freshMaxUpdatedAt = await anilistClient.getListMaxUpdatedAt(anilistId, type);
 
-        const freshMaxUpdatedAt = calculateMaxUpdatedAt(freshListData);
-
-        // If cache is still valid, return it
+        // If cache is still valid, return it without fetching the full list
         if (cached.max_updated_at === freshMaxUpdatedAt) {
           return NextResponse.json({
             data: cached.profile_json,
@@ -48,7 +44,10 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        // Cache is stale, recompute
+        // Cache is stale - fetch fresh list and recompute
+        const freshListData = type === 'ANIME'
+          ? await anilistClient.getAnimeList(anilistId)
+          : await anilistClient.getMangaList(anilistId);
         const normalizedEntries = normalizeMediaList(freshListData);
         const tasteProfile = TasteAnalyzer.analyzeTaste(normalizedEntries, type);
 

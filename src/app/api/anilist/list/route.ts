@@ -28,15 +28,10 @@ export async function GET(request: NextRequest) {
       const cached = await getCachedList(anilistId, type);
       
       if (cached) {
-        // Fetch fresh data to check if it's stale
-        const freshData = type === 'ANIME' 
-          ? await anilistClient.getAnimeList(anilistId)
-          : await anilistClient.getMangaList(anilistId);
+        // Lightweight query: only fetch updatedAt timestamps to check freshness
+        const freshMaxUpdatedAt = await anilistClient.getListMaxUpdatedAt(anilistId, type);
 
-        // Calculate maxUpdatedAt from fresh data
-        const freshMaxUpdatedAt = calculateMaxUpdatedAt(freshData);
-
-        // If cache is still valid, return it
+        // If cache is still valid, return it without fetching full list
         if (cached.max_updated_at === freshMaxUpdatedAt) {
           return NextResponse.json({
             data: cached.payload_json,
@@ -46,7 +41,10 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        // Cache is stale, update it
+        // Cache is stale - fetch fresh full list
+        const freshData = type === 'ANIME'
+          ? await anilistClient.getAnimeList(anilistId)
+          : await anilistClient.getMangaList(anilistId);
         await setCachedList(anilistId, type, freshMaxUpdatedAt, freshData);
         
         return NextResponse.json({

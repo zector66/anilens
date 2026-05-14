@@ -228,6 +228,42 @@ export class AniListClient {
     }
   }
 
+  /**
+   * Lightweight query that only fetches updatedAt timestamps for all entries.
+   * Used for cache validation - avoids fetching the full bloated list payload.
+   */
+  async getListMaxUpdatedAt(userId: number, type: 'ANIME' | 'MANGA'): Promise<number> {
+    const query = gql`
+      query($userId: Int, $type: MediaType) {
+        MediaListCollection(userId: $userId, type: $type) {
+          lists {
+            entries {
+              updatedAt
+            }
+          }
+        }
+      }
+    `;
+    try {
+      const response = await this.client.request<{
+        MediaListCollection: { lists: Array<{ entries: Array<{ updatedAt: number }> }> }
+      }>(query, { userId, type });
+
+      let maxUpdatedAt = 0;
+      for (const list of response.MediaListCollection?.lists || []) {
+        for (const entry of list.entries || []) {
+          if (entry.updatedAt && entry.updatedAt > maxUpdatedAt) {
+            maxUpdatedAt = entry.updatedAt;
+          }
+        }
+      }
+      return maxUpdatedAt || Date.now();
+    } catch (error) {
+      logger.error('[AniListClient] Error fetching list maxUpdatedAt:', error);
+      return Date.now();
+    }
+  }
+
   async getAnimeList(userId: number): Promise<MediaList> {
     const query = gql`
       query($userId: Int) {

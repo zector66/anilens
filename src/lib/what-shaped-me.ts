@@ -342,6 +342,14 @@ export function calculateWhatShapedMe(
       
     }
     
+    // Cap preferenceBoost to prevent runaway stacking
+    // Worst case before cap: favorite(5) * rewatch(10) * highRating(2.5) = 125x
+    // Cap at 30x so a single signal can't drown everything else
+    const MAX_PREFERENCE_BOOST = 30.0;
+    if (preferenceBoost > MAX_PREFERENCE_BOOST) {
+      preferenceBoost = MAX_PREFERENCE_BOOST;
+    }
+    
     // Anti-spam penalty: shows with too many trait contributions are likely generic
     // This prevents "Attack on Titan" syndrome where a popular show dominates by sheer volume
     const traitCount = media.traitContributions.length;
