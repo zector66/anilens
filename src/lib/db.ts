@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 // Lazy initialization of database connection
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -11,7 +11,13 @@ function getDb(): any {
     if (!url) {
       throw new Error('DATABASE_URL or POSTGRES_URL environment variable is not set');
     }
-    _sql = neon(url);
+    _sql = postgres(url, {
+      ssl: 'require',
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      prepare: false, // disable prepared statements for pgbouncer compatibility
+    });
   }
   return _sql;
 }
