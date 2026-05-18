@@ -36,6 +36,10 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
         setError('User not found. Check your username and try again.');
       } else if (error instanceof Error && error.message.includes('429')) {
         setError('Too many requests. Please wait a moment and try again.');
+      } else if (error instanceof Error && error.message.includes('temporarily disabled')) {
+        setError('AniList is currently down for maintenance. Please try again later.');
+      } else if (error instanceof Error && error.message.includes('stability')) {
+        setError('AniList is experiencing issues. Please check their Discord and try again later.');
       } else {
         setError('Failed to load profile. Please try again in a moment.');
       }
