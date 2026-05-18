@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, AlertCircle, LogIn, Eye } from 'lucide-react';
+import { Loader2, AlertCircle, LogIn, Eye, WifiOff } from 'lucide-react';
 
 interface LoginButtonProps {
   variant?: 'default' | 'hero';
@@ -12,6 +12,15 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
   const { isAuthenticated, login, loginWithAniList, isLoggingIn } = useAuth();
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [anilistDown, setAnilistDown] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (variant !== 'hero') return;
+    fetch('/api/anilist/status')
+      .then(r => r.json())
+      .then(data => { if (!data.ok) setAnilistDown(data.message ?? 'AniList is currently experiencing issues.'); })
+      .catch(() => {});
+  }, [variant]);
 
   if (isAuthenticated) {
     return null;
@@ -49,6 +58,12 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
   if (variant === 'hero') {
     return (
       <div className="w-full max-w-md mx-auto space-y-4">
+        {anilistDown && (
+          <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-sm">
+            <WifiOff className="w-4 h-4 mt-0.5 shrink-0" />
+            <span><strong>AniList is currently down:</strong> {anilistDown}</span>
+          </div>
+        )}
         {/* Primary: Try Before Login - Zero Auth */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="text-center mb-3">
