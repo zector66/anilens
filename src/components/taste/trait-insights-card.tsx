@@ -91,10 +91,10 @@ export function TraitInsightsCard() {
       )}
 
       {/* Contradiction Personality */}
-      <div className="p-6 rounded-xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10">
+      <div className="p-6 rounded-xl bg-linear-to-br from-white/5 to-white/2 border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${PERSONALITY_COLORS[contradictionResult.personalityLabel] || 'from-gray-500 to-gray-600'} flex items-center justify-center`}>
+            <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${PERSONALITY_COLORS[contradictionResult.personalityLabel] || 'from-gray-500 to-gray-600'} flex items-center justify-center`}>
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -121,7 +121,7 @@ export function TraitInsightsCard() {
 
       {/* Taste Types with Drivers */}
       {tasteTypes && tasteTypes.length > 0 && (
-        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+        <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
           <button 
             onClick={() => toggleSection('types')}
             className="w-full flex items-center justify-between mb-4"
@@ -177,7 +177,7 @@ export function TraitInsightsCard() {
 
       {/* Top Traits by Channel */}
       {topTraitsByChannel && (
-        <div className="p-6 rounded-xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10">
+        <div className="p-6 rounded-xl bg-linear-to-br from-white/5 to-white/2 border border-white/10">
           <button 
             onClick={() => toggleSection('traits')}
             className="w-full flex items-center justify-between mb-4"
@@ -208,7 +208,7 @@ export function TraitInsightsCard() {
                 return (
                   <div key={channel} className="p-4 rounded-lg bg-white/5 border border-white/10">
                     <div className="flex items-center gap-2 mb-3">
-                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${colorClass} flex items-center justify-center`}>
+                      <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorClass} flex items-center justify-center`}>
                         <Icon className="w-4 h-4 text-white" />
                       </div>
                       <h4 className="text-white font-medium capitalize">{channel}</h4>
@@ -220,7 +220,7 @@ export function TraitInsightsCard() {
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
                               <div 
-                                className={`h-full bg-gradient-to-r ${colorClass} rounded-full`}
+                                className={`h-full bg-linear-to-r ${colorClass} rounded-full`}
                                 style={{ width: `${trait.normalizedScore}%` }}
                               />
                             </div>
@@ -239,7 +239,7 @@ export function TraitInsightsCard() {
 
       {/* Top Derived Indices */}
       {derivedIndices && derivedIndices.length > 0 && (
-        <div className="p-6 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+        <div className="p-6 rounded-xl bg-linear-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
           <button 
             onClick={() => toggleSection('indices')}
             className="w-full flex items-center justify-between mb-4"
@@ -270,7 +270,7 @@ export function TraitInsightsCard() {
                   </div>
                   <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
+                      className="h-full bg-linear-to-r from-cyan-500 to-blue-500 rounded-full"
                       style={{ width: `${index.score}%` }}
                     />
                   </div>

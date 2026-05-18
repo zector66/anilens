@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAnimeList, useMangaList } from './use-anilist';
 import { computeTaste, TasteResult, ComputeTasteOptions } from '@/lib/taste';
 import { saveSnapshot, loadSnapshot, deleteSnapshot } from '@/lib/taste/cache/snapshotStore';
+import { MediaListEntry } from '@/types/anilist';
 
 interface UseTasteOptions extends ComputeTasteOptions {
   userId?: number;
@@ -41,8 +42,8 @@ export function useTaste(options: UseTasteOptions = {}) {
     
     const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
     return listData.lists
-      .flatMap(list => list.entries)
-      .filter(entry => validStatuses.includes(entry.status || ''));
+      .flatMap((list: { entries?: MediaListEntry[] }) => list.entries || [])
+      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
   }, [listData]);
 
   // Compute taste - use primitive values in dependency array for proper reactivity

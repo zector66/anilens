@@ -485,6 +485,11 @@ export interface GameQuestion {
     voiceActor?: string;
     character?: string;
     vaImage?: string;
+    // VA Connection game fields
+    va1?: string; // Voice actor for character 1
+    va2?: string; // Voice actor for character 2
+    char1?: string; // Character 1 name
+    char2?: string; // Character 2 name
   };
 }
 
@@ -520,14 +525,12 @@ export interface PlayerRating {
   ratings: {
     opGuessing: number;
     screenshotGuessing: number;
-    quoteGuessing: number;
     scoreGuessing: number;
     characterGuessing: number;
     seasonMatching: number;
     coverGuessing: number;
     chapterGuessing: number;
     hangman: number;
-    wordle: number;
     overall: number; // Weighted average
   };
   

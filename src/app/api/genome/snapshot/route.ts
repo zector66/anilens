@@ -237,7 +237,7 @@ export async function DELETE(request: NextRequest) {
     const { error: cacheError } = await db
       .from('taste_profile_cache')
       .delete()
-      .eq('user_id', userId);
+      .eq('anilist_id', userId);
 
     if (cacheError) {
       console.warn('Error deleting taste profile cache:', cacheError);

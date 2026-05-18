@@ -59,8 +59,7 @@ buildTagTraitMap();
  */
 function meetsTraitEntryConditions(
   traitId: string, 
-  contributions: TraitContribution[], 
-  totalTags: number
+  contributions: TraitContribution[]
 ): boolean {
   // Define core traits that need stricter conditions
   const CORE_TRAITS = new Set([
@@ -75,23 +74,12 @@ function meetsTraitEntryConditions(
     return contributions.length > 0;
   }
   
-  // Core traits: require stronger evidence
-  const highWeightContributions = contributions.filter(c => c.weight >= 4);
-  const moderateWeightContributions = contributions.filter(c => c.weight >= 2);
-  
-  // Option 1: At least one defining tag (weight 4-5)
-  if (highWeightContributions.length >= 1) {
-    return true;
-  }
-  
-  // Option 2: Multiple moderate tags (weight 2-3) with good coverage
-  if (moderateWeightContributions.length >= 2 && 
-      moderateWeightContributions.length >= totalTags * 0.3) {
-    return true;
-  }
-  
-  // Option 3: Very strong tag density for this trait
-  if (contributions.length >= 3 && contributions.length >= totalTags * 0.4) {
+  // Core traits: require at least moderate evidence (weight >= 2)
+  // Previously weight >= 4 was required, which blocked sub-genre tags
+  // like Harem (weight 3), Age Gap (weight 3), Childhood Friends (weight 3)
+  // from contributing to Romance. Diminishing returns handles spam.
+  const hasModerateSignal = contributions.some(c => c.weight >= 2);
+  if (hasModerateSignal) {
     return true;
   }
   
@@ -419,10 +407,9 @@ class TraitScorer {
     }
     
     // Apply entry conditions for core traits
-    const totalTags = this.currentMediaTags.length;
     for (const {traitId, weight, acc} of potentialContributions) {
       // Check if this trait meets entry conditions
-      if (!meetsTraitEntryConditions(traitId, [{weight, traitId, diminishRate: acc.diminishRate}], totalTags)) {
+      if (!meetsTraitEntryConditions(traitId, [{weight, traitId, diminishRate: acc.diminishRate}])) {
         // For core traits that don't meet conditions, skip this contribution
         // But still track that we saw the tag for other traits
         continue;

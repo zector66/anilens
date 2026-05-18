@@ -5,14 +5,14 @@ import Image from 'next/image';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { GameSession, GameQuestion } from '@/types/anilist';
-import { Clock, Trophy, Lightbulb, Volume2, Users, Calendar, Image as ImageIcon, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Clock, Trophy, Lightbulb, Volume2, Users, User, Calendar, Image as ImageIcon, ArrowLeft, AlertTriangle, Mic, Check, X } from 'lucide-react';
 import { useAnimeTheme } from '@/hooks/use-anime-theme';
 import { ThemePlayerCompact } from './theme-player';
 import { useSettings } from '@/contexts/settings-context';
 import { useAuth } from '@/hooks/use-auth';
 import { updatePlayerState, subscribeToRoom, updateRoomState, MultiplayerRoom, updateUserMMR, loadUserSettings, updateUserSetting } from '@/lib/supabase';
 import { useUI } from '@/contexts/ui-context';
-import { StreakFlames } from '@/components/ui/confetti';
+import { getThemeProvider } from '@/lib/theme-provider';
 
 // Component for OP/ED guessing with real audio from AnimeThemes
 function OPGuessContent({ 
@@ -152,7 +152,6 @@ function QuestionCard({
   const { playSound, reducedMotion } = useUI();
   const [timeLeft, setTimeLeft] = useState(question.timeLimit || 30);
   const [showHint, setShowHint] = useState(false);
-  const [answerAnimation, setAnswerAnimation] = useState<'correct' | 'wrong' | null>(null);
   // For OP_GUESS questions, pause timer until audio starts
   const [timerPaused, setTimerPaused] = useState(question?.type === 'OP_GUESS');
 
@@ -427,6 +426,14 @@ function QuestionCard({
         );
 
       case 'POPULARITY_BATTLE':
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              <h3 className="text-xl font-bold text-white">{question?.question}</h3>
+            </div>
+          </div>
+        );
+
       case 'TASTE_CONSISTENCY':
         // Binary comparison with two cover images
         const titles = question?.options || [];
@@ -444,6 +451,7 @@ function QuestionCard({
                           alt={title}
                           fill
                           className="rounded-xl object-cover border-2 border-white/20"
+                          eager={true}
                         />
                       ) : (
                         <div className="w-full h-full rounded-xl bg-purple-500/10 flex items-center justify-center border-2 border-white/20">
@@ -456,7 +464,7 @@ function QuestionCard({
                 ))}
               </div>
               <p className="text-sm text-gray-500 mt-4">
-                {question?.type === 'TASTE_CONSISTENCY' ? 'Test your memory of your own ratings!' : 'Which one has more fans?'}
+                Test your memory of your own ratings!
               </p>
             </div>
           </div>
@@ -466,16 +474,21 @@ function QuestionCard({
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
-              {question?.media?.coverImage && (
-                <div className="relative w-32 h-44 mx-auto mb-4">
-                  <Image
-                    src={question.media.coverImage.large || question.media.coverImage.medium}
+              <div className="relative w-32 h-44 mx-auto mb-4">
+                {question?.media?.coverImage ? (
+                  <OptimizedImage
+                    src={question.media.coverImage.large || question.media.coverImage.medium || ''}
                     alt={getPreferredTitle(question.media.title)}
                     fill
                     className="rounded-xl object-cover border-2 border-white/20"
+                    eager={true}
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full rounded-xl bg-white/10 border-2 border-white/20 flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-gray-500" />
+                  </div>
+                )}
+              </div>
               <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
               <p className="text-sm text-gray-400">Which animation studio created this?</p>
             </div>
@@ -485,6 +498,9 @@ function QuestionCard({
       case 'VA_CONNECTION':
         // Show two character images side by side
         const charNames = question?.question.match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
+        const va1 = question?.themeData?.va1;
+        const va2 = question?.themeData?.va2;
+        const sameVa = va1 && va2 && va1 === va2;
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
@@ -492,24 +508,42 @@ function QuestionCard({
               <div className="flex items-center justify-center gap-6 md:gap-12">
                 {charNames.slice(0, 2).map((name, idx) => (
                   <div key={idx} className="text-center">
-                    {question?.optionImages?.[name] && (
-                      <div className="relative w-20 h-20 md:w-28 md:h-28 mx-auto mb-2">
+                    <div className="relative w-20 h-20 md:w-28 md:h-28 mx-auto mb-2">
+                      {question?.optionImages?.[name] ? (
                         <Image
                           src={question.optionImages[name]}
                           alt={name}
                           fill
                           className="rounded-full object-cover border-2 border-purple-500/30"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-center">
+                          <User className="w-8 h-8 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-white font-medium line-clamp-1 max-w-[100px]">{name}</p>
-                    {question?.hints?.[idx] && (
-                      <p className="text-xs text-gray-500 line-clamp-1">from {question.hints[idx]}</p>
+                    {/* After answering, show VA name */}
+                    {gameState !== 'playing' && (
+                      <p className={`text-xs font-medium mt-1 ${sameVa ? 'text-purple-400' : idx === 0 ? 'text-blue-400' : 'text-pink-400'}`}>
+                        {idx === 0 ? va1 : va2}
+                      </p>
                     )}
                   </div>
                 ))}
               </div>
-              <div className="mt-4 text-2xl">🎙️</div>
+              {/* Show VA info after answering */}
+              {gameState !== 'playing' && (
+                <div className="mt-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-sm text-purple-300">
+                    {sameVa
+                      ? `Both voiced by ${va1}`
+                      : `${charNames[0] || '?'} → ${va1} / ${charNames[1] || '?'} → ${va2}`}
+                  </p>
+                </div>
+              )}
+              {gameState === 'playing' && <div className="mt-4 text-2xl">🎙️</div>}
             </div>
           </div>
         );
@@ -518,26 +552,69 @@ function QuestionCard({
         // Show two titles and ask about their relation
         const sourceTitle = question?.question.match(/to "([^"]+)"\?$/)?.[1] || '';
         const targetTitle = question?.question.match(/^What is "([^"]+)"/)?.[1] || '';
+
+        // Debug logging
+        console.log('[RELATION_TYPE] Debug:', {
+          sourceTitle,
+          targetTitle,
+          optionImages: question?.optionImages,
+          sourceImage: question?.optionImages?.[sourceTitle],
+          targetImage: question?.optionImages?.[targetTitle],
+          mediaCoverImage: question?.media?.coverImage
+        });
+
+        // Get image URLs with fallbacks - check for non-empty strings
+        const sourceImageFromOptions = question?.optionImages?.[sourceTitle];
+        const targetImageFromOptions = question?.optionImages?.[targetTitle];
+        
+        const sourceImageUrl = (sourceImageFromOptions && sourceImageFromOptions.length > 0) 
+          ? sourceImageFromOptions 
+          : question?.media?.coverImage?.medium || '';
+        const targetImageUrl = (targetImageFromOptions && targetImageFromOptions.length > 0) 
+          ? targetImageFromOptions 
+          : '';
+
         return (
           <div className="text-center py-8">
             <div className="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
               <h3 className="text-lg font-bold text-white mb-4">How are these related?</h3>
               <div className="flex items-center justify-center gap-4 md:gap-8">
-                {[targetTitle, sourceTitle].map((title, idx) => (
-                  <div key={idx} className="text-center">
-                    {question?.optionImages?.[title] && (
-                      <div className="relative w-20 h-28 md:w-28 md:h-40 mx-auto mb-2">
-                        <Image
-                          src={question.optionImages[title]}
-                          alt={title}
-                          fill
-                          className="rounded-xl object-cover border-2 border-white/20"
-                        />
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-400 line-clamp-2 max-w-[100px]">{title}</p>
-                  </div>
-                ))}
+                <div className="text-center">
+                  {targetImageUrl ? (
+                    <div className="relative w-20 h-28 md:w-28 md:h-40 mx-auto mb-2">
+                      <OptimizedImage
+                        src={targetImageUrl}
+                        alt={targetTitle}
+                        fill
+                        className="rounded-xl object-cover border-2 border-white/20"
+                        eager={true}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-28 md:w-28 md:h-40 mx-auto mb-2 rounded-xl bg-white/10 border-2 border-white/20 flex items-center justify-center">
+                      <ImageIcon className="w-8 h-8 text-gray-500" />
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 line-clamp-2 max-w-[100px]">{targetTitle}</p>
+                </div>
+                <div className="text-center">
+                  {sourceImageUrl ? (
+                    <div className="relative w-20 h-28 md:w-28 md:h-40 mx-auto mb-2">
+                      <OptimizedImage
+                        src={sourceImageUrl}
+                        alt={sourceTitle}
+                        fill
+                        className="rounded-xl object-cover border-2 border-white/20"
+                        eager={true}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-28 md:w-28 md:h-40 mx-auto mb-2 rounded-xl bg-white/10 border-2 border-white/20 flex items-center justify-center">
+                      <ImageIcon className="w-8 h-8 text-gray-500" />
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 line-clamp-2 max-w-[100px]">{sourceTitle}</p>
+                </div>
               </div>
               <p className="text-sm text-purple-400 mt-4">
                 What is <span className="font-bold">{targetTitle}</span> to <span className="font-bold">{sourceTitle}</span>?
@@ -555,16 +632,21 @@ function QuestionCard({
               <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
                 {question?.options?.map((title, idx) => (
                   <div key={idx} className="text-center">
-                    {question?.optionImages?.[title] && (
-                      <div className="relative w-16 h-22 md:w-20 md:h-28 mx-auto">
-                        <Image
+                    <div className="relative w-16 h-22 md:w-20 md:h-28 mx-auto">
+                      {question?.optionImages?.[title] ? (
+                        <OptimizedImage
                           src={question.optionImages[title]}
                           alt={title}
                           fill
                           className="rounded-lg object-cover border border-white/20"
+                          eager={true}
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
+                          <ImageIcon className="w-6 h-6 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -593,6 +675,47 @@ function QuestionCard({
             </div>
           </div>
         );
+
+      case 'SEIYUU_GUESS': {
+        // Fallback: find VA image from media.characters.edges if themeData didn't capture it
+        let vaImage = question?.themeData?.vaImage;
+        const vaName = question?.themeData?.voiceActor;
+        if (!vaImage && vaName && question?.media?.characters?.edges) {
+          const edge = question.media.characters.edges.find(
+            e => e.voiceActors?.some(va => va.name.full === vaName && va.language === 'JAPANESE')
+          );
+          const va = edge?.voiceActors?.find(v => v.name.full === vaName && v.language === 'JAPANESE');
+          vaImage = va?.image?.medium || va?.image?.large;
+        }
+
+        return (
+          <div className="text-center py-8">
+            <div className="bg-white/5 rounded-2xl p-8 mb-6 border border-white/10">
+              {vaImage ? (
+                <div className="relative w-32 h-32 mx-auto mb-4">
+                  <OptimizedImage
+                    src={vaImage}
+                    alt={vaName || 'Voice Actor'}
+                    fill
+                    className="rounded-xl object-cover border-2 border-pink-500/30"
+                    eager={true}
+                  />
+                </div>
+              ) : (
+                <div className="w-32 h-32 mx-auto mb-4 rounded-xl bg-pink-500/10 border-2 border-pink-500/30 flex items-center justify-center">
+                  <Mic className="w-10 h-10 text-pink-400/50" />
+                </div>
+              )}
+              <h3 className="text-xl font-bold text-white mb-2">{question?.question}</h3>
+              {vaName && (
+                <p className="text-sm text-pink-300 mt-1">
+                  Voice Actor: {vaName}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      }
 
       default:
         return (
@@ -698,7 +821,7 @@ function QuestionCard({
                     }
                   }}
                   disabled={gameState !== 'playing'}
-                  className={`relative text-left p-3 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
+                  className={`relative text-left p-3 min-h-[52px] rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
                     gameState === 'answered' && isCorrect
                       ? 'bg-green-500/20 border-green-500 text-green-300'
                       : gameState === 'answered' && wasSelected && !isCorrect
@@ -712,17 +835,28 @@ function QuestionCard({
                 >
                   {optionImage && (
                     <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0 border border-white/10">
-                      <Image
+                      <OptimizedImage
                         src={optionImage}
                         alt=""
                         width={40}
                         height={56}
                         className="w-full h-full object-cover"
+                        eager={true}
                       />
                     </div>
                   )}
                   <span className="flex-1 line-clamp-2 pr-6">{option}</span>
-                  <span className="absolute top-2 right-2 text-xs text-gray-500 font-mono opacity-50">
+                  {gameState === 'answered' && isCorrect && (
+                    <div className="shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                    </div>
+                  )}
+                  {gameState === 'answered' && wasSelected && !isCorrect && (
+                    <div className="shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+                      <X className="w-4 h-4 text-white" strokeWidth={3} />
+                    </div>
+                  )}
+                  <span className="absolute top-2 right-2 w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-[10px] font-bold text-gray-400 font-mono">
                     {index + 1}
                   </span>
                   {/* Show profile pictures of players who selected this option */}
@@ -916,6 +1050,17 @@ export function GamePlay({ game, onComplete, onQuit, multiplayerRoomId }: GamePl
   const currentQuestion = game.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / game.questions.length) * 100;
 
+  // Pre-fetch next question's theme to reduce loading time
+  useEffect(() => {
+    const nextQuestion = game.questions[currentQuestionIndex + 1];
+    if (nextQuestion?.type === 'OP_GUESS' && nextQuestion.themeData?.anilistId) {
+      // Warm the cache by fetching ahead of time
+      getThemeProvider().getThemesByAniListId(nextQuestion.themeData.anilistId).catch(() => {
+        // Silently ignore prefetch failures
+      });
+    }
+  }, [currentQuestionIndex, game.questions]);
+
   // Find opponent for head-to-head display
   const opponent = room?.players.find(p => p.id !== String(user?.id));
 
@@ -993,20 +1138,11 @@ export function GamePlay({ game, onComplete, onQuit, multiplayerRoomId }: GamePl
       const myProgress = answers.length;
       const opponentProgress = opponent?.answers?.length || 0;
       
-      console.log('Progress Sync:', {
-        myProgress,
-        opponentProgress,
-        currentQuestionIndex,
-        answersCount: answers.length,
-        opponentAnswersCount: opponent?.answers?.length
-      });
-
       // We only care about the current question index
       // Both must have answered the current question (index)
       const bothAnswered = myProgress > currentQuestionIndex && opponentProgress > currentQuestionIndex;
       
       if (bothAnswered) {
-        console.log('Both answered, advancing...');
         // Both answered - advance after short delay to show results
         const timer = setTimeout(advanceToNext, 2000);
         return () => clearTimeout(timer);

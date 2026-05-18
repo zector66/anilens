@@ -27,8 +27,8 @@ export function WatchHistoryTimeline() {
     const entries: TimelineEntry[] = [];
 
     // Process anime
-    animeList?.lists?.forEach(list => {
-      list.entries?.forEach(entry => {
+    animeList?.lists?.forEach((list: { entries?: MediaListEntry[] }) => {
+      list.entries?.forEach((entry: MediaListEntry) => {
         if (!entry.media) return;
 
         // Add completed date
@@ -57,8 +57,8 @@ export function WatchHistoryTimeline() {
     });
 
     // Process manga
-    mangaList?.lists?.forEach(list => {
-      list.entries?.forEach(entry => {
+    mangaList?.lists?.forEach((list: { entries?: MediaListEntry[] }) => {
+      list.entries?.forEach((entry: MediaListEntry) => {
         if (!entry.media) return;
 
         if (entry.completedAt?.year) {

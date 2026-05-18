@@ -159,9 +159,6 @@ export function MultiplayerLobby({ gameType, activeType = 'ANIME', allEntries, o
         case 'screenshot-guessing':
           questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
           break;
-        case 'quote-guessing':
-          questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
-          break;
         case 'score-guessing':
           questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
           break;

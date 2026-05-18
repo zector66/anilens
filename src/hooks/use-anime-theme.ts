@@ -50,7 +50,7 @@ export function useAnimeTheme(anilistId: number | undefined, themeMode?: 'openin
 
     let cancelled = false;
     
-    async function fetchTheme() {
+    async function fetchTheme(retryCount = 0) {
       setIsLoading(true);
       setError(null);
       
@@ -59,6 +59,12 @@ export function useAnimeTheme(anilistId: number | undefined, themeMode?: 'openin
         const result = await provider.getThemesByAniListId(anilistId!);
         
         if (cancelled) return;
+        
+        // Retry once on failure before giving up
+        if (!result.success && retryCount === 0) {
+          setTimeout(() => fetchTheme(1), 800);
+          return;
+        }
         
         if (result.success && result.themes.length > 0) {
           // Get recently played theme IDs to avoid repetition

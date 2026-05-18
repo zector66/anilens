@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
       timeLimit
     } = await request.json();
 
+    console.log('[Game Submit API] Received:', { anilistId, username: username?.slice(0, 10), gameType, score, maxScore, correctCount, questionsCount });
+
     if (!anilistId || !username || !gameType || score === undefined) {
+      console.error('[Game Submit API] Missing required fields:', { anilistId, username, gameType, score });
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
@@ -26,6 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Get or create user
     const user = await getOrCreateUser(anilistId, username, avatarUrl);
+    console.log('[Game Submit API] User:', { id: user.id, anilist_id: user.anilist_id });
 
     // Update rating and record game
     const ratingResult = await updateRatingAfterGame(
@@ -39,6 +43,7 @@ export async function POST(request: NextRequest) {
       difficulty || 'mixed',
       timeLimit
     );
+    console.log('[Game Submit API] Rating result:', ratingResult);
 
     // Get updated rank
     const rank = await getUserRank(user.id, gameType);
@@ -52,9 +57,10 @@ export async function POST(request: NextRequest) {
       rank,
     });
   } catch (error) {
-    console.error('Game submission error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[Game Submit API] Error:', message);
     return NextResponse.json(
-      { success: false, error: 'Failed to submit game' },
+      { success: false, error: `Failed to submit game: ${message}` },
       { status: 500 }
     );
   }

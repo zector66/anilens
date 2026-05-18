@@ -74,6 +74,7 @@ function prioritizeUnused(entries: MediaListEntry[], recentIds: number[]): Media
 
 export class GameEngine {
   // Filter entries based on difficulty setting and content filter
+  // Easy = most popular (well-known), Hard = least popular (niche/obscure)
   static filterEntriesByDifficulty(
     entries: MediaListEntry[], 
     difficulty: 'easy' | 'medium' | 'hard' | 'mixed',
@@ -87,35 +88,26 @@ export class GameEngine {
     
     if (difficulty === 'mixed') return safeEntries;
     
-    const now = new Date();
+    // Sort purely by popularity descending (higher = more well-known = easier)
     const sortedEntries = [...safeEntries].sort((a, b) => {
-      // Calculate "obscurity" score based on popularity and recency
-      const aPopularity = a.media?.popularity || 0;
-      const bPopularity = b.media?.popularity || 0;
-      const aYear = a.media?.startDate?.year || 2000;
-      const bYear = b.media?.startDate?.year || 2000;
-      const currentYear = now.getFullYear();
-      
-      // Combine popularity and recency into a single score
-      // Higher score = more popular/recent (easier)
-      const aScore = (aPopularity / 100000) + ((aYear - 1990) / (currentYear - 1990));
-      const bScore = (bPopularity / 100000) + ((bYear - 1990) / (currentYear - 1990));
-      
-      return bScore - aScore; // Sort by easiest first
+      const aPop = a.media?.popularity || 0;
+      const bPop = b.media?.popularity || 0;
+      return bPop - aPop;
     });
     
-    const totalEntries = sortedEntries.length;
+    const total = sortedEntries.length;
+    if (total === 0) return [];
     
     switch (difficulty) {
       case 'easy':
-        // Top 40% most popular/recent
-        return sortedEntries.slice(0, Math.ceil(totalEntries * 0.4));
+        // Top 40% most popular
+        return sortedEntries.slice(0, Math.ceil(total * 0.4));
       case 'medium':
-        // Middle 40%
-        return sortedEntries.slice(Math.ceil(totalEntries * 0.2), Math.ceil(totalEntries * 0.8));
+        // Middle 40% (20th-80th percentile)
+        return sortedEntries.slice(Math.ceil(total * 0.2), Math.ceil(total * 0.8));
       case 'hard':
-        // Bottom 40%
-        return sortedEntries.slice(Math.floor(totalEntries * 0.6));
+        // Bottom 40% least popular (niche/obscure)
+        return sortedEntries.slice(Math.floor(total * 0.6));
       default:
         return sortedEntries;
     }
@@ -488,7 +480,7 @@ export class GameEngine {
         media,
         difficulty,
         question: `In which season did "${media.title.userPreferred || media.title.romaji}" ${media.type === 'ANIME' ? 'air' : 'start'}?`,
-        options: Array.from(seasonOptions).sort(() => Math.random() - 0.5),
+        options: shuffleArray(Array.from(seasonOptions)),
         correctAnswer: seasonStr,
         hints: [
           `Format: ${media.format}`,
@@ -609,17 +601,20 @@ export class GameEngine {
 
   private static calculateDifficulty(entry: MediaListEntry): 'EASY' | 'MEDIUM' | 'HARD' {
     if (!entry.media) return 'MEDIUM';
-    
+
     const media = entry.media;
     const popularity = media.popularity || 0;
-    const meanScore = media.meanScore || 0;
-    
-    // Easy: Popular, well-known anime
-    if (popularity > 50000 && meanScore > 7) return 'EASY';
-    
-    // Hard: Niche, less popular anime
-    if (popularity < 5000 || meanScore < 6) return 'HARD';
-    
+
+    // Pure popularity-based difficulty (aligned with filterEntriesByDifficulty)
+    // AniList popularity reference (member count):
+    //   200,000+ = mega hits (Attack on Titan, Death Note)
+    //   100,000-200,000 = very popular (Demon Slayer, JJK)
+    //   50,000-100,000 = popular (well-known seasonal)
+    //   20,000-50,000 = moderate (seasonal watchers know it)
+    //   10,000-20,000 = niche (dedicated fans)
+    //   <10,000 = obscure
+    if (popularity > 100000) return 'EASY';
+    if (popularity < 20000) return 'HARD';
     return 'MEDIUM';
   }
 
@@ -627,19 +622,18 @@ export class GameEngine {
     const options = [correctMedia.title.romaji || correctMedia.title.english || ''];
     
     // Add 3 random incorrect options
-    const incorrectEntries = allEntries
-      .filter(e => e.media && e.media.id !== correctMedia.id)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
-    
+    const incorrectEntries = shuffleArray(
+      allEntries.filter(e => e.media && e.media.id !== correctMedia.id)
+    ).slice(0, 3);
+
     incorrectEntries.forEach(entry => {
       if (entry.media) {
         options.push(entry.media.title.romaji || entry.media.title.english || '');
       }
     });
-    
+
     // Shuffle options
-    return options.sort(() => Math.random() - 0.5);
+    return shuffleArray(options);
   }
 
   // Helper to check if two titles are likely related (same franchise/different seasons)
@@ -704,15 +698,14 @@ export class GameEngine {
     }
     
     // Add 3 random incorrect options, excluding related series
-    const incorrectEntries = allEntries
-      .filter(e => {
+    const incorrectEntries = shuffleArray(
+      allEntries.filter(e => {
         if (!e.media || e.media.id === correctMedia.id) return false;
         // Filter out related series (sequels, prequels, different seasons)
         const entryTitle = e.media.title.romaji || e.media.title.english || '';
         return !this.areTitlesRelated(correctTitle, entryTitle);
       })
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
+    ).slice(0, 3);
     
     incorrectEntries.forEach(entry => {
       if (entry.media) {
@@ -733,7 +726,7 @@ export class GameEngine {
     });
     
     // Shuffle options (but keep the image mapping intact)
-    const shuffledOptions = options.sort(() => Math.random() - 0.5);
+    const shuffledOptions = shuffleArray(options);
     return { options: shuffledOptions, optionImages };
   }
 
@@ -821,43 +814,41 @@ export class GameEngine {
   }
 
   private static getScoreRange(score: number): string {
-    if (score <= 2) return '1-2';
-    if (score <= 4) return '3-4';
-    if (score <= 6) return '5-6';
-    if (score <= 8) return '7-8';
+    // Round to nearest integer so decimal scores (e.g., 8.6 from POINT_10_DECIMAL) bucket correctly
+    const rounded = Math.round(score);
+    if (rounded <= 2) return '1-2';
+    if (rounded <= 4) return '3-4';
+    if (rounded <= 6) return '5-6';
+    if (rounded <= 8) return '7-8';
     return '9-10';
   }
 
   // ============ NEW GAMES ============
 
-  // Common fake tags that sound plausible but aren't real AniList tags
-  private static readonly FAKE_TAGS = [
-    'Time Loop', 'Time Skip', 'Memory Loss', 'Dream World', 'Parallel World',
-    'Power Awakening', 'Hidden Power', 'Sealed Power', 'Power Transfer',
-    'School Battle', 'School Mystery', 'School Sports', 'School Music',
-    'Dark Fantasy', 'Light Fantasy', 'Urban Fantasy', 'Modern Fantasy',
-    'Cyberpunk', 'Steampunk', 'Dieselpunk', 'Solarpunk',
-    'Revenge Plot', 'Rescue Arc', 'Training Arc', 'Tournament Arc',
-    'Childhood Promise', 'Lost Sibling', 'Secret Identity', 'Double Life',
-    'Monster Hunter', 'Demon Hunter', 'Vampire Hunter', 'Ghost Hunter',
-    'Virtual World', 'Digital World', 'Game World', 'Fantasy World',
-    'Ancient Prophecy', 'Chosen One', 'Destined Hero', 'Reluctant Hero',
-    'Magic School', 'Combat School', 'Spy School', 'Monster School',
-    'Alien Invasion', 'Robot Uprising', 'Zombie Outbreak', 'Demon Invasion',
-    'Love Polygon', 'Forbidden Love', 'First Love', 'Unrequited Love',
-    'Coming of Age', 'Self Discovery', 'Personal Growth', 'Identity Crisis',
-  ];
-
   /**
-   * Tag or Cap? - Show anime + 3 tags, guess which is real or fake
+   * Tag or Cap? - Show anime + 3 tags, guess which one it actually has.
+   * Uses real AniList tags from OTHER anime in the pool as decoys,
+   * so decoys are always genuine tags the target anime does NOT have.
    */
   static generateTagOrCapQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
     const prioritized = prioritizeUnused(entries, recentIds);
-    
-    // Filter entries that have tags
-    const withTags = prioritized.filter(e => e.media?.tags && e.media.tags.length >= 2);
+
+    // Build pool of all tags from all entries (genuine AniList tags)
+    const allTagNames = new Set<string>();
+    for (const e of entries) {
+      if (e.media?.tags) {
+        for (const t of e.media.tags) {
+          if (t.name) allTagNames.add(t.name);
+        }
+      }
+    }
+    const allTags = Array.from(allTagNames);
+    if (allTags.length < 3) return [];
+
+    // Filter entries that have at least 1 real tag
+    const withTags = prioritized.filter(e => e.media?.tags && e.media.tags.length >= 1);
     const shuffled = shuffleArray(withTags);
     const usedIds: number[] = [];
 
@@ -867,24 +858,21 @@ export class GameEngine {
 
       const media = entry.media;
       const realTags = media.tags?.map(t => t.name) || [];
-      if (realTags.length < 2) continue;
+      if (realTags.length < 1) continue;
 
-      // Pick 1 real tag for the answer
-      const shuffledReal = shuffleArray(realTags);
-      const realTag = shuffledReal[0];
+      // Pick 1 real tag
+      const realTag = shuffleArray(realTags)[0];
 
-      // Pick 1 fake tag that's NOT in real tags
-      const availableFakes = this.FAKE_TAGS.filter(f => !realTags.includes(f));
-      const fakeTag = shuffleArray(availableFakes)[0];
+      // Build decoy pool: real AniList tags from other anime that THIS anime doesn't have
+      const decoyPool = allTags.filter(t => !realTags.includes(t));
+      if (decoyPool.length < 2) continue;
 
-      // Pick 1 more fake tag for the third option
-      const remainingFakes = availableFakes.filter(f => f !== fakeTag);
-      const secondFake = shuffleArray(remainingFakes)[0];
+      // Pick 2 decoys
+      const shuffledDecoys = shuffleArray(decoyPool);
+      const decoy1 = shuffledDecoys[0];
+      const decoy2 = shuffledDecoys[1];
 
-      // 50% chance: "Which tag is FAKE?" vs "Which tag is REAL?"
-      const askForFake = Math.random() > 0.5;
-      const options = shuffleArray([realTag, fakeTag, secondFake]);
-      const correctAnswer = askForFake ? fakeTag : realTag;
+      const options = shuffleArray([realTag, decoy1, decoy2]);
 
       const title = media.title.english || media.title.romaji || 'Unknown';
 
@@ -892,10 +880,8 @@ export class GameEngine {
         id: `tag-${media.id}-${questions.length}`,
         type: 'TAG_OR_CAP',
         difficulty: 'MEDIUM',
-        question: askForFake 
-          ? `Which tag is FAKE for "${title}"?`
-          : `Which tag is REAL for "${title}"?`,
-        correctAnswer,
+        question: `Which tag is REAL for "${title}"?`,
+        correctAnswer: realTag,
         options,
         media,
         timeLimit: 15,
@@ -911,50 +897,111 @@ export class GameEngine {
   }
 
   /**
-   * Popularity Battle - Two titles, which is more popular? (Endless potential)
+   * Popularity Battle - Two titles, which is more popular?
+   * Easy mode: pairs with large popularity gaps (obvious)
+   * Hard mode: pairs with small popularity gaps (hard to tell)
    */
-  static generatePopularityBattleQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
+  static generatePopularityBattleQuestions(
+    entries: MediaListEntry[],
+    count: number,
+    difficulty: 'easy' | 'medium' | 'hard' | 'mixed' = 'medium'
+  ): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
     const prioritized = prioritizeUnused(entries, recentIds);
-    
+
     // Need entries with popularity data
     const withPopularity = prioritized.filter(e => e.media?.popularity && e.media.popularity > 0);
-    const shuffled = shuffleArray(withPopularity);
+    if (withPopularity.length < 2) return [];
+
+    // Sort by popularity descending for controlled pairing
+    const sorted = [...withPopularity].sort((a, b) => (b.media?.popularity || 0) - (a.media?.popularity || 0));
     const usedIds: number[] = [];
 
-    for (let i = 0; i < shuffled.length - 1 && questions.length < count; i += 2) {
-      const entry1 = shuffled[i];
-      const entry2 = shuffled[i + 1];
-      
+    // Build candidate pairs based on difficulty
+    const candidates: Array<[MediaListEntry, MediaListEntry]> = [];
+
+    if (difficulty === 'easy') {
+      // Easy: pair far apart (large gap = obvious)
+      // Pair top with bottom halves
+      const half = Math.floor(sorted.length / 2);
+      for (let i = 0; i < half && i + half < sorted.length; i++) {
+        candidates.push([sorted[i], sorted[i + half]]);
+      }
+    } else if (difficulty === 'hard') {
+      // Hard: pair close in popularity (small gap = tricky)
+      // Find adjacent pairs with small relative difference
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const m1 = sorted[i].media!;
+        const m2 = sorted[i + 1].media!;
+        const avg = (m1.popularity + m2.popularity) / 2;
+        const relDiff = avg > 0 ? Math.abs(m1.popularity - m2.popularity) / avg : 1;
+        // Prefer pairs within 40% relative difference
+        if (relDiff < 0.4) {
+          candidates.push([sorted[i], sorted[i + 1]]);
+        }
+      }
+      // If not enough close pairs, fall back to any consecutive
+      if (candidates.length < count) {
+        for (let i = 0; i < sorted.length - 1 && candidates.length < count * 2; i++) {
+          if (!candidates.some(([a, b]) =>
+            (a.media?.id === sorted[i].media?.id && b.media?.id === sorted[i + 1].media?.id) ||
+            (a.media?.id === sorted[i + 1].media?.id && b.media?.id === sorted[i].media?.id)
+          )) {
+            candidates.push([sorted[i], sorted[i + 1]]);
+          }
+        }
+      }
+    } else {
+      // Medium / mixed: moderate gaps
+      // Pair items spaced ~25% apart in the sorted list
+      const step = Math.max(1, Math.floor(sorted.length / 4));
+      for (let i = 0; i < sorted.length - step && candidates.length < count * 2; i++) {
+        candidates.push([sorted[i], sorted[i + step]]);
+      }
+    }
+
+    // Shuffle candidates so order isn't predictable
+    const shuffledCandidates = shuffleArray(candidates);
+
+    for (const [entry1, entry2] of shuffledCandidates) {
+      if (questions.length >= count) break;
       if (!entry1?.media || !entry2?.media) continue;
       if (isMediaUsedInSession(entry1.media.id) || isMediaUsedInSession(entry2.media.id)) continue;
 
       const media1 = entry1.media;
       const media2 = entry2.media;
 
-      // Skip if popularity is too similar (within 10%)
-      const popDiff = Math.abs(media1.popularity - media2.popularity);
-      const avgPop = (media1.popularity + media2.popularity) / 2;
-      if (popDiff / avgPop < 0.1) continue;
-
       const title1 = media1.title.english || media1.title.romaji || 'Unknown';
       const title2 = media2.title.english || media2.title.romaji || 'Unknown';
       const morePopular = media1.popularity > media2.popularity ? title1 : title2;
 
+      // Determine actual difficulty based on gap
+      const avgPop = (media1.popularity + media2.popularity) / 2;
+      const relDiff = avgPop > 0 ? Math.abs(media1.popularity - media2.popularity) / avgPop : 1;
+      const actualDifficulty: 'EASY' | 'MEDIUM' | 'HARD' =
+        relDiff > 0.6 ? 'EASY' : relDiff < 0.25 ? 'HARD' : 'MEDIUM';
+
+      // Robust image fallback chain
+      const getCover = (m: Media) =>
+        m.coverImage?.extraLarge || m.coverImage?.large || m.coverImage?.medium || '';
+
+      // Shuffle options so the correct answer isn't always on the left
+      const options = Math.random() < 0.5 ? [title1, title2] : [title2, title1];
+
       questions.push({
         id: `pop-${media1.id}-${media2.id}`,
         type: 'POPULARITY_BATTLE',
-        difficulty: 'EASY',
+        difficulty: actualDifficulty,
         question: 'Which title is MORE POPULAR on AniList?',
         correctAnswer: morePopular,
-        options: [title1, title2],
+        options,
         media: media1.popularity > media2.popularity ? media1 : media2,
-        timeLimit: 10,
-        points: 100,
+        timeLimit: actualDifficulty === 'EASY' ? 8 : actualDifficulty === 'HARD' ? 15 : 10,
+        points: actualDifficulty === 'EASY' ? 50 : actualDifficulty === 'HARD' ? 150 : 100,
         optionImages: {
-          [title1]: media1.coverImage?.medium || '',
-          [title2]: media2.coverImage?.medium || '',
+          [title1]: getCover(media1),
+          [title2]: getCover(media2),
         },
       });
 
@@ -996,13 +1043,16 @@ export class GameEngine {
       const title2 = media2.title.english || media2.title.romaji || 'Unknown';
       const higherRated = entry1.score! > entry2.score! ? title1 : title2;
 
+      // Randomize option order so the correct answer isn't always in a fixed position
+      const options = Math.random() < 0.5 ? [title1, title2] : [title2, title1];
+
       questions.push({
         id: `taste-${media1.id}-${media2.id}`,
         type: 'TASTE_CONSISTENCY',
         difficulty: 'MEDIUM',
         question: 'Which title did YOU rate higher?',
         correctAnswer: higherRated,
-        options: [title1, title2],
+        options,
         media: entry1.score! > entry2.score! ? media1 : media2,
         timeLimit: 10,
         points: 100,
@@ -1084,20 +1134,27 @@ export class GameEngine {
 
   /**
    * VA Connection - Do two characters share the same voice actor? Yes/No
+   * Stores VA names in themeData for reveal after guessing.
+   * Hint names one VA (not both) to jog memory without fully giving away the answer.
    */
   static generateVAConnectionQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
     const questions: GameQuestion[] = [];
     const recentIds = getRecentlyUsedIds();
-    
-    // Build a map of VA name -> list of characters they voiced
+
+    // Build a map of VA name -> list of characters they voiced (with deduped char names)
     const vaToCharacters = new Map<string, Array<{ charName: string; charImage: string; animeName: string; animeId: number }>>();
-    
+    const seenCharKeys = new Set<string>();
+
     entries.forEach(e => {
       if (!e.media?.characters?.edges) return;
       e.media.characters.edges.forEach(edge => {
         edge.voiceActors?.forEach(va => {
           if (!va.name?.full) return;
           const vaName = va.name.full;
+          const charKey = `${vaName}|${edge.node.name.full}`;
+          if (seenCharKeys.has(charKey)) return;
+          seenCharKeys.add(charKey);
+
           if (!vaToCharacters.has(vaName)) {
             vaToCharacters.set(vaName, []);
           }
@@ -1127,14 +1184,17 @@ export class GameEngine {
         // Pick 2 characters from the same VA
         const va = shuffledVAs[i % shuffledVAs.length];
         if (va.chars.length < 2) continue;
-        
+
         const shuffledChars = shuffleArray(va.chars);
         const char1 = shuffledChars[0];
         const char2 = shuffledChars[1];
-        
+
         const pairKey = [char1.charName, char2.charName].sort().join('|');
         if (usedPairs.has(pairKey)) continue;
         usedPairs.add(pairKey);
+
+        // Hint: name the VA (gives away that they share it, but user asked for this)
+        const hintVa = va.vaName;
 
         questions.push({
           id: `va-${char1.animeId}-${char2.animeId}-${questions.length}`,
@@ -1149,22 +1209,31 @@ export class GameEngine {
             [char1.charName]: char1.charImage,
             [char2.charName]: char2.charImage,
           },
-          hints: [`${char1.animeName}`, `${char2.animeName}`],
+          hints: [`Voice Actor: ${hintVa}`],
+          themeData: {
+            va1: va.vaName,
+            va2: va.vaName,
+            char1: char1.charName,
+            char2: char2.charName,
+          },
         });
       } else {
         // Pick 2 characters from different VAs
         if (shuffledVAs.length < 2) continue;
-        
+
         const va1 = shuffledVAs[i % shuffledVAs.length];
         const va2 = shuffledVAs[(i + 1) % shuffledVAs.length];
         if (va1.vaName === va2.vaName) continue;
-        
+
         const char1 = va1.chars[0];
         const char2 = va2.chars[0];
-        
+
         const pairKey = [char1.charName, char2.charName].sort().join('|');
         if (usedPairs.has(pairKey)) continue;
         usedPairs.add(pairKey);
+
+        // Hint: name one of the VAs
+        const hintVa = Math.random() > 0.5 ? va1.vaName : va2.vaName;
 
         questions.push({
           id: `va-${char1.animeId}-${char2.animeId}-${questions.length}`,
@@ -1179,7 +1248,13 @@ export class GameEngine {
             [char1.charName]: char1.charImage,
             [char2.charName]: char2.charImage,
           },
-          hints: [`${char1.animeName}`, `${char2.animeName}`],
+          hints: [`Voice Actor: ${hintVa}`],
+          themeData: {
+            va1: va1.vaName,
+            va2: va2.vaName,
+            char1: char1.charName,
+            char2: char2.charName,
+          },
         });
       }
     }
@@ -1257,8 +1332,8 @@ export class GameEngine {
         timeLimit: 15,
         points: 100,
         optionImages: {
-          [sourceTitle]: pair.source.coverImage?.medium || '',
-          [pair.target.title]: pair.target.coverImage,
+          [sourceTitle]: pair.source.coverImage?.medium || pair.source.coverImage?.large || '',
+          [pair.target.title]: pair.target.coverImage || '',
         },
       });
     }
@@ -1271,23 +1346,49 @@ export class GameEngine {
    */
   static generateScoreLadderQuestions(entries: MediaListEntry[], count: number): GameQuestion[] {
     const questions: GameQuestion[] = [];
-    
+
     // Only include entries with scores
     const withScores = entries.filter(e => e.score && e.score > 0 && e.media);
     if (withScores.length < 5) return questions;
 
     const shuffled = shuffleArray(withScores);
+    let cursor = 0;
+    let attempts = 0;
+    const maxAttempts = shuffled.length * 2;
 
-    for (let i = 0; i < count && i * 5 + 4 < shuffled.length; i++) {
-      // Take 5 consecutive entries
-      const batch = shuffled.slice(i * 5, i * 5 + 5);
-      
-      // Sort by score descending to get correct order
+    while (questions.length < count && attempts < maxAttempts) {
+      attempts++;
+
+      // Take 5 entries; reshuffle if we run out
+      if (cursor + 5 > shuffled.length) {
+        const reshuffled = shuffleArray(shuffled);
+        shuffled.length = 0;
+        shuffled.push(...reshuffled);
+        cursor = 0;
+      }
+
+      const batch = shuffled.slice(cursor, cursor + 5);
+      cursor += 5;
+
+      // Sort by score descending
       const sorted = [...batch].sort((a, b) => (b.score || 0) - (a.score || 0));
+      const topScore = sorted[0].score || 0;
+
+      // Skip batches where top score is tied (ambiguous correct answer)
+      if (sorted[1] && (sorted[1].score || 0) === topScore) {
+        continue;
+      }
+
       const highestTitle = sorted[0].media!.title.english || sorted[0].media!.title.romaji || 'Unknown';
-      
+
       // Ask which one was rated highest
       const titles = batch.map(e => e.media!.title.english || e.media!.title.romaji || 'Unknown');
+
+      // Skip if any title is duplicated (rare but would be confusing)
+      if (new Set(titles).size !== titles.length) {
+        continue;
+      }
+
       const optionImages: Record<string, string> = {};
       batch.forEach(e => {
         const title = e.media!.title.english || e.media!.title.romaji || 'Unknown';

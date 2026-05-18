@@ -102,27 +102,27 @@ export function GameSettingsModal({
   if (maxQuestions > 25) questionOptions.push(maxQuestions);
 
   const difficultyOptions = [
-    { 
-      id: 'easy', 
-      label: 'Easy', 
-      description: 'Recent & popular titles you know well',
+    {
+      id: 'easy',
+      label: 'Easy',
+      description: 'Popular, well-known titles (high AniList popularity)',
       color: 'bg-green-500/20 text-green-400 border-green-500/30'
     },
-    { 
-      id: 'medium', 
-      label: 'Medium', 
-      description: 'Mix of familiar and challenging',
+    {
+      id: 'medium',
+      label: 'Medium',
+      description: 'Moderately popular titles (mid-tier AniList popularity)',
       color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
     },
-    { 
-      id: 'hard', 
-      label: 'Hard', 
-      description: 'Older, obscure, or less popular titles',
+    {
+      id: 'hard',
+      label: 'Hard',
+      description: 'Niche, obscure, or less popular titles (low AniList popularity)',
       color: 'bg-red-500/20 text-red-400 border-red-500/30'
     },
-    { 
-      id: 'mixed', 
-      label: 'Mixed', 
+    {
+      id: 'mixed',
+      label: 'Mixed',
       description: 'Random difficulty for each question',
       color: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
     },

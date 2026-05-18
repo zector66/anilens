@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MediaListEntry } from '@/types/anilist';
-import { Trophy, Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
+import { Swords, Play, Pause, Volume2, Music, Tv, BookOpen, Heart } from 'lucide-react';
 import { getAnimeThemes, getThemeAudioUrl } from '@/lib/animethemes';
 import { BracketResults } from './bracket-results';
 import { submitBracketResults, EntityType } from '@/hooks/use-bracket-leaderboards';
@@ -84,28 +84,19 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
     const entityType = getEntityType();
     if (!entityType) return;
     
-    // Only submit for brackets with 8+ entries (reduced from 16 for testing)
+    // Only submit for brackets with 8+ entries
     if (items.length < 8) {
-      console.log('Bracket too small for stats tracking:', items.length);
       return;
     }
 
     try {
-      console.log('Submitting bracket stats:', {
-        runId,
-        entityType,
-        bracketSize: items.length,
-        matchesCount: matchHistory.length,
-        championId,
-      });
-
       const matches = matchHistory.map(m => ({
         entityType,
         winnerId: m.winner.id,
         loserId: m.loser.id,
       }));
 
-      const result = await submitBracketResults({
+      await submitBracketResults({
         runId,
         bracketType: entityType,
         bracketSize: items.length,
@@ -114,23 +105,11 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
       });
 
       setStatsSubmitted(true);
-      console.log('Bracket stats submitted successfully:', result);
     } catch (error) {
       console.error('Failed to submit bracket stats:', error);
       // Maybe show a toast or notification here in the future
     }
   }, [statsSubmitted, runId, getEntityType, items.length, matchHistory]);
-
-  // Debug state changes
-  console.log('BracketBattle state:', { 
-    isInitializing, 
-    isReady, 
-    hasItems: items.length > 0, 
-    hasCurrentRound: !!currentRound, 
-    hasWinner: !!winner, 
-    hasError: !!initError,
-    itemsLength: items.length 
-  });
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -294,6 +273,12 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         return;
       }
 
+      console.log('[BracketBattle] Initialized:', {
+        requestedSize: bracketSize,
+        actualSize: finalItems.length,
+        items: finalItems.map(i => ({ id: i.id, title: i.title })),
+      });
+      
       setItems(finalItems);
       setIsReady(true);
       setIsInitializing(false);
@@ -305,19 +290,14 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }, [entries, battleType, bracketSize]);
 
   const startBattle = () => {
-    console.log('startBattle called', { itemsLength: items.length, isReady, currentRound });
     if (!items.length) {
-      console.log('No items available, cannot start battle');
       return;
     }
-    
-    console.log('Creating first round with', items.length, 'items');
     
     // Generate a unique run ID for this bracket session
     const newRunId = crypto.randomUUID();
     setRunId(newRunId);
     setStatsSubmitted(false);
-    console.log('Generated bracket runId:', newRunId);
     
     // Create first round
     const matches: [BattleItem, BattleItem][] = [];
@@ -326,8 +306,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         matches.push([items[i], items[i + 1]]);
       }
     }
-    
-    console.log('Created', matches.length, 'matches');
     
     setCurrentRound({ matches, winners: [] });
     setMatchIndex(0);
@@ -434,7 +412,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   };
 
   if (isInitializing) {
-    console.log('Rendering initializing screen');
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -448,7 +425,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (initError) {
-    console.log('Rendering error screen:', initError);
     return (
       <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
         <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-6">
@@ -474,7 +450,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (isReady && !currentRound) {
-    console.log('Rendering ready screen', { itemsLength: items.length, isReady, currentRound, battleType });
     return (
       <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
         <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
@@ -514,7 +489,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         
         <button
           onClick={(e) => {
-            console.log('Button clicked!');
             e.preventDefault();
             startBattle();
           }}
@@ -528,10 +502,8 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
   }
 
   if (showResults && winner) {
-    console.log('Rendering results screen with analysis');
-    
     // Convert BattleItems to BracketResults format
-    const bracketResults = items.map((item, index) => {
+    const bracketResults = items.map((item) => {
       // Determine how far each item got
       const wonMatches = matchHistory.filter(m => m.winner.id === item.id).length;
       const isWinner = item.id === winner.id;
@@ -542,6 +514,18 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
         image: item.image,
         round: isWinner ? roundNumber + 1 : wonMatches + 1,
       };
+    });
+    
+    // DEBUG: Log bracket results for diagnosis
+    console.log('[BracketBattle] Results computed:', {
+      itemsCount: items.length,
+      itemIds: items.map(i => i.id),
+      itemTitles: items.map(i => i.title),
+      winner: { id: winner.id, title: winner.title },
+      roundNumber,
+      matchHistoryCount: matchHistory.length,
+      matchHistory: matchHistory.map(m => ({ round: m.round, winner: m.winner.title, loser: m.loser.title })),
+      bracketResults: bracketResults.map(r => ({ id: r.id, title: r.title, round: r.round })),
     });
     
     return (
@@ -575,8 +559,6 @@ export function BracketBattle({ entries, onComplete, onBack, battleType, bracket
 
   const currentMatch = currentRound.matches[matchIndex];
   const remaining = currentRound.matches.length * 2 - currentRound.winners.length;
-
-  console.log('Rendering battle screen', { currentMatch: currentMatch[0]?.title, remaining, matchIndex });
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

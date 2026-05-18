@@ -167,14 +167,13 @@ export function UltimateTraitExplainabilityDrawer({
   accuracyProfile,
   onClose 
 }: UltimateTraitExplainabilityDrawerProps) {
-  // Scroll to top when drawer opens
+  // Lock body scroll when drawer opens
   useEffect(() => {
     if (trait) {
-      window.scrollTo(0, 0);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
   }, [trait]);
 
@@ -205,17 +204,18 @@ export function UltimateTraitExplainabilityDrawer({
   } : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div 
+    <div className="fixed inset-0 z-50 flex items-center justify-center h-dvh touch-none">
+      {/* Backdrop - prevents touch events passing through to page */}
+      <div
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
       />
-      
+
       {/* Drawer */}
-      <div className="relative w-full max-w-3xl max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-3xl max-h-[85dvh] bg-linear-to-br from-gray-900 to-gray-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className={`sticky top-0 z-10 bg-gradient-to-r ${CHANNEL_COLORS[trait.channel as keyof typeof CHANNEL_COLORS] || 'from-purple-500/10 to-blue-500/10'} border-b border-white/10 p-6`}>
+        <div className={`sticky top-0 z-10 bg-linear-to-r ${CHANNEL_COLORS[trait.channel as keyof typeof CHANNEL_COLORS] || 'from-purple-500/10 to-blue-500/10'} border-b border-white/10 p-6`}>
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -315,7 +315,7 @@ export function UltimateTraitExplainabilityDrawer({
 
           {/* Population Context */}
           {populationContext && (
-            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+            <div className="p-4 rounded-xl bg-linear-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
               <div className="flex items-center gap-3 mb-3">
                 <Users className="w-5 h-5 text-blue-400" />
                 <h3 className="text-white font-semibold">Population Context</h3>
@@ -369,7 +369,7 @@ export function UltimateTraitExplainabilityDrawer({
 
           {/* Ultimate Accuracy Confidence */}
           {accuracyContext && (
-            <div className="p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+            <div className="p-4 rounded-xl bg-linear-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
               <div className="flex items-center gap-3 mb-3">
                 <Target className="w-5 h-5 text-green-400" />
                 <h3 className="text-white font-semibold">Ultimate Accuracy Analysis</h3>
@@ -408,7 +408,7 @@ export function UltimateTraitExplainabilityDrawer({
 
           {/* Distinctiveness */}
           {trait.globalFrequency !== undefined && (
-            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+            <div className="p-4 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
               <div className="flex items-center gap-3 mb-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 <h3 className="text-white font-semibold">Distinctiveness</h3>

@@ -15,6 +15,7 @@
  */
 
 import type { TraitScore, TraitProfile } from './trait-scoring-engine';
+import type { MediaListEntry } from '@/types/anilist';
 
 // ============================================================================
 // TYPES
@@ -559,7 +560,7 @@ export function generateTraitExplanation(
 
 export function generateProfileExplanation(
   profile: TraitProfile,
-  options: { maxTraits?: number } = {}
+  options: { maxTraits?: number; entries?: MediaListEntry[] } = {}
 ): ProfileExplanation {
   const maxTraits = options.maxTraits || 10;
   
@@ -635,21 +636,40 @@ export function generateProfileExplanation(
     }
   }
   
+  // Calculate actual date range from entries if available
+  const entries = options.entries || [];
+  const years = entries
+    .map(e => e.media?.startDate?.year)
+    .filter((y): y is number => y !== undefined && y !== null);
+  const oldestYear = years.length > 0 ? Math.min(...years) : undefined;
+  const newestYear = years.length > 0 ? Math.max(...years) : undefined;
+  
+  // Calculate actual rated shows count
+  const ratedCount = entries.filter(e => e.score && e.score > 0).length;
+  
+  // Calculate actual average tags per show
+  const totalTags = entries.reduce((sum, e) => {
+    const tagCount = (e.media?.tags?.length || 0) + (e.media?.genres?.length || 0);
+    return sum + tagCount;
+  }, 0);
+  const avgTags = entries.length > 0 ? Math.round((totalTags / entries.length) * 10) / 10 : 0;
+  
   // Overall data quality
   const overallDataQuality: OverallDataQuality = {
     score: Math.round(avgQuality),
     level: overallLevel,
     totalShows: profile.totalMediaCount,
-    ratedShows: allTraits.filter(t => t.enjoymentScore !== undefined).length > 0 
-      ? Math.round(profile.totalMediaCount * 0.8) // Estimate
-      : 0,
-    avgTagsPerShow: 12, // Estimate
-    dateRange: { oldest: '2020', newest: '2024' }, // TODO: Calculate from actual data
+    ratedShows: ratedCount,
+    avgTagsPerShow: avgTags || 0,
+    dateRange: { 
+      oldest: oldestYear?.toString() || 'Unknown', 
+      newest: newestYear?.toString() || 'Unknown' 
+    },
     breakdown: {
-      completeness: 0.85,
-      consistency: 0.75,
-      recency: 0.8,
-      diversity: 0.7,
+      completeness: Math.min(1, profile.totalMediaCount / 50),
+      consistency: ratedCount > 0 ? Math.min(1, ratedCount / profile.totalMediaCount) : 0,
+      recency: newestYear ? Math.min(1, (newestYear - (oldestYear || newestYear) + 1) / 20) : 0.5,
+      diversity: Math.min(1, (avgTags || 5) / 15),
     },
     recommendations: [],
   };

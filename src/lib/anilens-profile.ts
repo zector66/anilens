@@ -78,7 +78,7 @@ export interface UserAchievement {
 }
 
 export interface UserSettings {
-  user_id: number;
+  anilist_id: number;
   content_filter: {
     hideAdult: boolean;
     hideEcchi: boolean;
@@ -394,7 +394,7 @@ export async function getUserSettings(anilistId: number): Promise<UserSettings |
     const { data, error } = await supabase
       .from('user_settings')
       .select('*')
-      .eq('user_id', anilistId)
+      .eq('anilist_id', anilistId)
       .single();
 
     if (error) {
@@ -426,10 +426,10 @@ export async function updateUserSettings(
     const { data, error } = await supabase
       .from('user_settings')
       .upsert({
-        user_id: anilistId,
+        anilist_id: anilistId,
         ...settings,
       }, {
-        onConflict: 'user_id',
+        onConflict: 'anilist_id',
       })
       .select()
       .single();

@@ -75,7 +75,7 @@ export async function loadContentFilterFromSupabase(userId: number): Promise<Con
     const { data, error } = await supabase
       .from('user_settings')
       .select('content_filter')
-      .eq('user_id', userId)
+      .eq('anilist_id', userId)
       .single();
     
     if (error) {
@@ -107,11 +107,11 @@ export async function saveContentFilterToSupabase(
     const { error } = await supabase
       .from('user_settings')
       .upsert({
-        user_id: userId,
+        anilist_id: userId,
         content_filter: settings,
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: 'user_id',
+        onConflict: 'anilist_id',
       });
     
     if (error) throw error;

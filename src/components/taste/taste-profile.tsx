@@ -71,6 +71,22 @@ const COLORS = ['#a855f7', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'
 
 const ALL_STATUSES = ['COMPLETED', 'CURRENT', 'REPEATING', 'PAUSED', 'DROPPED', 'PLANNING'] as const;
 
+function getCurrentSeasonName(): string {
+  const month = new Date().getMonth() + 1; // 1-12
+  if (month <= 3) return 'Winter';
+  if (month <= 6) return 'Spring';
+  if (month <= 9) return 'Summer';
+  return 'Fall';
+}
+
+function getCurrentSeasonMonths(): [number, number] {
+  const month = new Date().getMonth() + 1;
+  if (month <= 3) return [1, 3];
+  if (month <= 6) return [4, 6];
+  if (month <= 9) return [7, 9];
+  return [10, 12];
+}
+
 interface TasteProfileProps {
   userId?: number;
 }
@@ -139,6 +155,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
   const effectiveUserId = userId || user?.id || 0;
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [forceRefreshKey, setForceRefreshKey] = useState(0);
   
   // Force refresh all caches - nuclear option
   const handleForceRefresh = async () => {
@@ -165,9 +182,13 @@ export function TasteProfile({ userId }: TasteProfileProps) {
         console.warn('Failed to clear Supabase cache:', e);
       }
       
-      // 4. Force refetch
-      await queryClient.refetchQueries({ queryKey: ['animeList', effectiveUserId] });
-      await queryClient.refetchQueries({ queryKey: ['mangaList', effectiveUserId] });
+      // 4. Bust server-side AniList cache by incrementing force refresh key
+      // This changes the query key and causes the hooks to refetch with forceRefresh=true
+      setForceRefreshKey(prev => prev + 1);
+      
+      // 5. Force refetch with new key
+      await queryClient.refetchQueries({ queryKey: ['animeList', 'v2', effectiveUserId] });
+      await queryClient.refetchQueries({ queryKey: ['mangaList', 'v2', effectiveUserId] });
       
       console.log('[TasteProfile] Force refresh completed');
     } catch (err) {
@@ -177,8 +198,8 @@ export function TasteProfile({ userId }: TasteProfileProps) {
     }
   };
   
-  const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
-  const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
+  const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId, { forceRefresh: forceRefreshKey > 0 });
+  const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId, { forceRefresh: forceRefreshKey > 0 });
   const { data: favorites, isLoading: isLoadingFavorites } = useFavorites(effectiveUserId);
   const { data: userStats, isLoading: isLoadingStats } = useUserStats(effectiveUserId);
 
@@ -449,12 +470,22 @@ export function TasteProfile({ userId }: TasteProfileProps) {
       value: traitStats?.personalityTraits.seasonalTourist ?? tasteProfile.personalityTraits.seasonalTourist, 
       icon: Clock,
       color: 'from-blue-500 to-cyan-500',
-      description: activeTab === 'ANIME' ? 'Watching Winter 2026 season anime' : 'Reading recent manga publications',
-      tooltip: activeTab === 'ANIME' ? 'Based on Winter 2026 season anime you are watching.' : 'Based on recent manga publications you are reading.',
-      receipts: activeTab === 'ANIME' ? [
-        { label: 'Winter 2026 Titles', value: analyzedEntries.filter(e => e.media?.startDate?.year === 2026 && e.media?.startDate?.month && e.media.startDate.month >= 1 && e.media.startDate.month <= 3).length.toString() },
-        { label: 'Season Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year === 2026 && e.media?.startDate?.month && e.media.startDate.month >= 1 && e.media.startDate.month <= 3).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
-      ] : [
+      description: activeTab === 'ANIME' ? `Watching ${getCurrentSeasonName()} season anime` : 'Reading recent manga publications',
+      tooltip: activeTab === 'ANIME' ? `Based on ${getCurrentSeasonName()} season anime you are watching.` : 'Based on recent manga publications you are reading.',
+      receipts: activeTab === 'ANIME' ? (() => {
+        const [startMonth, endMonth] = getCurrentSeasonMonths();
+        const currentYear = new Date().getFullYear();
+        const seasonCount = analyzedEntries.filter(e => 
+          e.media?.startDate?.year === currentYear && 
+          e.media?.startDate?.month && 
+          e.media.startDate.month >= startMonth && 
+          e.media.startDate.month <= endMonth
+        ).length;
+        return [
+          { label: `${getCurrentSeasonName()} ${currentYear} Titles`, value: seasonCount.toString() },
+          { label: 'Season Ratio', value: `${((seasonCount / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
+        ];
+      })() : [
         { label: 'Recent Titles', value: analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length.toString() },
         { label: 'Recent Ratio', value: `${((analyzedEntries.filter(e => e.media?.startDate?.year && e.media.startDate.year >= new Date().getFullYear() - 1).length / (analyzedEntries.length || 1)) * 100).toFixed(1)}%` }
       ]
@@ -717,7 +748,7 @@ export function TasteProfile({ userId }: TasteProfileProps) {
 
       {/* NEW: Profile-Level Explainability Summary */}
       {genome?.traitProfile && (() => {
-        const profileExplanation = generateProfileExplanation(genome.traitProfile, { maxTraits: 10 });
+        const profileExplanation = generateProfileExplanation(genome.traitProfile, { maxTraits: 10, entries: analyzedEntries });
         return (
           <div className="space-y-6">
             {/* Profile Summary Card */}

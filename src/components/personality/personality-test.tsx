@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { TasteAnalyzer } from '@/lib/taste-analyzer';
+import { MediaListEntry } from '@/types/anilist';
 import { 
   Brain, 
   Sparkles, 
@@ -44,7 +45,7 @@ const PERSONALITY_TYPES: Record<string, PersonalityType> = {
   seasonalTourist: {
     name: "The Seasonal Tourist",
     emoji: "🌸",
-    description: "You're watching Winter 2026 anime as they air, staying current with the latest season.",
+    description: `You're watching ${new Date().getMonth() + 1 <= 3 ? 'Winter' : new Date().getMonth() + 1 <= 6 ? 'Spring' : new Date().getMonth() + 1 <= 9 ? 'Summer' : 'Fall'} anime as they air, staying current with the latest season.`,
     traits: ["Current", "Trendy", "Up-to-date", "Season-focused"],
     color: "from-blue-500 to-cyan-600",
     icon: Clock
@@ -114,8 +115,8 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
     if (!currentList?.lists) return [];
     const validStatuses = ['COMPLETED', 'CURRENT', 'REPEATING'];
     return currentList.lists
-      .flatMap(list => list.entries)
-      .filter(entry => validStatuses.includes(entry.status || ''));
+      .flatMap((list: { entries: MediaListEntry[] }) => list.entries)
+      .filter((entry: MediaListEntry) => validStatuses.includes(entry.status || ''));
   }, [currentList]);
 
   const analysis = useMemo(() => {
@@ -160,7 +161,7 @@ export function PersonalityTest({ userId }: PersonalityTestProps) {
       description = `You finish what you start. Dropping a ${mediaTerm} is simply not in your vocabulary.`;
     } else if (type === 'seasonalTourist') {
       description = isAnime 
-        ? `You're watching Winter 2026 anime as they air, staying current with the latest season.`
+        ? `You're watching ${new Date().getMonth() + 1 <= 3 ? 'Winter' : new Date().getMonth() + 1 <= 6 ? 'Spring' : new Date().getMonth() + 1 <= 9 ? 'Summer' : 'Fall'} anime as they air, staying current with the latest season.`
         : `You're reading recent manga releases, staying current with the latest publications.`;
     } else if (type === 'emotionalMasochist') {
       description = `You seek the stories that will destroy you emotionally. Pain is entertainment.`;

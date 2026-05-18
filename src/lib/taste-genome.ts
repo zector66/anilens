@@ -374,20 +374,10 @@ function mediaEntriesToTraitInputs(entries: MediaListEntry[]): Array<{
       const tags: MediaTagInput[] = (media.tags || [])
         .filter(t => !t.isGeneralSpoiler && !t.isMediaSpoiler)
         .filter(t => media.type !== 'MANGA' || (t.rank ?? 50) >= MANGA_TAG_RANK_FILTER)
-        .map(t => {
-          // DEBUG: Log first few tags to check normalization
-          if (Math.random() < 0.01) { // 1% sample
-            console.log("[mediaEntriesToTraitInputs] tag:", {
-              original: t.name,
-              normalized: t.name.toLowerCase(),
-              rank: t.rank,
-            });
-          }
-          return {
-            name: t.name,
-            rank: t.rank,
-          };
-        });
+        .map(t => ({
+          name: t.name,
+          rank: t.rank,
+        }));
 
       // Also add genres as pseudo-tags with high rank
       for (const genre of media.genres || []) {
@@ -877,6 +867,67 @@ export function predictEnjoyment(
   };
 }
 
+/**
+ * Extract feature vector from a prediction for ML training.
+ * These features are fed into ridge regression to learn per-user weights.
+ */
+export function extractPredictionFeatures(
+  prediction: EnjoymentPrediction,
+  userStats: { mean: number; std: number }
+): Record<string, number> {
+  return {
+    genreScore: prediction.componentScores.genreScore,
+    tagScore: prediction.componentScores.tagScore,
+    popMatch: prediction.componentScores.popMatch,
+    qualityBoost: prediction.componentScores.qualityBoost,
+    confidence: prediction.confidence,
+    userMean: userStats.mean / 10,         // normalize to 0-1
+    userStd: userStats.std / 3,            // normalize
+    positiveFactors: prediction.matchFactors.filter(f => f.direction === 'positive').length / 5,
+    negativeFactors: prediction.matchFactors.filter(f => f.direction === 'negative').length / 5,
+    probabilityOfLiking: prediction.probabilityOfLiking / 100,
+  };
+}
+
+/**
+ * Blend rule-based prediction with learned weights.
+ * If no learned weights, returns the original prediction.
+ */
+export function predictWithLearnedWeights(
+  basePrediction: EnjoymentPrediction,
+  features: Record<string, number>,
+  weights: Record<string, number> | null,
+  bias: number | null,
+  featureNames: string[] | null,
+  blendRatio: number = 0.6
+): EnjoymentPrediction {
+  if (!weights || bias == null || !featureNames || featureNames.length === 0) {
+    return basePrediction;
+  }
+
+  let learnedScore = bias;
+  for (const name of featureNames) {
+    learnedScore += (weights[name] || 0) * (features[name] || 0);
+  }
+
+  learnedScore = Math.max(1, Math.min(10, learnedScore));
+
+  const ruleRatio = 1 - blendRatio;
+  const blendedScore = learnedScore * blendRatio + basePrediction.predictedScore * ruleRatio;
+  const delta = blendedScore - basePrediction.predictedScore;
+
+  // Shift expected range by same delta
+  return {
+    ...basePrediction,
+    predictedScore: Math.round(blendedScore * 10) / 10,
+    expectedRange: {
+      low: Math.max(1, Math.round((basePrediction.expectedRange.low + delta) * 10) / 10),
+      high: Math.min(10, Math.round((basePrediction.expectedRange.high + delta) * 10) / 10),
+    },
+    confidenceLabel: basePrediction.confidenceLabel + ' (learned)',
+  };
+}
+
 // Linear interpolation helper
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * clamp(t, 0, 1);
@@ -972,12 +1023,14 @@ export function detectContradictions(
     if (Math.abs(residualZ) < 1.0) continue;
     
     // Extract factors for "You loved it because..." + "Despite..." (Fix 5)
+    // Filter out negligible affinities (< 10%) that would display as 0%
+    const MIN_MEANINGFUL_AFFINITY = 0.10;
     const lovedBecause = prediction.matchFactors
-      .filter(f => f.direction === 'positive')
+      .filter(f => f.direction === 'positive' && f.affinity >= MIN_MEANINGFUL_AFFINITY)
       .slice(0, 3)
       .map(f => ({ factor: f.factor, affinity: Math.round(f.affinity * 100) }));
     const despite = prediction.matchFactors
-      .filter(f => f.direction === 'negative')
+      .filter(f => f.direction === 'negative' && f.affinity >= MIN_MEANINGFUL_AFFINITY)
       .slice(0, 2)
       .map(f => ({ factor: f.factor, affinity: Math.round(f.affinity * 100) }));
     
@@ -1251,6 +1304,8 @@ export default {
   euclideanDistance,
   compareDimensions,
   predictEnjoyment,
+  extractPredictionFeatures,
+  predictWithLearnedWeights,
   detectContradictions,
   identifyTasteInfluencers,
   hashTag

@@ -87,7 +87,8 @@ export function useGameStats() {
       });
 
       const data = await response.json();
-      
+      console.log('[Game Submit] Response:', { success: data.success, oldRating: data.oldRating, newRating: data.newRating, ratingChange: data.ratingChange, error: data.error });
+
       if (data.success) {
         return {
           success: true,
@@ -98,6 +99,7 @@ export function useGameStats() {
           isWin: data.isWin,
         };
       } else {
+        console.error('[Game Submit] Server returned error:', data.error);
         return { success: false, error: data.error };
       }
     } catch (error) {

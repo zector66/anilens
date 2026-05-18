@@ -11,78 +11,93 @@
  */
 
 import type { TraitScore } from './trait-scoring-engine';
+import { supabase } from './supabase';
 
 // ============================================================================
-// MOCK GLOBAL TRAIT FREQUENCIES
-// These represent % of users who have this trait above threshold
-// TODO: Replace with real data from Supabase user aggregation
+// GLOBAL TRAIT FREQUENCIES (from database)
+// Replaces MOCK_TRAIT_FREQUENCIES with real data from global_trait_stats table
 // ============================================================================
 
-const MOCK_TRAIT_FREQUENCIES: Record<string, number> = {
-  // VERY COMMON (70-90% of users) - Universal traits
-  'action': 0.85,
-  'comedy': 0.80,
-  'drama': 0.75,
-  'romance': 0.70,
-  'fantasy': 0.72,
-  'school': 0.68,
-  'slice-of-life': 0.65,
-  'teen-cast': 0.75,
-  'female-protagonist': 0.60,
-  'male-protagonist': 0.70,
-  
-  // COMMON (40-70% of users) - Broad appeal
-  'adventure': 0.55,
-  'sci-fi': 0.50,
-  'supernatural': 0.52,
-  'mystery': 0.45,
-  'thriller': 0.42,
-  'dark': 0.48,
-  'emotional-damage': 0.55,
-  'coming-of-age': 0.50,
-  'friendship': 0.60,
-  'magic': 0.58,
-  
-  // UNCOMMON (20-40% of users) - Niche but not rare
-  'psychological': 0.35,
-  'horror': 0.30,
-  'mecha': 0.28,
-  'isekai': 0.38,
-  'time-travel': 0.25,
-  'military': 0.22,
-  'sports': 0.32,
-  'music': 0.28,
-  'historical': 0.24,
-  'cyberpunk': 0.18,
-  
-  // RARE (5-20% of users) - Distinctive tastes
-  'gore': 0.15,
-  'body-horror': 0.08,
-  'cosmic-horror': 0.06,
-  'noir': 0.12,
-  'surrealism': 0.10,
-  'avant-garde': 0.05,
-  'meta': 0.08,
-  'existential': 0.09,
-  'absurdist': 0.07,
-  'tragedy': 0.14,
-  
-  // VERY RARE (<5% of users) - Signature traits
-  'denpa': 0.02,
-  'ero-guro': 0.01,
-  'gekiga': 0.01,
-  'experimental': 0.03,
-  'art-film': 0.02,
-  'cult-classic': 0.04,
-  'underground': 0.02,
-  
-  // Warning traits (content descriptors)
-  'sexual-content': 0.45,
-  'nudity': 0.35,
-  'ecchi': 0.40,
-  'torture': 0.12,
-  'violence': 0.55,
+// Fallback defaults if DB is unavailable (same as old mock data)
+const DEFAULT_FREQUENCIES: Record<string, number> = {
+  'action': 0.85, 'comedy': 0.80, 'drama': 0.75, 'romance': 0.70,
+  'fantasy': 0.72, 'school': 0.68, 'slice-of-life': 0.65,
+  'teen-cast': 0.75, 'female-protagonist': 0.60, 'male-protagonist': 0.70,
+  'adventure': 0.55, 'sci-fi': 0.50, 'supernatural': 0.52,
+  'mystery': 0.45, 'thriller': 0.42, 'dark': 0.48,
+  'emotional-damage': 0.55, 'coming-of-age': 0.50, 'friendship': 0.60,
+  'magic': 0.58, 'psychological': 0.35, 'horror': 0.30,
+  'mecha': 0.28, 'isekai': 0.38, 'time-travel': 0.25,
+  'military': 0.22, 'sports': 0.32, 'music': 0.28,
+  'historical': 0.24, 'cyberpunk': 0.18, 'gore': 0.15,
+  'body-horror': 0.08, 'cosmic-horror': 0.06, 'noir': 0.12,
+  'surrealism': 0.10, 'avant-garde': 0.05, 'meta': 0.08,
+  'existential': 0.09, 'absurdist': 0.07, 'tragedy': 0.14,
+  'denpa': 0.02, 'ero-guro': 0.01, 'gekiga': 0.01,
+  'experimental': 0.03, 'art-film': 0.02, 'cult-classic': 0.04,
+  'underground': 0.02, 'sexual-content': 0.45, 'nudity': 0.35,
+  'ecchi': 0.40, 'torture': 0.12, 'violence': 0.55,
 };
+
+// Module-level cache of global frequencies
+let _globalFrequencies: Record<string, number> | null = null;
+let _frequenciesLoadedAt: number = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch global trait frequencies from Supabase
+ * Cached in memory for 5 minutes to avoid repeated DB calls
+ */
+export async function loadGlobalTraitFrequencies(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (_globalFrequencies && (now - _frequenciesLoadedAt) < CACHE_TTL_MS) {
+    return _globalFrequencies;
+  }
+
+  if (!supabase) {
+    console.warn('[TraitDistinctiveness] Supabase not available, using defaults');
+    return DEFAULT_FREQUENCIES;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('global_trait_stats')
+      .select('trait_id, frequency_ratio');
+
+    if (error || !data || data.length === 0) {
+      console.warn('[TraitDistinctiveness] No trait stats found, using defaults');
+      return DEFAULT_FREQUENCIES;
+    }
+
+    const frequencies: Record<string, number> = {};
+    data.forEach((row: { trait_id: string; frequency_ratio: number }) => {
+      frequencies[row.trait_id.toLowerCase()] = Number(row.frequency_ratio);
+    });
+
+    _globalFrequencies = frequencies;
+    _frequenciesLoadedAt = now;
+    console.log(`[TraitDistinctiveness] Loaded ${data.length} trait frequencies from DB`);
+    return frequencies;
+  } catch (e) {
+    console.error('[TraitDistinctiveness] Error loading frequencies:', e);
+    return DEFAULT_FREQUENCIES;
+  }
+}
+
+/**
+ * Get cached frequencies synchronously (falls back to defaults if not loaded)
+ */
+function getFrequencies(): Record<string, number> {
+  return _globalFrequencies || DEFAULT_FREQUENCIES;
+}
+
+/**
+ * Invalidate the in-memory frequency cache
+ */
+export function invalidateFrequencyCache(): void {
+  _globalFrequencies = null;
+  _frequenciesLoadedAt = 0;
+}
 
 // Rarity tiers for display
 export type RarityTier = 'common' | 'uncommon' | 'rare' | 'very_rare';
@@ -136,7 +151,7 @@ export function computeDistinctivenessMetrics(
 ): DistinctivenessMetrics {
   // Get global frequency (default to 0.5 if unknown)
   const traitKey = traitScore.traitId.toLowerCase();
-  const globalFrequency = MOCK_TRAIT_FREQUENCIES[traitKey] ?? 0.5;
+  const globalFrequency = getFrequencies()[traitKey] ?? 0.5;
   
   // Calculate IDF
   const idf = calculateIDF(globalFrequency, totalUsers);

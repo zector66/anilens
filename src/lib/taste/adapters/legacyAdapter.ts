@@ -60,7 +60,10 @@ function calculateSeasonalTourist(traits: TraitProfile): number {
   const currentSeasonTraits = traits.topTraits.filter(t => 
     t.name.includes('Seasonal') || 
     t.name.includes('Current') ||
-    t.name.includes('Winter 2026')
+    t.name.includes('Spring') ||
+    t.name.includes('Summer') ||
+    t.name.includes('Fall') ||
+    t.name.includes('Winter')
   );
   
   if (currentSeasonTraits.length > 0) {

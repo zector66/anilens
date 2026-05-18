@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList } from '@/hooks/use-anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { GameSession, GameQuestion } from '@/types/anilist';
+import { GameSession, GameQuestion, MediaListEntry } from '@/types/anilist';
 import { useToast } from '@/components/ui/toast';
 import { FadeIn } from '@/components/ui/page-transition';
 import { normalizeMediaList } from '@/lib/normalize-media-list';
@@ -13,16 +13,15 @@ import { GameResults } from './game-results';
 import { MultiplayerResults } from './multiplayer-results';
 import { GameSettingsModal, GameSettings } from './game-settings';
 import { 
-  Music, 
-  Image as ImageIcon, 
-  Quote, 
-  Target, 
-  Trophy, 
-  Clock, 
-  Gamepad2, 
-  Zap, 
-  Play, 
-  Users, 
+  Music,
+  Image as ImageIcon,
+  Target,
+  Trophy,
+  Clock,
+  Gamepad2,
+  Zap,
+  Play,
+  Users,
   Activity,
   Calendar,
   BookOpen,
@@ -31,7 +30,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { HangmanGame } from './hangman-game';
-import { WordleGame } from './wordle-game';
 import { BracketBattle } from './bracket-battle';
 import { BracketLeaderboard } from './bracket-leaderboard';
 import { MultiplayerRoom } from '@/lib/supabase';
@@ -50,7 +48,8 @@ export function GameHub() {
   const [gameResults, setGameResults] = useState<GameSession | null>(null);
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [specialGame, setSpecialGame] = useState<'hangman' | 'wordle' | 'bracket-anime' | 'bracket-manga' | null>(null);
+  const [specialGame, setSpecialGame] = useState<'hangman' | 'bracket-anime' | 'bracket-manga' | null>(null);
+  const [specialGameEntries, setSpecialGameEntries] = useState<MediaListEntry[]>([]);
   const [bracketSettings, setBracketSettings] = useState<{ 
     size: number; 
     category: string;
@@ -93,7 +92,7 @@ export function GameHub() {
     );
   }
 
-  if (!animeList) {
+  if (!currentList) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">No game data available.</p>
@@ -103,12 +102,6 @@ export function GameHub() {
 
   // Open settings modal when clicking Play
   const openGameSettings = (gameType: string) => {
-    // Hangman and Wordle start directly (no settings needed)
-    if (gameType === 'hangman' || gameType === 'wordle') {
-      setSpecialGame(gameType as 'hangman' | 'wordle');
-      return;
-    }
-    // All other games (including bracket) use settings modal
     setSelectedGameType(gameType);
     setShowSettings(true);
   };
@@ -167,9 +160,6 @@ export function GameHub() {
       case 'screenshot-guessing':
         questions = GameEngine.generateScreenshotQuestions(filteredEntries, questionCount);
         break;
-      case 'quote-guessing':
-        questions = GameEngine.generateQuoteQuestions(filteredEntries, questionCount);
-        break;
       case 'score-guessing':
         questions = GameEngine.generateScoreGuessQuestions(filteredEntries, questionCount);
         break;
@@ -193,7 +183,7 @@ export function GameHub() {
         questions = GameEngine.generateTagOrCapQuestions(filteredEntries, questionCount);
         break;
       case 'popularity-battle':
-        questions = GameEngine.generatePopularityBattleQuestions(filteredEntries, questionCount);
+        questions = GameEngine.generatePopularityBattleQuestions(filteredEntries, questionCount, settings.difficulty);
         break;
       case 'taste-consistency':
         questions = GameEngine.generateTasteConsistencyQuestions(filteredEntries, questionCount);
@@ -213,8 +203,16 @@ export function GameHub() {
       case 'tag-ladder':
         questions = GameEngine.generateTagLadderQuestions(filteredEntries, questionCount);
         break;
+      case 'hangman':
+        setSpecialGameEntries(filteredEntries);
+        setSpecialGame('hangman');
+        setShowSettings(false);
+        setSelectedGameType(null);
+        return;
       case 'bracket-anime':
-        // P2-10 FIX: Handle anime bracket battle
+        // Apply difficulty filter to bracket entries
+        const animeFiltered = GameEngine.filterEntriesByDifficulty(animeEntries, settings.difficulty);
+        setSpecialGameEntries(animeFiltered);
         setBracketSettings({
           size: settings.bracketSize || 16,
           category: settings.bracketCategory || 'anime',
@@ -234,7 +232,9 @@ export function GameHub() {
         setSelectedGameType(null);
         return;
       case 'bracket-manga':
-        // Start bracket battle with settings from modal
+        // Apply difficulty filter to bracket entries
+        const mangaFiltered = GameEngine.filterEntriesByDifficulty(mangaEntries, settings.difficulty);
+        setSpecialGameEntries(mangaFiltered);
         setBracketSettings({
           size: settings.bracketSize || 16,
           category: settings.bracketCategory || 'manga',
@@ -314,25 +314,11 @@ export function GameHub() {
     );
   }
 
-  // Special games (Hangman, Wordle, Bracket Battle)
+  // Special games (Hangman, Bracket Battle)
   if (specialGame === 'hangman') {
     return (
       <HangmanGame
-        entries={allEntries}
-        activeType={activeType}
-        onComplete={(session) => {
-          setSpecialGame(null);
-          handleGameComplete(session);
-        }}
-        onBack={() => setSpecialGame(null)}
-      />
-    );
-  }
-
-  if (specialGame === 'wordle') {
-    return (
-      <WordleGame
-        entries={allEntries}
+        entries={specialGameEntries}
         activeType={activeType}
         onComplete={(session) => {
           setSpecialGame(null);
@@ -361,6 +347,9 @@ export function GameHub() {
     // Use the correct entry pool based on specialGame (not bracketSettings.category)
     // This ensures anime brackets only use anime entries and manga brackets only use manga entries
     let bracketEntries = isAnimeBracket ? animeEntries : mangaEntries;
+    
+    // Apply difficulty filtering first
+    bracketEntries = GameEngine.filterEntriesByDifficulty(bracketEntries, 'mixed');
     
     // Apply format filters for anime brackets
     if (isAnimeBracket && bracketSettings.formatFilters) {
@@ -470,26 +459,6 @@ export function GameHub() {
       description: 'Guess series from their opening and ending themes',
       icon: Music,
       gradient: 'from-purple-500 to-violet-600',
-      difficulty: 'Medium',
-      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
-      estimatedTime: '5-10 min',
-    },
-    {
-      id: 'quote-guessing',
-      title: 'Quote Master',
-      description: 'Guess titles from memorable quotes',
-      icon: Quote,
-      gradient: 'from-green-500 to-emerald-500',
-      difficulty: 'Medium',
-      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
-      estimatedTime: '4-7 min',
-    },
-    {
-      id: 'season-matching',
-      title: 'Season Navigator',
-      description: 'Test your memory of when titles aired or started',
-      icon: Calendar,
-      gradient: 'from-indigo-500 to-blue-600',
       difficulty: 'Hard',
       difficultyColor: 'bg-red-500/20 text-red-400',
       estimatedTime: '3-6 min',
@@ -551,17 +520,6 @@ export function GameHub() {
       difficulty: 'Medium',
       difficultyColor: 'bg-yellow-500/20 text-yellow-400',
       estimatedTime: '5-10 min',
-      special: true,
-    },
-    {
-      id: 'wordle',
-      title: `${activeType === 'ANIME' ? 'Anime' : 'Manga'} Wordle`,
-      description: `Guess 5-letter ${activeType === 'ANIME' ? 'anime' : 'manga'} words`,
-      icon: Zap,
-      gradient: 'from-lime-500 to-green-600',
-      difficulty: 'Medium',
-      difficultyColor: 'bg-yellow-500/20 text-yellow-400',
-      estimatedTime: '3-5 min',
       special: true,
     },
     {

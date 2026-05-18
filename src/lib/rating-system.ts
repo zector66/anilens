@@ -133,14 +133,12 @@ export class RatingSystem {
     const mapping: Record<string, keyof PlayerRating['ratings']> = {
       'op-guessing': 'opGuessing',
       'screenshot-guessing': 'screenshotGuessing',
-      'quote-guessing': 'quoteGuessing',
       'score-guessing': 'scoreGuessing',
       'character-guessing': 'characterGuessing',
       'season-matching': 'seasonMatching',
       'cover-guessing': 'coverGuessing',
       'chapters-guessing': 'chapterGuessing',
       'hangman': 'hangman',
-      'wordle': 'wordle',
     };
     return mapping[gameType] || null;
   }
@@ -152,14 +150,12 @@ export class RatingSystem {
     const gameTypeKeys: (keyof PlayerRating['ratings'])[] = [
       'opGuessing',
       'screenshotGuessing',
-      'quoteGuessing',
       'scoreGuessing',
       'characterGuessing',
       'seasonMatching',
       'coverGuessing',
       'chapterGuessing',
       'hangman',
-      'wordle',
     ];
     
     let sum = 0;
@@ -185,14 +181,12 @@ export class RatingSystem {
       ratings: {
         opGuessing: DEFAULT_RATING,
         screenshotGuessing: DEFAULT_RATING,
-        quoteGuessing: DEFAULT_RATING,
         scoreGuessing: DEFAULT_RATING,
         characterGuessing: DEFAULT_RATING,
         seasonMatching: DEFAULT_RATING,
         coverGuessing: DEFAULT_RATING,
         chapterGuessing: DEFAULT_RATING,
         hangman: DEFAULT_RATING,
-        wordle: DEFAULT_RATING,
         overall: DEFAULT_RATING,
       },
       knowledgeAxes: {

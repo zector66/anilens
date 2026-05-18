@@ -12,39 +12,45 @@ import {
 } from '@/lib/taste-profile-cache';
 import { TasteProfile, MediaListEntry } from '@/types/anilist';
 
-export function useAnimeList(userId: number) {
+export function useAnimeList(userId: number, options?: { forceRefresh?: boolean }) {
   return useQuery({
-    queryKey: ['animeList', userId],
+    queryKey: ['animeList', 'v3', userId, options?.forceRefresh],
     queryFn: async () => {
       console.log('[useAnimeList] queryFn triggered for userId:', userId);
-      return anilistClient.getAnimeList(userId);
+      const res = await fetch(`/api/anilist/list?userId=${userId}&type=ANIME${options?.forceRefresh ? '&forceRefresh=true' : ''}`);
+      if (!res.ok) throw new Error('Failed to fetch anime list');
+      const data = await res.json();
+      return data.data; // Returns the MediaListCollection payload
     },
     enabled: !!userId && userId > 0,
-    staleTime: 15 * 60 * 1000, // 15 minutes - lists don't change often
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     retry: 2,
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: 'always', // Always check cache first, then decide if refetch needed
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
-export function useMangaList(userId: number) {
+export function useMangaList(userId: number, options?: { forceRefresh?: boolean }) {
   return useQuery({
-    queryKey: ['mangaList', userId],
+    queryKey: ['mangaList', 'v3', userId, options?.forceRefresh],
     queryFn: async () => {
       console.log('[useMangaList] queryFn triggered for userId:', userId);
       if (!userId || userId <= 0) {
         throw new Error('Invalid userId');
       }
-      return anilistClient.getMangaList(userId);
+      const res = await fetch(`/api/anilist/list?userId=${userId}&type=MANGA${options?.forceRefresh ? '&forceRefresh=true' : ''}`);
+      if (!res.ok) throw new Error('Failed to fetch manga list');
+      const data = await res.json();
+      return data.data;
     },
     enabled: !!userId && userId > 0,
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 15 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always', // Always check cache first, then decide if refetch needed
+    refetchOnMount: false,
   });
 }
 

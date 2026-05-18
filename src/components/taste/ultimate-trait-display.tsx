@@ -164,7 +164,7 @@ export function UltimateTraitDisplay({
     <div className="space-y-6">
       {/* Ultimate Accuracy Header */}
       {showUltimateAccuracy && accuracyProfile && (
-        <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+        <div className="p-4 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
           <div className="flex items-center gap-3 mb-2">
             <Target className="w-5 h-5 text-green-400" />
             <h3 className="text-white font-semibold">Ultimate Accuracy Analysis</h3>
@@ -362,8 +362,8 @@ export function UltimateTraitDisplay({
                         <div 
                           className={`h-full rounded-full ${
                             activeProfile === 'preference' 
-                              ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                              : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                              ? 'bg-linear-to-r from-purple-500 to-pink-500'
+                              : 'bg-linear-to-r from-blue-500 to-cyan-500'
                           }`}
                           style={{ width: `${Math.min(traitData.normalizedScore, 100)}%` }}
                         />
@@ -561,7 +561,7 @@ export function UltimateTraitDisplay({
 
       {/* Population Context Summary */}
       {percentiles.length > 0 && (
-        <div className="p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+        <div className="p-4 rounded-xl bg-linear-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
           <div className="flex items-center gap-3 mb-3">
             <Users className="w-5 h-5 text-blue-400" />
             <h3 className="text-white font-semibold">Population Context</h3>

@@ -83,7 +83,7 @@ export function TraitStack({ traitProfile, onTraitClick }: TraitStackProps) {
         return (
           <div
             key={channelKey}
-            className={`rounded-xl bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} overflow-hidden transition-all duration-300`}
+            className={`rounded-xl bg-linear-to-br ${config.bgGradient} border ${config.borderColor} overflow-hidden transition-all duration-300`}
           >
             {/* Channel Header */}
             <button
@@ -91,7 +91,7 @@ export function TraitStack({ traitProfile, onTraitClick }: TraitStackProps) {
               className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-gradient-to-br ${config.gradient}`}>
+                <div className={`p-2 rounded-lg bg-linear-to-br ${config.gradient}`}>
                   <Icon className="w-4 h-4 text-white" />
                 </div>
                 <div className="text-left">
@@ -142,7 +142,7 @@ export function TraitStack({ traitProfile, onTraitClick }: TraitStackProps) {
                     <div className="flex items-center gap-2">
                       <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className={`h-full bg-gradient-to-r ${config.gradient} rounded-full`}
+                          className={`h-full bg-linear-to-r ${config.gradient} rounded-full`}
                           style={{ width: `${trait.normalizedScore}%` }}
                         />
                       </div>
@@ -220,7 +220,7 @@ export function TasteSummary({ traitProfile }: { traitProfile: TraitProfile }) {
   const summary = generateTasteSummary(traitProfile);
 
   return (
-    <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-white/10">
+    <div className="p-4 rounded-xl bg-linear-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-white/10">
       <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Your Taste in One Sentence</p>
       <p className="text-white font-medium">{summary}</p>
     </div>

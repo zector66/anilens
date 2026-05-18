@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
 import { useMedia } from '@/contexts/media-context';
 import { useModelSettings } from '@/hooks/use-model-settings';
 import { TasteAnalyzer, FavoritesProfile } from '@/lib/taste-analyzer';
-import { extractGenome, extractTraitProfile, predictEnjoyment, MediaFeatures, EnjoymentPrediction } from '@/lib/taste-genome';
+import { extractGenome, extractTraitProfile, predictEnjoyment, extractPredictionFeatures, predictWithLearnedWeights, MediaFeatures, EnjoymentPrediction } from '@/lib/taste-genome';
 import { traitScoresToGenreAffinity, traitScoresToTagAffinity } from '@/lib/trait-to-legacy-adapter';
-import { MediaListEntry, Media } from '@/types/anilist';
+import { Media } from '@/types/anilist';
 import { normalizeMediaList, extractMediaIds } from '@/lib/normalize-media-list';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { TodayRail } from '@/components/home/today-rail';
 import { usePrefetchMedia } from '@/hooks/use-prefetch';
 import { GridSkeleton } from '@/components/ui/lazy-component';
 import { ModelSettingsPanel } from '@/components/settings/model-settings-panel';
 import { 
-  Sparkles, 
-  TrendingUp, 
+  Sparkles,
   Shuffle, 
   Star,
   Play,
@@ -31,7 +31,8 @@ import {
   BarChart3,
   Info,
   Flame,
-  Settings
+  Settings,
+  X
 } from 'lucide-react';
 
 interface RecommendationsProps {
@@ -68,10 +69,15 @@ interface ProcessedRec {
 interface RecommendationCardProps {
   rec: ProcessedRec;
   activeType: 'ANIME' | 'MANGA';
+  userId: number;
   priority?: boolean;
+  /** Score the user has previously saved for this media (1-10) */
+  savedRating?: number;
+  /** Callback fired after the user successfully saves a rating */
+  onRatingSaved?: (score: number) => void;
 }
 
-const RecommendationCard = memo(function RecommendationCard({ rec, activeType, priority = false }: RecommendationCardProps) {
+const RecommendationCard = memo(function RecommendationCard({ rec, activeType, userId, priority = false, savedRating, onRatingSaved }: RecommendationCardProps) {
   const { prefetchMedia } = usePrefetchMedia();
   const [isHovered, setIsHovered] = useState(false);
   
@@ -83,6 +89,17 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
   const handleMouseLeave = useCallback(() => {
     setIsHovered(false);
   }, []);
+  const [showRatePanel, setShowRatePanel] = useState(false);
+  const [ratedScore, setRatedScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (showRatePanel) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showRatePanel]);
 
   return (
     <div 
@@ -105,7 +122,7 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
             className="w-full h-full"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none" />
         
         {/* Category Badge */}
         <div className="absolute top-3 right-3 z-20 transition-transform duration-200" style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}>
@@ -191,6 +208,22 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
           <Play className="w-4 h-4" />
           View Details
         </a>
+        <button
+          onClick={() => {
+            setShowRatePanel(true);
+            // Pre-fill with user's previously saved rating; otherwise predicted score
+            setRatedScore(savedRating ?? Math.round(rec.predictedScore || 7));
+          }}
+          className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 text-sm font-medium ${
+            savedRating != null
+              ? 'bg-purple-500/30 hover:bg-purple-500/40 text-purple-200 ring-1 ring-purple-400/40'
+              : 'bg-white/10 hover:bg-purple-500/30 text-white'
+          }`}
+          title={savedRating != null ? `You rated this ${savedRating}/10` : 'Rate this recommendation to improve accuracy'}
+        >
+          <Star className="w-4 h-4" />
+          {savedRating != null ? `${savedRating}/10` : 'Rate'}
+        </button>
         <a
           href={`https://anilist.co/${activeType.toLowerCase()}/${rec.id}`}
           target="_blank"
@@ -200,6 +233,84 @@ const RecommendationCard = memo(function RecommendationCard({ rec, activeType, p
           <ExternalLink className="w-4 h-4" />
         </a>
       </div>
+
+      {/* Rating Modal */}
+      {showRatePanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRatePanel(false)} />
+          <div className="relative bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <button
+              onClick={() => setShowRatePanel(false)}
+              className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-1 pr-8">Rate {rec.title}</h3>
+            <p className="text-sm text-gray-400 mb-4">Your rating helps train your personal model</p>
+            <div className="flex items-center justify-center gap-1 mb-5">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((score) => (
+                <button
+                  key={score}
+                  onClick={() => setRatedScore(score)}
+                  className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
+                    ratedScore === score
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30 scale-110'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {score}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-5">
+              <span className="text-sm text-gray-400">Selected:</span>
+              <span className="text-2xl font-bold text-purple-400">{ratedScore}</span>
+              <span className="text-sm text-gray-500">/ 10</span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  if (ratedScore == null) return;
+                  try {
+                    const res = await fetch('/api/taste/feedback', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        userId,
+                        anilistMediaId: rec.id,
+                        actualScore: ratedScore,
+                        mediaType: activeType,
+                      })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      console.error('[Rating Save] Failed:', data.error || 'Unknown error');
+                      alert('Failed to save rating: ' + (data.error || 'Unknown error'));
+                    } else {
+                      console.log('[Rating Save] Success for media', rec.id, 'score:', ratedScore);
+                      // Notify parent to update local rating state and retrain the model
+                      onRatingSaved?.(ratedScore);
+                    }
+                  } catch (err) {
+                    console.error('[Rating Save] Network error:', err);
+                    alert('Network error saving rating');
+                  }
+                  setShowRatePanel(false);
+                }}
+                className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors"
+              >
+                Save Rating
+              </button>
+              <button
+                onClick={() => setShowRatePanel(false)}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -218,9 +329,44 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const [minScore, setMinScore] = useState(60);
   const [explorationLevel, setExplorationLevel] = useState(50); // 0 = comfort, 100 = full exploration
   const [anchorToFavorites, setAnchorToFavorites] = useState(true);
-  const [favoritesInfluence, setFavoritesInfluence] = useState(modelSettings.favoriteInfluence); // Use model settings
+  const [favoritesInfluence, setFavoritesInfluence] = useState(modelSettings.favoriteInfluence);
+  const [learnedWeights, setLearnedWeights] = useState<{weights:Record<string,number>;bias:number;featureNames:string[];sampleCount:number}|null>(null);
+  const [modelStatus, setModelStatus] = useState<'idle'|'user'|'rule'>('rule');
+  // Ratings the user has submitted via the in-app rate modal (mediaId -> score)
+  const [userRatings, setUserRatings] = useState<Record<number, number>>({});
 
   const effectiveUserId = userId || user?.id || 0;
+
+  // Refresh function exposed so the rate modal can update ratings immediately after save
+  const refreshUserRatings = useCallback(async () => {
+    if (!effectiveUserId) return;
+    try {
+      const res = await fetch(`/api/taste/ratings?userId=${effectiveUserId}&mediaType=${activeType}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.ratings) setUserRatings(data.ratings);
+    } catch {
+      // ignore
+    }
+  }, [effectiveUserId, activeType]);
+
+  useEffect(() => {
+    if (!effectiveUserId) return;
+    // Try per-user model first
+    fetch(`/api/taste/learn?userId=${effectiveUserId}&mediaType=${activeType}`, {method:'POST'})
+      .then(r=>r.json()).then(d=>{
+        if (d.trained && d.weights) {
+          setLearnedWeights({weights:d.weights,bias:d.bias,featureNames:Object.keys(d.weights),sampleCount:d.sampleCount});
+          setModelStatus('user');
+        } else {
+          setModelStatus('rule');
+        }
+      }).catch(()=>{ setModelStatus('rule'); });
+    // Auto-trigger global retrain if stale (fire-and-forget)
+    fetch(`/api/taste/learn/global/auto?mediaType=${activeType}`).catch(()=>{});
+    // Fetch existing user ratings to filter recs and pre-fill rating modal
+    refreshUserRatings();
+  }, [effectiveUserId, activeType, refreshUserRatings]);
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
   const { data: favorites } = useFavorites(effectiveUserId);
@@ -236,6 +382,12 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const ptwEntries = useMemo(() => normalizeMediaList(currentList, { 
     statuses: ['PLANNING'] 
   }), [currentList]);
+
+  // Currently-watching entries: used to highlight the user's shows in the airing schedule rail
+  const currentlyWatchingIds = useMemo(() => {
+    const watching = normalizeMediaList(currentList, { statuses: ['CURRENT'] });
+    return watching.map(e => e.media?.id).filter((id): id is number => typeof id === 'number');
+  }, [currentList]);
 
   const tasteProfile = useMemo(() => {
     if (allEntries.length === 0) return null;
@@ -338,10 +490,11 @@ export function Recommendations({ userId }: RecommendationsProps) {
   }, [favorites, activeType]);
 
   // Extract media IDs for filtering recommendations - include PTW to avoid recommending what's already queued
+  // Note: user ratings via the in-app rate modal are NOT hard-filtered here; the ML model
+  // naturally surfaces or suppresses them based on the rating signal (via prediction_residuals -> learned weights)
   const watchedIds = useMemo(() => {
     const watched = extractMediaIds(allEntries);
     const ptw = extractMediaIds(ptwEntries);
-    // Merge both sets
     ptw.forEach(id => watched.add(id));
     return watched;
   }, [allEntries, ptwEntries]);
@@ -435,6 +588,9 @@ export function Recommendations({ userId }: RecommendationsProps) {
   // Cast to extended media type for accessing computed properties
   const extendedMedia = (recommendedMedia || []) as ExtendedMedia[];
 
+  // Collect prediction data for batch logging
+  const predictionBatch: Array<{anilistMediaId:number;predictedScore:number;features:Record<string,number>}> = [];
+
   // Process recommendations with Taste Genome predictions
   const processedRecommendations = extendedMedia
     .map(media => {
@@ -451,12 +607,23 @@ export function Recommendations({ userId }: RecommendationsProps) {
         studios: media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name)
       };
       
-      // Get prediction from Taste Genome
+      // Get prediction from Taste Genome (three-tier: user > global > rule)
       let prediction: EnjoymentPrediction | null = null;
+      let features: Record<string, number> | null = null;
       try {
-        prediction = predictEnjoyment(genome, tasteProfile, mediaFeatures, userScoreStats);
-      } catch (e) {
+        const base = predictEnjoyment(genome, tasteProfile, mediaFeatures, userScoreStats);
+        features = extractPredictionFeatures(base, userScoreStats);
+        if (learnedWeights) {
+          prediction = predictWithLearnedWeights(base, features, learnedWeights.weights, learnedWeights.bias, learnedWeights.featureNames, 0.6);
+        } else {
+          prediction = base;
+        }
+      } catch {
         // Prediction failed, continue without it
+      }
+
+      if (features && prediction && effectiveUserId) {
+        predictionBatch.push({anilistMediaId: media.id, predictedScore: prediction.predictedScore, features});
       }
       
       return {
@@ -481,12 +648,19 @@ export function Recommendations({ userId }: RecommendationsProps) {
     })
     .filter(rec => rec.coverImage); // Filter out any recommendations without cover images
 
-  console.log('[Recommendations] Total processed:', processedRecommendations.length, 'with predictions');
-
   const topGenres = effectiveGenreAffinity.slice(0, 5);
   const topTags = effectiveTagAffinity.slice(0, 5);
   const topStudios = tasteProfile.studioBias.slice(0, 3).map(s => s.studio);
   
+  // Fire-and-forget batch logging
+  if (effectiveUserId && predictionBatch.length > 0) {
+    fetch('/api/taste/log-batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({userId: effectiveUserId, mediaType: activeType, predictions: predictionBatch})
+    }).catch(()=>{});
+  }
+
   const filters = [
     { id: 'all' as const, label: 'All', icon: Sparkles },
     { id: 'safe' as const, label: 'Safe Picks', icon: Heart },
@@ -528,13 +702,26 @@ export function Recommendations({ userId }: RecommendationsProps) {
         </div>
       </div>
 
+      {/* Today rail: airing schedule + personalized news (anime only) */}
+      {activeType === 'ANIME' && (
+        <TodayRail
+          userGenres={topGenres.map(g => g.genre)}
+          watchingIds={currentlyWatchingIds}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Personalized Recommendations</h2>
           <p className="text-gray-400">Based on your {getSeriesTerm()} DNA and {allEntries.length} {activeType === 'ANIME' ? 'titles' : 'entries'} discovered</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {modelStatus === 'user' && (
+            <span className="px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold border border-green-500/30">
+              ML Active
+            </span>
+          )}
           <button 
             onClick={() => setShowModelSettings(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 font-medium transition-colors"
@@ -855,11 +1042,34 @@ export function Recommendations({ userId }: RecommendationsProps) {
       ) : filteredRecs.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRecs.map((rec, index) => (
-            <RecommendationCard 
-              key={rec.id} 
-              rec={rec} 
+            <RecommendationCard
+              key={rec.id}
+              rec={rec}
               activeType={activeType}
+              userId={effectiveUserId}
               priority={index < 3}
+              savedRating={userRatings[rec.id]}
+              onRatingSaved={(score) => {
+                // Optimistic update so the card can show new score immediately
+                setUserRatings(prev => ({ ...prev, [rec.id]: score }));
+                // Retrain per-user model so this rating actually shifts future predictions
+                fetch(`/api/taste/learn?userId=${effectiveUserId}&mediaType=${activeType}`, { method: 'POST' })
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.trained && d.weights) {
+                      setLearnedWeights({
+                        weights: d.weights,
+                        bias: d.bias,
+                        featureNames: Object.keys(d.weights),
+                        sampleCount: d.sampleCount,
+                      });
+                      setModelStatus('user');
+                    }
+                  })
+                  .catch(() => {});
+                // Refresh ratings from server in the background
+                refreshUserRatings();
+              }}
             />
           ))}
         </div>

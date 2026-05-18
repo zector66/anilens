@@ -215,7 +215,7 @@ export function analyzeHotTakes(
 ): HotTakesProfile {
   // Filter to scored entries with quality data
   // Require: valid user score, global score exists, minimum popularity for confidence
-  const MIN_POPULARITY = type === 'MANGA' ? 2000 : 10000; 
+  const MIN_POPULARITY = type === 'MANGA' ? 1000 : 5000; 
   
   const scoredEntries = entries.filter(e => 
     e.score && e.score >= 1 && // Valid user score (Filter C)
@@ -250,7 +250,9 @@ export function analyzeHotTakes(
 
   // Calculate takes for each entry
   const takes: HotTake[] = scoredEntries.map(entry => {
-    const userScore = entry.score!;
+    // API returns score in POINT_10 format (0-10 scale directly)
+    // meanScore is still on 0-100 scale, so we convert it
+    const userScore = entry.score!; // Already 0-10 from API
     const globalScore = (entry.media!.meanScore! / 10); // Convert from 0-100 to 0-10
     const delta = userScore - globalScore;
     const popularity = entry.media!.popularity!;

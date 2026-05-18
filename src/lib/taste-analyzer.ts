@@ -545,22 +545,43 @@ export class TasteAnalyzer {
 
   private static calculateSeasonalTouristScore(mediaList: MediaListEntry[], mediaType: 'ANIME' | 'MANGA' = 'ANIME'): number {
     if (mediaType === 'ANIME') {
-      // Anime: Only count Winter 2026 season (Jan-Mar 2026)
-      const currentYear = 2026;
+      // Anime: Detect current season dynamically based on current date
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-12
+      
+      // Determine current season based on month
+      // Winter: Jan-Mar, Spring: Apr-Jun, Summer: Jul-Sep, Fall: Oct-Dec
+      let seasonStartMonth: number, seasonEndMonth: number;
+      if (currentMonth <= 3) { // Winter
+        seasonStartMonth = 1; seasonEndMonth = 3;
+      } else if (currentMonth <= 6) { // Spring
+        seasonStartMonth = 4; seasonEndMonth = 6;
+      } else if (currentMonth <= 9) { // Summer
+        seasonStartMonth = 7; seasonEndMonth = 9;
+      } else { // Fall
+        seasonStartMonth = 10; seasonEndMonth = 12;
+      }
+      
       let currentSeasonCount = 0;
       
       mediaList.forEach(e => {
-        // Use when the user watched it (completedAt or updatedAt), not when it aired
+        // Check if user is currently watching or recently interacted with it
+        const isCurrentlyWatching = e.status === 'CURRENT';
         const watchYear = e.completedAt?.year || 
                          (e.updatedAt ? new Date(e.updatedAt * 1000).getFullYear() : null);
+        const watchedRecently = watchYear === currentYear;
         
-        // Check if it's from Winter 2026 season (Jan-Mar 2026)
+        // Check if it's from the current season
         const airYear = e.media?.startDate?.year;
         const airMonth = e.media?.startDate?.month;
-        const isWinter2026 = airYear === 2026 && airMonth && airMonth >= 1 && airMonth <= 3;
+        const isCurrentSeason = airYear === currentYear && 
+                                airMonth && 
+                                airMonth >= seasonStartMonth && 
+                                airMonth <= seasonEndMonth;
         
-        // Count as seasonal tourist if: watched in 2026 AND aired in Winter 2026
-        if (watchYear === currentYear && isWinter2026) {
+        // Count as seasonal tourist if: currently watching OR watched recently AND from current season
+        if (isCurrentSeason && (isCurrentlyWatching || watchedRecently)) {
           currentSeasonCount++;
         }
       });

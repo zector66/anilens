@@ -109,14 +109,13 @@ function getAffinityDisplay(delta: number | undefined): {
 }
 
 export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilityDrawerProps) {
-  // Scroll to top when drawer opens
+  // Lock body scroll when drawer opens
   useEffect(() => {
     if (trait) {
-      window.scrollTo(0, 0);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
   }, [trait]);
 
@@ -130,17 +129,18 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
   const AffinityIcon = affinityDisplay.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div 
+    <div className="fixed inset-0 z-50 flex items-center justify-center h-dvh touch-none">
+      {/* Backdrop - prevents touch events passing through to page */}
+      <div
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
       />
-      
+
       {/* Drawer */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[85dvh] bg-linear-to-br from-gray-900 to-gray-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/10 p-6">
+        <div className="sticky top-0 z-10 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-white/10 p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -211,7 +211,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
                   <>Your ratings for {trait.name} content align with your overall average. Neutral preference.</>
                 )}
                 {trait.affinityDelta < -10 && (
-                  <>You rate {trait.name} content <strong className="text-red-400">{Math.round(trait.affinityDelta)}%</strong> lower than your average. You watch it but don't rate it highly.</>
+                  <>You rate {trait.name} content <strong className="text-red-400">{Math.round(trait.affinityDelta)}%</strong> lower than your average. You watch it but don&apos;t rate it highly.</>
                 )}
               </p>
             </div>
@@ -219,7 +219,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
 
           {/* Distinctiveness */}
           {trait.globalFrequency !== undefined && (
-            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+            <div className="p-4 rounded-xl bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
               <div className="flex items-center gap-3 mb-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 <h3 className="text-white font-semibold">Distinctiveness</h3>
@@ -250,7 +250,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
                 <p className="text-gray-400 text-sm">
                   Top {Math.min(2, contributors.length)} shows contribute <strong className="text-orange-300">
                     {Math.round((contributors.slice(0, 2).reduce((sum, c) => sum + (c.shareOfTrait || 0), 0)) * 100)}%
-                  </strong> of this trait's score.
+                  </strong> of this trait&apos;s score.
                 </p>
               )}
             </div>
@@ -331,7 +331,7 @@ export function TraitExplainabilityDrawer({ trait, onClose }: TraitExplainabilit
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                className="h-full bg-linear-to-r from-purple-500 to-blue-500 rounded-full"
                 style={{ width: `${trait.confidence * 100}%` }}
               />
             </div>

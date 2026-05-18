@@ -143,9 +143,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       />
       
       {/* Panel */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-gray-900 border border-white/10 shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-gray-900 border border-white/10 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-gray-900 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
               <Settings className="w-5 h-5 text-purple-400" />
@@ -164,7 +164,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-4 border-b border-white/10 overflow-x-auto">
+        <div className="flex gap-2 p-4 border-b border-white/10 overflow-x-auto bg-gray-900 shrink-0">
           {[
             { id: 'general', label: 'General', icon: Settings },
             { id: 'display', label: 'Display', icon: Monitor },
@@ -187,7 +187,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {activeTab === 'general' && (
             <div className="space-y-6">
               {/* Sound Effects */}

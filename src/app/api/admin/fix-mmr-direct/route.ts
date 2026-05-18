@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         player_ratings.rating as current_mmr,
         player_ratings.games_played
       FROM player_ratings
-      INNER JOIN users ON player_ratings.user_id = users.id
+      INNER JOIN users ON player_ratings.user_id = users.anilist_id
       WHERE player_ratings.games_played > 0 
         AND player_ratings.rating > 500
         AND (player_ratings.rating::float / NULLIF(player_ratings.games_played, 1)) > 50
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
           player_ratings.rating as fixed_mmr,
           player_ratings.games_played
         FROM player_ratings
-        INNER JOIN users ON player_ratings.user_id = users.id
+        INNER JOIN users ON player_ratings.user_id = users.anilist_id
         WHERE player_ratings.games_played > 0 
         ORDER BY player_ratings.rating DESC
         LIMIT 10

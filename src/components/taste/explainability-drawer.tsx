@@ -36,17 +36,18 @@ export function ExplainabilityDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Backdrop */}
-      <div 
+    <div className="fixed inset-0 z-50 flex items-center justify-center h-dvh touch-none">
+      {/* Backdrop - prevents touch events passing through to page */}
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
       />
       
       {/* Drawer */}
-      <div className="relative w-full max-w-lg bg-gray-900 rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl max-h-[80vh] overflow-hidden">
+      <div className="relative w-full max-w-lg bg-gray-900 rounded-2xl border border-white/10 shadow-2xl max-h-[85dvh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gray-900 shrink-0">
           <div className="flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-purple-400" />
             <h3 className="text-lg font-semibold text-white">Why &ldquo;{title}&rdquo;?</h3>
@@ -60,7 +61,7 @@ export function ExplainabilityDrawer({
         </div>
         
         {/* Content */}
-        <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* Score & Confidence */}
           {(score !== undefined || confidence !== undefined) && (
             <div className="flex gap-4">
@@ -81,7 +82,7 @@ export function ExplainabilityDrawer({
           
           {/* Exposure vs Enjoyment */}
           {exposureScore !== undefined && enjoymentScore !== undefined && (
-            <div className="p-3 rounded-lg bg-gradient-to-r from-orange-500/10 to-green-500/10 border border-white/10">
+            <div className="p-3 rounded-lg bg-linear-to-r from-orange-500/10 to-green-500/10 border border-white/10">
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Exposure vs Enjoyment</p>
               <div className="flex justify-between items-center">
                 <div className="text-center">

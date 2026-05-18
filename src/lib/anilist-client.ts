@@ -276,7 +276,7 @@ export class AniListClient {
               id
               mediaId
               status
-              score(format: POINT_10)
+              score(format: POINT_10_DECIMAL)
               progress
               repeat
               notes
@@ -419,7 +419,7 @@ export class AniListClient {
               id
               mediaId
               status
-              score(format: POINT_10)
+              score(format: POINT_10_DECIMAL)
               progress
               progressVolumes
               repeat

@@ -26,9 +26,17 @@ function getDb(): any {
 // Database Schema Setup
 // ============================================================================
 
+async function safeExec(label: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+  } catch (err) {
+    console.warn(`[DB Init] ${label} skipped:`, err instanceof Error ? err.message : String(err));
+  }
+}
+
 export async function initializeDatabase() {
   // Users table - linked to AniList accounts
-  await getDb()`
+  await safeExec('users', () => getDb()`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       anilist_id INTEGER UNIQUE NOT NULL,
@@ -37,10 +45,10 @@ export async function initializeDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `;
+  `);
 
-  // Player ratings table - MMR for each game type (starts at 0 = Iron IV)
-  await getDb()`
+  // Player ratings table
+  await safeExec('player_ratings', () => getDb()`
     CREATE TABLE IF NOT EXISTS player_ratings (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -55,10 +63,10 @@ export async function initializeDatabase() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, game_type)
     )
-  `;
+  `);
 
-  // Game sessions table - track individual games
-  await getDb()`
+  // Game sessions table
+  await safeExec('game_sessions', () => getDb()`
     CREATE TABLE IF NOT EXISTS game_sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -72,10 +80,10 @@ export async function initializeDatabase() {
       rating_change INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `;
+  `);
 
-  // Leaderboard cache table - for fast leaderboard queries
-  await getDb()`
+  // Leaderboard cache table
+  await safeExec('leaderboard_cache', () => getDb()`
     CREATE TABLE IF NOT EXISTS leaderboard_cache (
       id SERIAL PRIMARY KEY,
       game_type VARCHAR(50) NOT NULL,
@@ -85,10 +93,10 @@ export async function initializeDatabase() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(game_type, user_id)
     )
-  `;
+  `);
 
-  // AniList list cache table - cache user's anime/manga lists
-  await getDb()`
+  // AniList list cache table
+  await safeExec('anilist_list_cache', () => getDb()`
     CREATE TABLE IF NOT EXISTS anilist_list_cache (
       id SERIAL PRIMARY KEY,
       anilist_id INTEGER NOT NULL,
@@ -98,10 +106,10 @@ export async function initializeDatabase() {
       cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(anilist_id, list_type)
     )
-  `;
+  `);
 
-  // Taste profile cache table - cache computed taste profiles
-  await getDb()`
+  // Taste profile cache table
+  await safeExec('taste_profile_cache', () => getDb()`
     CREATE TABLE IF NOT EXISTS taste_profile_cache (
       id SERIAL PRIMARY KEY,
       anilist_id INTEGER NOT NULL,
@@ -112,16 +120,69 @@ export async function initializeDatabase() {
       computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(anilist_id, profile_type, analysis_version)
     )
-  `;
+  `);
+
+  // Prediction residuals table - for ML training
+  await safeExec('prediction_residuals', () => getDb()`
+    CREATE TABLE IF NOT EXISTS prediction_residuals (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      anilist_media_id INTEGER NOT NULL,
+      media_type VARCHAR(10) NOT NULL,
+      predicted_score FLOAT NOT NULL,
+      actual_score FLOAT,
+      features_json JSONB NOT NULL,
+      genome_version VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User learned model weights
+  await safeExec('user_model_weights', () => getDb()`
+    CREATE TABLE IF NOT EXISTS user_model_weights (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      media_type VARCHAR(10) NOT NULL,
+      bias FLOAT NOT NULL DEFAULT 5.0,
+      weights_json JSONB NOT NULL,
+      feature_names JSONB NOT NULL,
+      r_squared FLOAT,
+      rmse FLOAT,
+      sample_count INTEGER NOT NULL DEFAULT 0,
+      genome_version VARCHAR(10) NOT NULL,
+      trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, media_type, genome_version)
+    )
+  `);
+
+  // Global learned model weights
+  await safeExec('global_model_weights', () => getDb()`
+    CREATE TABLE IF NOT EXISTS global_model_weights (
+      id SERIAL PRIMARY KEY,
+      media_type VARCHAR(10) NOT NULL,
+      bias FLOAT NOT NULL DEFAULT 5.0,
+      weights_json JSONB NOT NULL,
+      feature_names JSONB NOT NULL,
+      r_squared FLOAT,
+      rmse FLOAT,
+      sample_count INTEGER NOT NULL DEFAULT 0,
+      genome_version VARCHAR(10) NOT NULL,
+      trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(media_type, genome_version)
+    )
+  `);
 
   // Create indexes for performance
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_game_type ON player_ratings(game_type)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_rating ON player_ratings(rating DESC)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_user ON game_sessions(user_id)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_game_type ON game_sessions(game_type)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type ON leaderboard_cache(game_type, rank)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_anilist_cache_user ON anilist_list_cache(anilist_id, list_type)`;
-  await getDb()`CREATE INDEX IF NOT EXISTS idx_taste_cache_user ON taste_profile_cache(anilist_id, profile_type)`;
+  await safeExec('idx_ratings_game_type', () => getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_game_type ON player_ratings(game_type)`);
+  await safeExec('idx_ratings_rating', () => getDb()`CREATE INDEX IF NOT EXISTS idx_ratings_rating ON player_ratings(rating DESC)`);
+  await safeExec('idx_sessions_user', () => getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_user ON game_sessions(user_id)`);
+  await safeExec('idx_sessions_game_type', () => getDb()`CREATE INDEX IF NOT EXISTS idx_sessions_game_type ON game_sessions(game_type)`);
+  await safeExec('idx_leaderboard_game_type', () => getDb()`CREATE INDEX IF NOT EXISTS idx_leaderboard_game_type ON leaderboard_cache(game_type, rank)`);
+  await safeExec('idx_anilist_cache_user', () => getDb()`CREATE INDEX IF NOT EXISTS idx_anilist_cache_user ON anilist_list_cache(anilist_id, list_type)`);
+  await safeExec('idx_taste_cache_user', () => getDb()`CREATE INDEX IF NOT EXISTS idx_taste_cache_user ON taste_profile_cache(anilist_id, profile_type)`);
+  await safeExec('idx_residuals_user', () => getDb()`CREATE INDEX IF NOT EXISTS idx_residuals_user ON prediction_residuals(user_id, anilist_media_id)`);
+  await safeExec('idx_residuals_created', () => getDb()`CREATE INDEX IF NOT EXISTS idx_residuals_created ON prediction_residuals(created_at DESC)`);
+  await safeExec('idx_residuals_media', () => getDb()`CREATE INDEX IF NOT EXISTS idx_residuals_media ON prediction_residuals(media_type, anilist_media_id)`);
 }
 
 // ============================================================================
@@ -198,13 +259,18 @@ export async function getOrCreateUser(anilistId: number, username: string, avata
   `;
 
   if (existing.length > 0) {
-    // Update username/avatar if changed
+    // Update username/avatar if changed, and touch updated_at
     await getDb()`
       UPDATE users 
       SET username = ${username}, avatar_url = ${avatarUrl || null}, updated_at = CURRENT_TIMESTAMP
       WHERE anilist_id = ${anilistId}
     `;
-    return existing[0];
+    const user = existing[0];
+    // player_ratings.user_id stores anilist_id, not the DB primary key.
+    // In Supabase users.id is a UUID; in local PG it may be SERIAL.
+    // Either way, the game tables reference anilist_id.
+    user.id = user.anilist_id;
+    return user;
   }
 
   // Create new user
@@ -214,7 +280,9 @@ export async function getOrCreateUser(anilistId: number, username: string, avata
     RETURNING *
   `;
 
-  return result[0];
+  const user = result[0];
+  user.id = user.anilist_id;
+  return user;
 }
 
 export async function getUserByAnilistId(anilistId: number) {
@@ -222,6 +290,28 @@ export async function getUserByAnilistId(anilistId: number) {
     SELECT * FROM users WHERE anilist_id = ${anilistId}
   `;
   return result[0] || null;
+}
+
+/**
+ * Get users whose profile data (avatar, username) hasn't been refreshed in a while
+ */
+export async function getStaleAvatarUsers(
+  anilistIds: number[],
+  maxAgeDays: number = 7,
+  limit: number = 10
+): Promise<Array<{ anilist_id: number; username: string }>> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxAgeDays);
+  
+  const result = await getDb()`
+    SELECT anilist_id, username 
+    FROM users 
+    WHERE anilist_id IN ${anilistIds}
+      AND (updated_at < ${cutoff.toISOString()} OR updated_at IS NULL)
+    LIMIT ${limit}
+  `;
+  
+  return result;
 }
 
 // ============================================================================
@@ -286,14 +376,24 @@ function calculateRatingChange(
   // 1.0 = normal, <1.0 = easier game (less MMR), >1.0 = harder game (more MMR)
   const gameTypeModifiers: Record<string, number> = {
     'op-guessing': 1.0,         // Standard difficulty
-    'quote-guessing': 0.5,      // Much easier - quotes are often obvious
     'character-guessing': 0.7,  // Easier - visual recognition
     'score-guessing': 0.9,      // Slightly easier
     'season-matching': 1.2,     // Hard - need to know air dates
     'cover-guessing': 0.8,      // Easier - visual recognition
     'chapters-guessing': 1.1,   // Harder - need to know manga details
     'hangman': 0.85,            // Medium-easy
-    'wordle': 0.8,              // Easier - common words
+    'popularity-battle': 1.0,   // Standard - general knowledge
+    'tag-or-cap': 0.9,          // Slightly easier - some guesswork
+    'taste-consistency': 0.8,   // Easier - based on own ratings
+    'studio-match': 1.15,       // Hard - need studio knowledge
+    'va-connection': 1.1,         // Harder - voice actor knowledge
+    'relation-type': 1.0,       // Standard
+    'score-ladder': 0.95,       // Slightly easier - own ratings
+    'tag-ladder': 0.9,          // Slightly easier - own tags
+    'seiyuu-guessing': 0.75,    // Easier - visual recognition
+    'screenshot-guessing': 0.8, // Easier - visual recognition
+    'quote-guessing': 1.0,      // Standard
+    'wordle': 0.9,              // Slightly easier
   };
   const gameModifier = gameTypeModifiers[gameType] || 1.0;
   
@@ -373,10 +473,16 @@ export async function updateRatingAfterGame(
   difficulty: string,
   timeLimit?: string
 ) {
+  console.log('[DB updateRatingAfterGame] Input:', { userId, gameType, score, maxScore, correctCount, questionsCount, avgTime, difficulty, timeLimit });
+
   const rating = await getPlayerRating(userId, gameType);
+  console.log('[DB updateRatingAfterGame] Current rating:', rating);
+
   const ratingChange = calculateRatingChange(rating.rating, correctCount, questionsCount, difficulty, gameType, avgTime, timeLimit);
   const newRating = Math.max(0, rating.rating + ratingChange);
   const isWin = score / maxScore >= 0.7; // 70%+ is a win
+
+  console.log('[DB updateRatingAfterGame] Calculated:', { ratingChange, newRating, isWin });
   
   // Update rating
   await getDb()`
@@ -387,8 +493,7 @@ export async function updateRatingAfterGame(
       wins = wins + ${isWin ? 1 : 0},
       current_streak = ${isWin ? rating.current_streak + 1 : 0},
       best_streak = GREATEST(best_streak, ${isWin ? rating.current_streak + 1 : rating.current_streak}),
-      last_played = CURRENT_TIMESTAMP,
-      updated_at = CURRENT_TIMESTAMP
+      last_played = CURRENT_TIMESTAMP
     WHERE user_id = ${userId} AND game_type = ${gameType}
   `;
 
@@ -428,7 +533,7 @@ export async function getLeaderboard(gameType: string, limit: number = 100, offs
       pr.best_streak,
       RANK() OVER (ORDER BY pr.rating DESC) as rank
     FROM player_ratings pr
-    JOIN users u ON pr.user_id = u.id
+    JOIN users u ON pr.user_id = u.anilist_id
     WHERE pr.game_type = ${gameType} AND pr.games_played > 0
     ORDER BY pr.rating DESC
     LIMIT ${limit} OFFSET ${offset}
@@ -450,9 +555,9 @@ export async function getGlobalLeaderboard(limit: number = 100, offset: number =
       MAX(pr.best_streak) as best_streak,
       RANK() OVER (ORDER BY SUM(pr.rating) DESC) as rank
     FROM player_ratings pr
-    JOIN users u ON pr.user_id = u.id
+    JOIN users u ON pr.user_id = u.anilist_id
     WHERE pr.games_played > 0
-    GROUP BY u.id, u.anilist_id, u.username, u.avatar_url
+    GROUP BY u.anilist_id, u.username, u.avatar_url
     HAVING SUM(pr.games_played) >= 1
     ORDER BY rating DESC
     LIMIT ${limit} OFFSET ${offset}
@@ -506,6 +611,182 @@ export async function getGameStats(userId: number) {
   `;
 
   return result;
+}
+
+// ============================================================================
+// Prediction Residuals & ML Model Operations
+// ============================================================================
+
+export async function logPredictionResidual(
+  userId: number,
+  anilistMediaId: number,
+  mediaType: 'ANIME' | 'MANGA',
+  predictedScore: number,
+  actualScore: number | null,
+  features: Record<string, number>,
+  genomeVersion: string = 'v3'
+) {
+  await getDb()`
+    INSERT INTO prediction_residuals 
+      (user_id, anilist_media_id, media_type, predicted_score, actual_score, features_json, genome_version)
+    VALUES 
+      (${userId}, ${anilistMediaId}, ${mediaType}, ${predictedScore}, ${actualScore}, ${JSON.stringify(features)}, ${genomeVersion})
+    ON CONFLICT DO NOTHING
+  `;
+}
+
+export async function getUserResiduals(userId: number, mediaType?: 'ANIME' | 'MANGA', limit: number = 500) {
+  const typeFilter = mediaType ? getDb()`AND media_type = ${mediaType}` : getDb()``;
+  const result = await getDb()`
+    SELECT * FROM prediction_residuals 
+    WHERE user_id = ${userId} ${typeFilter}
+      AND actual_score IS NOT NULL
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `;
+  return result;
+}
+
+export async function getUserModelWeights(
+  userId: number,
+  mediaType: 'ANIME' | 'MANGA',
+  genomeVersion: string = 'v3'
+) {
+  const result = await getDb()`
+    SELECT * FROM user_model_weights 
+    WHERE user_id = ${userId} AND media_type = ${mediaType} AND genome_version = ${genomeVersion}
+  `;
+  return result[0] || null;
+}
+
+export async function storeUserModelWeights(
+  userId: number,
+  mediaType: 'ANIME' | 'MANGA',
+  weights: Record<string, number>,
+  featureNames: string[],
+  bias: number,
+  rSquared: number,
+  rmse: number,
+  sampleCount: number,
+  genomeVersion: string = 'v3'
+) {
+  await getDb()`
+    INSERT INTO user_model_weights 
+      (user_id, media_type, bias, weights_json, feature_names, r_squared, rmse, sample_count, genome_version)
+    VALUES 
+      (${userId}, ${mediaType}, ${bias}, ${JSON.stringify(weights)}, ${JSON.stringify(featureNames)}, ${rSquared}, ${rmse}, ${sampleCount}, ${genomeVersion})
+    ON CONFLICT (user_id, media_type, genome_version)
+    DO UPDATE SET 
+      bias = ${bias},
+      weights_json = ${JSON.stringify(weights)},
+      feature_names = ${JSON.stringify(featureNames)},
+      r_squared = ${rSquared},
+      rmse = ${rmse},
+      sample_count = ${sampleCount},
+      trained_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function updateResidualActualScore(
+  userId: number,
+  anilistMediaId: number,
+  actualScore: number,
+  mediaType: 'ANIME' | 'MANGA' = 'ANIME'
+) {
+  // Update existing residuals; allow re-rating by NOT requiring actual_score IS NULL
+  const updateResult = await getDb()`
+    UPDATE prediction_residuals
+    SET actual_score = ${actualScore}
+    WHERE user_id = ${userId} AND anilist_media_id = ${anilistMediaId}
+    RETURNING id
+  `;
+
+  // If no residual existed (user rated something never recommended), insert a stub record
+  if (!updateResult || updateResult.length === 0) {
+    await getDb()`
+      INSERT INTO prediction_residuals
+        (user_id, anilist_media_id, media_type, predicted_score, actual_score, features_json, genome_version)
+      VALUES
+        (${userId}, ${anilistMediaId}, ${mediaType}, ${actualScore}, ${actualScore}, ${JSON.stringify({})}, 'v3')
+      ON CONFLICT DO NOTHING
+    `;
+  }
+}
+
+export async function getGlobalModelWeights(
+  mediaType: 'ANIME' | 'MANGA',
+  genomeVersion: string = 'v3'
+) {
+  const result = await getDb()`
+    SELECT * FROM global_model_weights 
+    WHERE media_type = ${mediaType} AND genome_version = ${genomeVersion}
+  `;
+  return result[0] || null;
+}
+
+export async function storeGlobalModelWeights(
+  mediaType: 'ANIME' | 'MANGA',
+  weights: Record<string, number>,
+  featureNames: string[],
+  bias: number,
+  rSquared: number,
+  rmse: number,
+  sampleCount: number,
+  genomeVersion: string = 'v3'
+) {
+  await getDb()`
+    INSERT INTO global_model_weights 
+      (media_type, bias, weights_json, feature_names, r_squared, rmse, sample_count, genome_version)
+    VALUES 
+      (${mediaType}, ${bias}, ${JSON.stringify(weights)}, ${JSON.stringify(featureNames)}, ${rSquared}, ${rmse}, ${sampleCount}, ${genomeVersion})
+    ON CONFLICT (media_type, genome_version)
+    DO UPDATE SET 
+      bias = ${bias},
+      weights_json = ${JSON.stringify(weights)},
+      feature_names = ${JSON.stringify(featureNames)},
+      r_squared = ${rSquared},
+      rmse = ${rmse},
+      sample_count = ${sampleCount},
+      trained_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function getAllResidualsForGlobalTraining(
+  mediaType: 'ANIME' | 'MANGA',
+  limit: number = 5000
+) {
+  const result = await getDb()`
+    SELECT predicted_score, actual_score, features_json, user_id
+    FROM prediction_residuals 
+    WHERE media_type = ${mediaType}
+      AND actual_score IS NOT NULL
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `;
+  return result;
+}
+
+export async function getCommunityScoreForMedia(
+  anilistMediaId: number,
+  mediaType: 'ANIME' | 'MANGA'
+): Promise<{ mean: number; count: number; std: number } | null> {
+  const result = await getDb()`
+    SELECT 
+      AVG(actual_score)::FLOAT as mean,
+      COUNT(*)::INTEGER as count,
+      STDDEV(actual_score)::FLOAT as std
+    FROM prediction_residuals 
+    WHERE anilist_media_id = ${anilistMediaId}
+      AND media_type = ${mediaType}
+      AND actual_score IS NOT NULL
+  `;
+  const row = result[0];
+  if (!row || row.count < 3) return null;
+  return {
+    mean: Number(row.mean),
+    count: Number(row.count),
+    std: Number(row.std) || 1.5,
+  };
 }
 
 // Export the getDb function for use in API routes

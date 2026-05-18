@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { GameSession } from '@/types/anilist';
 import { GameEngine } from '@/lib/game-engine';
-import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star, Loader2, Heart } from 'lucide-react';
+import { Trophy, Clock, Target, TrendingUp, Award, RotateCcw, ArrowLeft, Zap, Star, Loader2, Heart, Check, X, Music, Image as ImageIcon, Gamepad2, User, Mic } from 'lucide-react';
 import { useGameStats } from '@/hooks/use-game-stats';
 import { RankBadge, MMRChange } from './rank-badge';
 
@@ -22,12 +22,13 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
     newRating: number;
     ratingChange: number;
   } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   // Submit game results to database on mount
   useEffect(() => {
     if (submitted || !canSubmitScores) return;
-    
+
     const submitResults = async () => {
       const score = GameEngine.calculateScore(results);
       const maxScore = results.questions.reduce((sum, q) => sum + q.points, 0);
@@ -35,22 +36,29 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
       const totalTime = Math.floor((results.endTime! - results.startTime) / 1000);
       const avgTime = totalTime / results.answers.length;
 
-      const result = await submitGameResult(
-        results.type,
-        score,
-        maxScore,
-        correctCount,
-        results.questions.length,
-        avgTime,
-        difficulty
-      );
+      try {
+        const result = await submitGameResult(
+          results.type,
+          score,
+          maxScore,
+          correctCount,
+          results.questions.length,
+          avgTime,
+          difficulty
+        );
 
-      if (result.success && result.oldRating !== undefined) {
-        setMmrResult({
-          oldRating: result.oldRating,
-          newRating: result.newRating!,
-          ratingChange: result.ratingChange!,
-        });
+        if (result.success && result.oldRating !== undefined) {
+          setMmrResult({
+            oldRating: result.oldRating,
+            newRating: result.newRating!,
+            ratingChange: result.ratingChange!,
+          });
+        } else if (!result.success) {
+          setSubmitError(result.error || 'Failed to save score');
+        }
+      } catch (err) {
+        setSubmitError('Network error while saving score');
+        console.error('Game submission exception:', err);
       }
       setSubmitted(true);
     };
@@ -102,6 +110,20 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
           {getPerformanceLevelLabel(performanceLevel)}
         </div>
         
+        {/* Score Progress Bar */}
+        <div className="mt-6 max-w-md mx-auto">
+          <div className="flex justify-between text-sm text-gray-400 mb-1">
+            <span>Score</span>
+            <span>{score} / {results.questions.reduce((sum, q) => sum + q.points, 0)}</span>
+          </div>
+          <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+            <div 
+              className={`h-full rounded-full bg-linear-to-r ${getPerformanceGradient(performanceLevel)} transition-all duration-1000`}
+              style={{ width: `${Math.min(100, (score / results.questions.reduce((sum, q) => sum + q.points, 0)) * 100)}%` }}
+            />
+          </div>
+        </div>
+        
         {/* MMR Change Display */}
         {isSubmitting && (
           <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
@@ -111,20 +133,29 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
         )}
         {mmrResult && (
           <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
-            <MMRChange 
-              change={mmrResult.ratingChange} 
-              oldMMR={mmrResult.oldRating} 
-              newMMR={mmrResult.newRating} 
+            <MMRChange
+              change={mmrResult.ratingChange}
+              oldMMR={mmrResult.oldRating}
+              newMMR={mmrResult.newRating}
             />
             <div className="mt-3">
               <RankBadge mmr={mmrResult.newRating} size="lg" showProgress />
             </div>
           </div>
         )}
+        {submitError && (
+          <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+            <p className="font-bold text-red-400">Score Not Saved</p>
+            <p className="text-red-300 text-sm mt-1">{submitError}</p>
+          </div>
+        )}
         {!canSubmitScores && !isSubmitting && (
-          <p className="mt-4 text-xs text-gray-500">
-            Login with AniList to save your scores and compete in rankings!
-          </p>
+          <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+            <p className="font-bold text-yellow-400">Login Required</p>
+            <p className="text-yellow-300 text-sm mt-1">
+              Sign in with AniList OAuth to save scores and compete on the leaderboard.
+            </p>
+          </div>
         )}
       </div>
 
@@ -170,18 +201,23 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
             const isCorrect = answer.correct;
             
             return (
-              <div key={answer.questionId} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+              <div key={answer.questionId} className={`flex items-center justify-between p-3 rounded-xl border ${
+                isCorrect ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                     isCorrect ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                   }`}>
-                    {isCorrect ? '✓' : '✗'}
+                    {isCorrect ? <Check className="w-4 h-4" strokeWidth={3} /> : <X className="w-4 h-4" strokeWidth={3} />}
                   </div>
                   <div>
                     <p className="font-medium text-white">Question {index + 1}</p>
-                    <p className="text-xs text-gray-400">
-                      {question?.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {getQuestionTypeIcon(question?.type)}
+                      <span className="text-xs text-gray-400">
+                        {getQuestionTypeLabel(question?.type)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -261,7 +297,7 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
       </div>
 
       {/* Support Card */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+      <div className="p-4 rounded-xl bg-linear-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Heart className="w-5 h-5 text-pink-400" />
@@ -298,6 +334,43 @@ export function GameResults({ results, onPlayAgain, onBackToHub, difficulty = 'm
       </div>
     </div>
   );
+}
+
+function getQuestionTypeLabel(type?: string): string {
+  if (!type) return 'Unknown';
+  const labels: Record<string, string> = {
+    'OP_GUESS': 'OP/ED Theme',
+    'SCREENSHOT_GUESS': 'Screenshot',
+    'SCORE_GUESS': 'Score',
+    'CHARACTER_GUESS': 'Character',
+    'SEASON_MATCH': 'Season Match',
+    'COVER_GUESS': 'Cover',
+    'CHAPTER_COUNT_GUESS': 'Chapters',
+    'HANGMAN': 'Hangman',
+    'SEIYUU_GUESS': 'Voice Actor',
+    'TAG_OR_CAP': 'Tag or Cap',
+    'POPULARITY_BATTLE': 'Popularity',
+    'TASTE_CONSISTENCY': 'Taste Check',
+    'STUDIO_MATCH': 'Studio',
+    'VA_CONNECTION': 'VA Connection',
+    'RELATION_TYPE': 'Relation',
+    'SCORE_LADDER': 'Score Ladder',
+    'TAG_LADDER': 'Tag Ladder',
+  };
+  return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getQuestionTypeIcon(type?: string): React.ReactNode {
+  if (!type) return null;
+  const iconClass = "w-3 h-3 text-gray-500";
+  switch (type) {
+    case 'OP_GUESS': return <Music className={iconClass} />;
+    case 'SCREENSHOT_GUESS': return <ImageIcon className={iconClass} />;
+    case 'CHARACTER_GUESS': return <User className={iconClass} />;
+    case 'SEIYUU_GUESS': return <Mic className={iconClass} />;
+    case 'COVER_GUESS': return <ImageIcon className={iconClass} />;
+    default: return <Gamepad2 className={iconClass} />;
+  }
 }
 
 function getCorrectStreaks(answers: Array<{ correct: boolean }>): number[] {

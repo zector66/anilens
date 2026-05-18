@@ -27,6 +27,7 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
     change: number;
     isWin: boolean;
   } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Find current player and opponent
@@ -71,9 +72,12 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
             change: result.ratingChange || 0,
             isWin: result.isWin || false,
           });
+        } else {
+          setSubmitError(result.error || 'Failed to save score');
         }
       } catch (error) {
         console.error('Error submitting multiplayer results:', error);
+        setSubmitError('Network error while saving score');
       } finally {
         setIsSubmitting(false);
       }
@@ -150,6 +154,20 @@ export function MultiplayerResults({ results, room, onPlayAgain, onBackToHub }: 
             <div className="text-xs text-gray-500">
               {mmrResult.oldRating} → {mmrResult.newRating} MMR
             </div>
+          </div>
+        )}
+        {submitError && (
+          <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 max-w-sm mx-auto">
+            <p className="font-bold text-red-400">Score Not Saved</p>
+            <p className="text-red-300 text-sm mt-1">{submitError}</p>
+          </div>
+        )}
+        {!canSubmitScores && !isSubmitting && !mmrResult && (
+          <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 max-w-sm mx-auto">
+            <p className="font-bold text-yellow-400">Login Required</p>
+            <p className="text-yellow-300 text-sm mt-1">
+              Sign in with AniList OAuth to save scores and compete on the leaderboard.
+            </p>
           </div>
         )}
       </div>

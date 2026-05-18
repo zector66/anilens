@@ -324,10 +324,10 @@ export function applyTemporalDecay<T extends { year?: number }>(
     }
   }
   
-  // Normalize current scores by weight sum
+  // Normalize current scores by weight sum (weighted average of raw scores)
   for (const [traitId, score] of currentScores) {
     const weightSum = traitWeightSums.get(traitId) || 1;
-    currentScores.set(traitId, score / weightSum * entries.length);
+    currentScores.set(traitId, score / weightSum);
   }
   
   return {

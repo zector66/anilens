@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { 
   MatchHistoryEntry,
@@ -60,37 +60,46 @@ export function CommunityHubV2({ onStartDailyChallenge, onStartChallenge, onNavi
   const [_isLoadingProfile, _setIsLoadingProfile] = useState(true);
 
   // Fetch profile from database
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
-    
-    const fetchProfile = async () => {
-      _setIsLoadingProfile(true);
-      try {
-        const response = await fetch('/api/user/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            anilistId: user.id,
-            username: user.name,
-            avatarUrl: user.avatar?.large,
-          }),
+
+    _setIsLoadingProfile(true);
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anilistId: user.id,
+          username: user.name,
+          avatarUrl: user.avatar?.large,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDbProfile({
+          ratings: data.ratings || [],
+          stats: data.stats || [],
+          overallRating: data.overallRating
         });
-        const data = await response.json();
-        if (data.success) {
-          setDbProfile({ 
-            ratings: data.ratings || [], 
-            stats: data.stats || [],
-            overallRating: data.overallRating
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load profile:', error);
-      } finally {
-        _setIsLoadingProfile(false);
       }
-    };
-    fetchProfile();
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      _setIsLoadingProfile(false);
+    }
   }, [user]);
+
+  // Initial fetch and window focus refresh
+  useEffect(() => {
+    fetchProfile();
+
+    // Refresh when window gains focus (after playing a game and returning)
+    const handleFocus = () => {
+      fetchProfile();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchProfile]);
 
   // Load data from localStorage using useMemo (sync operations) - fallback
   const playerRating = useMemo<PlayerRating | null>(() => {
@@ -153,7 +162,9 @@ export function CommunityHubV2({ onStartDailyChallenge, onStartChallenge, onNavi
   }
 
   // Use database rating if available, otherwise fallback to localStorage
-  const displayRating = dbProfile?.ratings.length ? (dbProfile.overallRating?.total_rating || 0) : (playerRating?.ratings.overall || 0);
+  // Check overallRating.total_rating first (comes from leaderboard aggregation)
+  const dbOverall = dbProfile?.overallRating?.total_rating;
+  const displayRating = dbOverall != null ? dbOverall : (playerRating?.ratings.overall || 0);
   const detailedRank = getRankFromMMR(displayRating);
   const rankInfo = {
     title: getRankDisplayName(displayRating),
@@ -423,27 +434,49 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
   const [offset, setOffset] = useState(0);
   const limit = 50; // Load 50 at a time
 
+  // Fetch leaderboard function
+  const fetchLeaderboard = useCallback(async () => {
+    setIsLoading(true);
+    setOffset(0);
+    setHasMore(true);
+    try {
+      const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}`, {
+        cache: 'no-store',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setLeaderboard(data.leaderboard || []);
+        setHasMore((data.leaderboard || []).length === limit);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [leaderboardType]);
+
   // Fetch leaderboard on mount and when type changes
   useEffect(() => {
-    const fetchLeaderboard = async () => {
-      setIsLoading(true);
-      setOffset(0);
-      setHasMore(true);
-      try {
-        const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}`);
-        const data = await response.json();
-        if (data.success) {
-          setLeaderboard(data.leaderboard || []);
-          setHasMore((data.leaderboard || []).length === limit);
-        }
-      } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
-      } finally {
-        setIsLoading(false);
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  // Refresh leaderboard when window gains focus or tab becomes visible
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchLeaderboard();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLeaderboard();
       }
     };
-    fetchLeaderboard();
-  }, [leaderboardType]);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchLeaderboard]);
 
   // Load more function
   const loadMore = async () => {
@@ -490,9 +523,14 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
   const leaderboardTypes = [
     { id: 'global', label: 'Overall' },
     { id: 'op-guessing', label: 'OP/ED Guessing' },
-    { id: 'quote-guessing', label: 'Quote Master' },
     { id: 'character-guessing', label: 'Character' },
     { id: 'score-guessing', label: 'Memory Test' },
+    { id: 'popularity-battle', label: 'Popularity Battle' },
+    { id: 'cover-guessing', label: 'Cover Guess' },
+    { id: 'season-matching', label: 'Season Match' },
+    { id: 'hangman', label: 'Hangman' },
+    { id: 'tag-or-cap', label: 'Tag or Cap' },
+    { id: 'studio-match', label: 'Studio Match' },
   ];
 
   return (

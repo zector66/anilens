@@ -245,28 +245,53 @@ function calculateDropRate(entries: MediaListEntry[]): number {
 }
 
 function calculateBingeIndex(entries: MediaListEntry[]): number {
-  // Simple implementation - TODO: Improve
-  return 0.5;
+  const completedWithDates = entries.filter(e => 
+    e.status === 'COMPLETED' && e.startedAt?.year && e.completedAt?.year
+  );
+  if (completedWithDates.length === 0) return 0;
+  
+  let totalDays = 0;
+  completedWithDates.forEach(e => {
+    const start = new Date(e.startedAt!.year!, e.startedAt!.month || 1, e.startedAt!.day || 1);
+    const end = new Date(e.completedAt!.year!, e.completedAt!.month || 1, e.completedAt!.day || 1);
+    const days = Math.max(1, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    totalDays += days;
+  });
+  
+  const avgDays = totalDays / completedWithDates.length;
+  return Math.min(1, Math.max(0, 1 - (avgDays / 30))); // <7 days = high binge
 }
 
 function calculateMainstreamIndex(entries: MediaListEntry[]): number {
-  // Simple implementation - TODO: Improve
-  return 0.5;
+  if (entries.length === 0) return 0.5;
+  const totalPop = entries.reduce((sum, e) => sum + (e.media?.popularity || 0), 0);
+  const avgPop = totalPop / entries.length;
+  return Math.min(1, avgPop / 100000); // 100k+ = fully mainstream
 }
 
 function calculateNicheIndex(entries: MediaListEntry[]): number {
-  // Simple implementation - TODO: Improve
-  return 0.5;
+  if (entries.length === 0) return 0;
+  const nicheCount = entries.filter(e => (e.media?.popularity || 0) < 20000).length;
+  return nicheCount / entries.length;
 }
 
 function calculateExperimentalIndex(entries: MediaListEntry[]): number {
-  // Simple implementation - TODO: Improve
-  return 0.5;
+  if (entries.length === 0) return 0;
+  const expTags = ['experimental', 'avant-garde', 'psychological', 'surreal', 'abstract'];
+  let expCount = 0;
+  entries.forEach(e => {
+    const tags = e.media?.tags?.map(t => t.name.toLowerCase()) || [];
+    if (expTags.some(et => tags.includes(et))) expCount++;
+  });
+  return expCount / entries.length;
 }
 
 function calculateDiversityIndex(entries: MediaListEntry[]): number {
-  // Simple implementation - TODO: Improve
-  return 0.5;
+  if (entries.length === 0) return 0;
+  const genres = new Set<string>();
+  entries.forEach(e => e.media?.genres?.forEach(g => genres.add(g)));
+  const allGenres = 20;
+  return Math.min(1, genres.size / allGenres);
 }
 
 /**
