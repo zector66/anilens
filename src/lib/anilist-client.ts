@@ -70,6 +70,17 @@ export class AniListClient {
   }
 
   async getUserByUsername(username: string): Promise<AniListUser> {
+    // In the browser, AniList's GraphQL endpoint blocks cross-origin requests.
+    // Proxy through our own API route instead.
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/anilist/user?username=${encodeURIComponent(username)}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `User "${username}" not found`);
+      }
+      return data.user as AniListUser;
+    }
+
     const query = gql`
       query($name: String) {
         User(name: $name) {

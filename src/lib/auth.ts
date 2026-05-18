@@ -122,47 +122,19 @@ export class AuthManager {
     this.notifyListeners();
 
     try {
-      const response = await fetch('https://graphql.anilist.co', {
+      // Proxy through our server because AniList GraphQL blocks browser CORS.
+      const response = await fetch('/api/anilist/viewer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.accessToken}`,
         },
-        body: JSON.stringify({
-          query: `
-            query {
-              Viewer {
-                id
-                name
-                avatar {
-                  large
-                  medium
-                }
-                bannerImage
-                statistics {
-                  anime {
-                    count
-                    meanScore
-                    minutesWatched
-                    episodesWatched
-                  }
-                  manga {
-                    count
-                    meanScore
-                    chaptersRead
-                    volumesRead
-                  }
-                }
-              }
-            }
-          `,
-        }),
       });
 
       const data = await response.json();
-      
-      if (data.data?.Viewer) {
-        this.user = data.data.Viewer;
+
+      if (data.success && data.user) {
+        this.user = data.user;
         this.username = this.user!.name;
         this.isOAuth = true;
         localStorage.setItem('anilist_username', this.username!);
