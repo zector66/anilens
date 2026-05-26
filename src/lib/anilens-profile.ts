@@ -1,5 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// OG title unlock cutoff: anyone who first authenticates before this date gets the OG badge.
+export const OG_DEADLINE = new Date('2026-07-01T00:00:00Z');
+
 // Lazy initialization of Supabase client to avoid build-time errors
 let _supabase: SupabaseClient | null = null;
 
@@ -38,6 +41,8 @@ export interface AniLensUser {
   total_manga: number;
   total_games_played: number;
   profile_updated_at: string;
+  og_unlocked_at: string | null;
+  chat_message_count: number;
 }
 
 export interface UserGameStats {
@@ -104,6 +109,8 @@ export interface UserSettings {
 
 /**
  * Create or update user profile on login
+ * Also handles OG title unlock: if a user first authenticates before OG_DEADLINE,
+ * they get og_unlocked_at set permanently. Once set, it never changes.
  */
 export async function upsertUserOnLogin(
   anilistId: number,
@@ -128,7 +135,9 @@ export async function upsertUserOnLogin(
     });
 
     if (!rpcError && rpcData) {
-      return rpcData as AniLensUser;
+      // RPC succeeded; still check + apply OG unlock if applicable
+      const result = await ensureOgUnlock(anilistId, rpcData as AniLensUser);
+      return result;
     }
 
     // Fallback to direct upsert if RPC doesn't exist yet
@@ -158,10 +167,54 @@ export async function upsertUserOnLogin(
       .from('user_game_stats')
       .upsert({ anilist_id: anilistId }, { onConflict: 'anilist_id' });
 
-    return data as AniLensUser;
+    // Apply OG unlock if first sync happens before deadline
+    return await ensureOgUnlock(anilistId, data as AniLensUser);
   } catch (error) {
     console.error('[AniLens Profile] Exception upserting user:', error);
     return null;
+  }
+}
+
+/**
+ * If the user has no og_unlocked_at and we're still before OG_DEADLINE,
+ * set og_unlocked_at to now() and return the updated record. Otherwise pass through.
+ * This is idempotent: once og_unlocked_at is set, it's never overwritten.
+ */
+async function ensureOgUnlock(anilistId: number, user: AniLensUser): Promise<AniLensUser> {
+  const supabase = getSupabase();
+  if (!supabase) return user;
+
+  // Already unlocked — nothing to do
+  if (user.og_unlocked_at) return user;
+
+  // Past deadline — too late
+  if (new Date() >= OG_DEADLINE) return user;
+
+  try {
+    const nowIso = new Date().toISOString();
+    // Conditional update: only set if still null, so concurrent calls don't overwrite
+    const { data, error } = await supabase
+      .from('users')
+      .update({ og_unlocked_at: nowIso })
+      .eq('anilist_id', anilistId)
+      .is('og_unlocked_at', null)
+      .select()
+      .single();
+
+    if (error) {
+      // Column might not exist yet (migration not applied) — fail gracefully
+      if (error.code === '42703' || /og_unlocked_at/.test(error.message || '')) {
+        console.warn('[AniLens Profile] og_unlocked_at column missing — run migration 20250519000300_og_unlock.sql');
+        return user;
+      }
+      console.error('[AniLens Profile] OG unlock update failed:', error);
+      return user;
+    }
+
+    return (data as AniLensUser) || user;
+  } catch (e) {
+    console.error('[AniLens Profile] Exception in ensureOgUnlock:', e);
+    return user;
   }
 }
 

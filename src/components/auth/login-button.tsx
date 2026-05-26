@@ -17,7 +17,7 @@ export function LoginButton({ variant = 'default' }: LoginButtonProps) {
   useEffect(() => {
     if (variant !== 'hero') return;
     fetch('/api/anilist/status')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`Status API ${r.status}`); return r.json(); })
       .then(data => { if (!data.ok) setAnilistDown(data.message ?? 'AniList is currently experiencing issues.'); })
       .catch(() => {});
   }, [variant]);

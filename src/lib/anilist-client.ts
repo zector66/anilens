@@ -34,6 +34,48 @@ export class AniListClient {
     return this.client.request<T>(query, variables);
   }
 
+  /**
+   * Request with retry-on-429 logic. Honors Retry-After header when available.
+   * Throws after exhausting retries; thrown error includes status code 429.
+   */
+  async requestWithRetry<T>(
+    query: string,
+    variables?: Record<string, unknown>,
+    options: { maxRetries?: number; baseDelayMs?: number } = {}
+  ): Promise<T> {
+    const { maxRetries = 3, baseDelayMs = 1000 } = options;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.client.request<T>(query, variables);
+      } catch (err: unknown) {
+        lastError = err;
+        const e = err as { response?: { status?: number; headers?: Record<string, string> | Headers } };
+        const status = e?.response?.status;
+        if (status !== 429 || attempt === maxRetries) {
+          throw err;
+        }
+        // Parse Retry-After header if present
+        let retryAfterMs = baseDelayMs * Math.pow(2, attempt);
+        const headers = e?.response?.headers;
+        const retryAfterHeader =
+          headers instanceof Headers
+            ? headers.get('retry-after')
+            : (headers as Record<string, string> | undefined)?.['retry-after'] ||
+              (headers as Record<string, string> | undefined)?.['Retry-After'];
+        if (retryAfterHeader) {
+          const seconds = parseInt(retryAfterHeader, 10);
+          if (!isNaN(seconds) && seconds > 0) {
+            retryAfterMs = Math.min(seconds * 1000, 30_000);
+          }
+        }
+        logger.warn(`[AniListClient] 429 rate limited; retrying in ${retryAfterMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+      }
+    }
+    throw lastError;
+  }
+
   async getCurrentUser(): Promise<AniListUser> {
     const query = gql`
       query {
@@ -74,8 +116,9 @@ export class AniListClient {
     // Proxy through our own API route instead.
     if (typeof window !== 'undefined') {
       const res = await fetch(`/api/anilist/user?username=${encodeURIComponent(username)}`);
+      if (!res.ok) throw new Error(`User API ${res.status}`);
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || `User "${username}" not found`);
       }
       return data.user as AniListUser;
@@ -740,6 +783,429 @@ export class AniListClient {
     };
   }
 
+  async advancedSearch(options: {
+    search?: string;
+    type?: 'ANIME' | 'MANGA';
+    genres?: string[];
+    tags?: string[];
+    year?: number;
+    season?: string;
+    status?: string;
+    format?: string;
+    source?: string;
+    countryOfOrigin?: string;
+    averageScore_greater?: number;
+    averageScore_lesser?: number;
+    isAdult?: boolean;
+    sort?: string;
+    page?: number;
+    perPage?: number;
+  } = {}): Promise<{ media: Media[]; hasNextPage: boolean }> {
+    const {
+      search,
+      type = 'ANIME',
+      genres,
+      tags,
+      year,
+      season,
+      status,
+      format,
+      source,
+      countryOfOrigin,
+      averageScore_greater,
+      averageScore_lesser,
+      isAdult,
+      sort = 'POPULARITY_DESC',
+      page = 1,
+      perPage = 24,
+    } = options;
+
+    const query = gql`
+      query(
+        $search: String
+        $type: MediaType
+        $genres: [String]
+        $tags: [String]
+        $year: Int
+        $season: MediaSeason
+        $status: MediaStatus
+        $format: [MediaFormat]
+        $source: MediaSource
+        $countryOfOrigin: CountryCode
+        $averageScore_greater: Int
+        $averageScore_lesser: Int
+        $isAdult: Boolean = false
+        $sort: [MediaSort]
+        $page: Int
+        $perPage: Int
+      ) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo { hasNextPage }
+          media(
+            search: $search
+            type: $type
+            genre_in: $genres
+            tag_in: $tags
+            seasonYear: $year
+            season: $season
+            status: $status
+            format_in: $format
+            source: $source
+            countryOfOrigin: $countryOfOrigin
+            averageScore_greater: $averageScore_greater
+            averageScore_lesser: $averageScore_lesser
+            isAdult: $isAdult
+            sort: $sort
+          ) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            duration
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            seasonYear
+            startDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.requestWithRetry<{
+      Page: { media: Media[]; pageInfo: { hasNextPage: boolean } }
+    }>(query, {
+      search: search || undefined,
+      type,
+      genres: genres?.length ? genres : undefined,
+      tags: tags?.length ? tags : undefined,
+      year,
+      season: season || undefined,
+      status: status || undefined,
+      format: format ? [format] : undefined,
+      source: source || undefined,
+      countryOfOrigin: countryOfOrigin || undefined,
+      averageScore_greater,
+      averageScore_lesser,
+      isAdult: isAdult ?? undefined,
+      sort: sort ? [sort] : undefined,
+      page,
+      perPage,
+    });
+
+    return {
+      media: response.Page.media,
+      hasNextPage: response.Page.pageInfo.hasNextPage,
+    };
+  }
+
+  async getTags(perPage: number = 50): Promise<Array<{ id: number; name: string; category: string; rank: number }>> {
+    const query = gql`
+      query($perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
+            tags {
+              id
+              name
+              category
+              rank
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request<{
+      Page: { media: Array<{ tags: Array<{ id: number; name: string; category: string; rank: number }> }> }
+    }>(query, { perPage });
+
+    const tagMap = new Map<string, { id: number; name: string; category: string; rank: number }>();
+    for (const media of response.Page.media) {
+      for (const tag of media.tags || []) {
+        if (!tagMap.has(tag.name)) {
+          tagMap.set(tag.name, tag);
+        } else {
+          const existing = tagMap.get(tag.name)!;
+          if (tag.rank > existing.rank) {
+            tagMap.set(tag.name, tag);
+          }
+        }
+      }
+    }
+
+    return Array.from(tagMap.values())
+      .sort((a, b) => b.rank - a.rank)
+      .slice(0, 150);
+  }
+
+  async getAllTags(): Promise<Array<{ id: number; name: string; category: string; rank: number }>> {
+    const query = gql`
+      query {
+        MediaTagCollection {
+          id
+          name
+          category
+          rank
+          isAdult
+          description
+        }
+      }
+    `;
+
+    const response = await this.client.request<{
+      MediaTagCollection: Array<{
+        id: number;
+        name: string;
+        category: string;
+        rank: number;
+        isAdult: boolean;
+        description: string;
+      }>;
+    }>(query);
+
+    return (response.MediaTagCollection || [])
+      .filter((tag) => !tag.isAdult)
+      .map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        category: tag.category,
+        rank: tag.rank,
+      }))
+      .sort((a, b) => b.rank - a.rank);
+  }
+
+  async getTrending(
+    type: 'ANIME' | 'MANGA' = 'ANIME',
+    perPage: number = 12
+  ): Promise<Media[]> {
+    const query = gql`
+      query($type: MediaType, $perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: $type, sort: TRENDING_DESC, isAdult: false) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            chapters
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            trending
+            season
+            seasonYear
+            startDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      type,
+      perPage,
+    });
+    return response.Page.media;
+  }
+
+  async getTopAiring(
+    type: 'ANIME' | 'MANGA' = 'ANIME',
+    perPage: number = 12
+  ): Promise<Media[]> {
+    const query = gql`
+      query($type: MediaType, $perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: $type, status: RELEASING, sort: POPULARITY_DESC, isAdult: false) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            chapters
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            season
+            seasonYear
+            startDate { year month day }
+            nextAiringEpisode { episode timeUntilAiring }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      type,
+      perPage,
+    });
+    return response.Page.media;
+  }
+
+  async getPopular(
+    type: 'ANIME' | 'MANGA' = 'ANIME',
+    perPage: number = 12
+  ): Promise<Media[]> {
+    const query = gql`
+      query($type: MediaType, $perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: $type, sort: POPULARITY_DESC, isAdult: false) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            chapters
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            season
+            seasonYear
+            startDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      type,
+      perPage,
+    });
+    return response.Page.media;
+  }
+
+  async getTopRated(
+    type: 'ANIME' | 'MANGA' = 'ANIME',
+    perPage: number = 12
+  ): Promise<Media[]> {
+    const query = gql`
+      query($type: MediaType, $perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: $type, sort: SCORE_DESC, isAdult: false) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            chapters
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            season
+            seasonYear
+            startDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      type,
+      perPage,
+    });
+    return response.Page.media;
+  }
+
+  async getJustFinished(
+    type: 'ANIME' | 'MANGA' = 'ANIME',
+    perPage: number = 10
+  ): Promise<Media[]> {
+    const query = gql`
+      query($type: MediaType, $perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: $type, status: FINISHED, sort: END_DATE_DESC, isAdult: false) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            chapters
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            season
+            seasonYear
+            startDate { year month day }
+            endDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      type,
+      perPage,
+    });
+    return response.Page.media;
+  }
+
+  async getTopMovies(
+    perPage: number = 10
+  ): Promise<Media[]> {
+    const query = gql`
+      query($perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: ANIME, format: MOVIE, sort: SCORE_DESC, isAdult: false, minScoringUsers: 500) {
+            id
+            title { romaji english native userPreferred }
+            type
+            format
+            status
+            episodes
+            duration
+            coverImage { extraLarge large medium }
+            bannerImage
+            genres
+            meanScore
+            popularity
+            season
+            seasonYear
+            startDate { year month day }
+            studios(isMain: true) {
+              edges { node { id name isAnimationStudio } isMain }
+            }
+          }
+        }
+      }
+    `;
+    const response = await this.client.request<{ Page: { media: Media[] } }>(query, {
+      perPage,
+    });
+    return response.Page.media;
+  }
+
   async getMediaDetails(mediaId: number): Promise<Media> {
     const query = gql`
       query($mediaId: Int!) {
@@ -775,6 +1241,8 @@ export class AniListClient {
             name
             rank
             category
+            isGeneralSpoiler
+            isMediaSpoiler
           }
           meanScore
           popularity
@@ -811,9 +1279,19 @@ export class AniListClient {
                 }
                 type
                 format
+                coverImage {
+                  extraLarge
+                  large
+                  medium
+                }
               }
               relationType
             }
+          }
+          trailer {
+            id
+            site
+            thumbnail
           }
           characters {
             edges {
@@ -826,6 +1304,31 @@ export class AniListClient {
                   medium
                 }
               }
+              voiceActors(language: JAPANESE) {
+                id
+                name {
+                  full
+                }
+                image {
+                  medium
+                }
+                language
+              }
+              role
+            }
+          }
+          staff(perPage: 12) {
+            edges {
+              node {
+                id
+                name {
+                  full
+                }
+                image {
+                  large
+                  medium
+                }
+              }
               role
             }
           }
@@ -834,6 +1337,29 @@ export class AniListClient {
             site
             url
             type
+          }
+          rankings {
+            id
+            rank
+            type
+            format
+            year
+            season
+            allTime
+            context
+          }
+          recommendations(sort: RATING_DESC, perPage: 12) {
+            edges {
+              node {
+                mediaRecommendation {
+                  id
+                  title { romaji english }
+                  type
+                  format
+                  coverImage { extraLarge large medium }
+                }
+              }
+            }
           }
         }
       }
@@ -1447,6 +1973,65 @@ export class AniListClient {
       return 'experimental';
     }
     return 'safe';
+  }
+
+  async getAiringSchedule(
+    airingAtGreater: number,
+    airingAtLesser: number,
+    perPage: number = 50,
+    page: number = 1
+  ): Promise<Array<{
+    id: number;
+    episode: number;
+    airingAt: number;
+    media: Media;
+  }>> {
+    const query = gql`
+      query($airingAtGreater: Int, $airingAtLesser: Int, $perPage: Int, $page: Int) {
+        Page(page: $page, perPage: $perPage) {
+          airingSchedules(
+            airingAt_greater: $airingAtGreater
+            airingAt_lesser: $airingAtLesser
+            sort: TIME
+          ) {
+            id
+            episode
+            airingAt
+            media {
+              id
+              title { romaji english native userPreferred }
+              type
+              format
+              status
+              episodes
+              coverImage { extraLarge large medium }
+              bannerImage
+              genres
+              meanScore
+              popularity
+              season
+              seasonYear
+              studios(isMain: true) {
+                edges { node { id name isAnimationStudio } isMain }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request<{
+      Page: {
+        airingSchedules: Array<{
+          id: number;
+          episode: number;
+          airingAt: number;
+          media: Media;
+        }>;
+      };
+    }>(query, { airingAtGreater, airingAtLesser, perPage, page });
+
+    return response.Page.airingSchedules;
   }
 }
 

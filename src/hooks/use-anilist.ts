@@ -16,7 +16,6 @@ export function useAnimeList(userId: number, options?: { forceRefresh?: boolean 
   return useQuery({
     queryKey: ['animeList', 'v3', userId, options?.forceRefresh],
     queryFn: async () => {
-      console.log('[useAnimeList] queryFn triggered for userId:', userId);
       const res = await fetch(`/api/anilist/list?userId=${userId}&type=ANIME${options?.forceRefresh ? '&forceRefresh=true' : ''}`);
       if (!res.ok) throw new Error('Failed to fetch anime list');
       const data = await res.json();
@@ -35,7 +34,6 @@ export function useMangaList(userId: number, options?: { forceRefresh?: boolean 
   return useQuery({
     queryKey: ['mangaList', 'v3', userId, options?.forceRefresh],
     queryFn: async () => {
-      console.log('[useMangaList] queryFn triggered for userId:', userId);
       if (!userId || userId <= 0) {
         throw new Error('Invalid userId');
       }
@@ -241,7 +239,6 @@ export function useCachedTasteProfile(
       // Try to load from Supabase cache first
       const cached = await loadTasteProfileCache(userId, type, timeWindow, listHash);
       if (cached) {
-        console.log('[useCachedTasteProfile] Cache hit for', type);
         return {
           profile: cached.profile,
           dataCompleteness: cached.dataCompleteness,
@@ -251,7 +248,6 @@ export function useCachedTasteProfile(
       }
 
       // Cache miss - compute fresh profile
-      console.log('[useCachedTasteProfile] Cache miss, computing fresh profile for', type);
       const profile = TasteAnalyzer.analyzeTaste(mediaList, type);
       const dataCompleteness = analyzeDataCompleteness(mediaList, type);
 

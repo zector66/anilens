@@ -35,6 +35,7 @@ export function HallOfFame({ winnerId, showUserResult = true }: HallOfFameProps)
       try {
         // Fetch real Hall of Fame data from bracket_entity_stats
         const response = await fetch('/api/brackets/hall-of-fame');
+        if (!response.ok) throw new Error(`HallOfFame API ${response.status}`);
         const data = await response.json();
         
         if (data.success) {

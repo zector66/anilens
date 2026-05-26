@@ -9,10 +9,10 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = authManager.subscribe(setAuthState);
-    
-    // Check for OAuth callback on mount
-    authManager.handleOAuthCallback();
-    
+
+    // Check for OAuth callback on mount (async, but fire-and-forget is fine here)
+    authManager.handleOAuthCallback().catch(() => {});
+
     return unsubscribe;
   }, []);
 

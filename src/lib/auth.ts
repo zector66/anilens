@@ -72,7 +72,7 @@ export class AuthManager {
     };
   }
 
-  // Start OAuth flow - redirect to AniList (implicit grant)
+  // Start OAuth flow - redirect to AniList (authorization code grant)
   startOAuthLogin(): void {
     const clientId = process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID;
     if (!clientId) {
@@ -80,38 +80,67 @@ export class AuthManager {
       return;
     }
 
-    // AniList implicit grant flow - no redirect_uri needed if using the one registered in app settings
-    const authUrl = `${ANILIST_AUTH_URL}?client_id=${clientId}&response_type=token`;
-    
+    // Build redirect URI: always use /auth/callback for consistency
+    const redirectUri = typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : process.env.NEXT_PUBLIC_ANILIST_REDIRECT_URI || 'http://localhost:3000/auth/callback';
+
+    const authUrl = `${ANILIST_AUTH_URL}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
     logger.info('[AuthManager] Starting OAuth flow:', authUrl);
-    
+
     if (typeof window !== 'undefined') {
       window.location.href = authUrl;
     }
   }
 
-  // Handle OAuth callback (token in URL fragment)
+  // Handle OAuth callback (code in URL query param)
   async handleOAuthCallback(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
-    const hash = window.location.hash;
-    if (!hash || !hash.includes('access_token')) return false;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const error = params.get('error');
 
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken = params.get('access_token');
+    if (error) {
+      logger.error('[AuthManager] OAuth error:', error, params.get('error_description'));
+      return false;
+    }
 
-    if (!accessToken) return false;
+    if (!code) return false;
 
-    // Clear the hash from URL
-    window.history.replaceState(null, '', window.location.pathname);
+    // Build redirect URI for token exchange
+    const redirectUri = `${window.location.origin}/auth/callback`;
 
-    // Store token and load user
-    this.accessToken = accessToken;
-    this.isOAuth = true;
-    localStorage.setItem('anilist_access_token', accessToken);
-    
-    await this.loadAuthenticatedUser();
-    return true;
+    // Exchange code for token server-side
+    try {
+      const response = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, redirectUri }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.accessToken) {
+        logger.error('[AuthManager] Token exchange failed:', data.message || data.error);
+        throw new Error(data.message || data.error || 'Token exchange failed');
+      }
+
+      // Clear the code from URL
+      window.history.replaceState(null, '', window.location.pathname);
+
+      // Store token and load user
+      this.accessToken = data.accessToken;
+      this.isOAuth = true;
+      localStorage.setItem('anilist_access_token', data.accessToken);
+
+      await this.loadAuthenticatedUser();
+      return true;
+    } catch (err) {
+      logger.error('[AuthManager] OAuth callback failed:', err);
+      return false;
+    }
   }
 
   // Load user using OAuth token
@@ -255,6 +284,37 @@ export class AuthManager {
 
       if (response.ok) {
         logger.info(`[AuthManager] AniLens profile synced for ${this.user.name}`);
+        try {
+          const data = await response.json();
+          if (typeof window !== 'undefined' && data?.success) {
+            const wasUnlocked = localStorage.getItem('anilens_og_unlocked') === 'true';
+            const isUnlocked = !!data.og_unlocked;
+            if (isUnlocked) {
+              localStorage.setItem('anilens_og_unlocked', 'true');
+              if (data.og_unlocked_at) {
+                localStorage.setItem('anilens_og_unlocked_at', data.og_unlocked_at);
+              }
+            } else {
+              localStorage.removeItem('anilens_og_unlocked');
+              localStorage.removeItem('anilens_og_unlocked_at');
+            }
+            // Notify any listening components (e.g. LiveChat) about the change.
+            // `freshUnlock` = true only the very first time we see it unlocked on this device.
+            window.dispatchEvent(new CustomEvent('anilens:og-status', {
+              detail: { unlocked: isUnlocked, freshUnlock: isUnlocked && !wasUnlocked },
+            }));
+
+            // Chat progression: tell listeners the user's lifetime message count.
+            const count = typeof data.chat_message_count === 'number' ? data.chat_message_count : 0;
+            const prevCount = parseInt(localStorage.getItem('anilens_chat_msg_count') || '0', 10) || 0;
+            localStorage.setItem('anilens_chat_msg_count', String(count));
+            window.dispatchEvent(new CustomEvent('anilens:chat-progression', {
+              detail: { count, prevCount },
+            }));
+          }
+        } catch {
+          // Non-blocking; profile sync response is best-effort.
+        }
       } else {
         logger.warn('[AuthManager] Failed to sync AniLens profile');
       }

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head><title>Relay Test</title></head>
+<body>
+<h2>WebSocket Relay Test</h2>
+<p>Open this file in TWO browser tabs. Click Connect on both, then send a message from one.</p>
+<p>WS URL: <input id="url" value="wss://mirurotv.districtvapor.workers.dev?room=TEST123" size="60"></p>
+<button id="connect">Connect</button>
+<button id="send" disabled>Send Test Message</button>
+<button id="disconnect" disabled>Disconnect</button>
+<pre id="log" style="background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;font-family:monospace;"></pre>
+
+<script>
+let ws;
+const log = (msg) => {
+  const el = document.getElementById('log');
+  el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+
+document.getElementById('connect').onclick = () => {
+  const url = document.getElementById('url').value;
+  log('Connecting to ' + url + '...');
+  ws = new WebSocket(url);
+  ws.onopen = () => {
+    log('CONNECTED');
+    document.getElementById('send').disabled = false;
+    document.getElementById('disconnect').disabled = false;
+  };
+  ws.onmessage = (e) => log('RECEIVED: ' + e.data);
+  ws.onclose = () => log('DISCONNECTED');
+  ws.onerror = (e) => log('ERROR: ' + JSON.stringify(e));
+};
+
+document.getElementById('send').onclick = () => {
+  if (ws?.readyState === 1) {
+    ws.send(JSON.stringify({type: 'test', time: Date.now()}));
+    log('SENT: {type: "test"}');
+  }
+};
+
+document.getElementById('disconnect').onclick = () => ws?.close();
+</script>
+</body>
+</html>

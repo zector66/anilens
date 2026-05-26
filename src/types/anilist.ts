@@ -69,6 +69,10 @@ export interface Media {
   popularity: number;
   trending: number;
   favourites: number;
+  nextAiringEpisode?: {
+    episode: number;
+    timeUntilAiring: number;
+  };
   startDate: {
     year?: number;
     month?: number;
@@ -154,6 +158,19 @@ export interface Media {
     color?: string;
     icon?: string;
   }>;
+  recommendations?: {
+    edges: Array<{
+      node: {
+        mediaRecommendation?: {
+          id: number;
+          title?: { romaji?: string; english?: string };
+          type?: string;
+          format?: string;
+          coverImage?: { medium?: string };
+        };
+      };
+    }>;
+  };
   streamingEpisodes?: Array<{
     title: string;
     thumbnail: string;

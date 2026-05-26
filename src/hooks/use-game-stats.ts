@@ -85,7 +85,7 @@ export function useGameStats() {
           difficulty,
         }),
       });
-
+      if (!response.ok) throw new Error(`GameSubmit API ${response.status}`);
       const data = await response.json();
       console.log('[Game Submit] Response:', { success: data.success, oldRating: data.oldRating, newRating: data.newRating, ratingChange: data.ratingChange, error: data.error });
 
@@ -125,7 +125,7 @@ export function useGameStats() {
           avatarUrl: user.avatar?.large,
         }),
       });
-
+      if (!response.ok) throw new Error(`Profile API ${response.status}`);
       const data = await response.json();
       
       if (data.success) {
@@ -169,6 +169,7 @@ export function useLeaderboard(gameType: string = 'global') {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/leaderboard?gameType=${gameType}&limit=100`);
+      if (!response.ok) throw new Error(`Leaderboard API ${response.status}`);
       const data = await response.json();
       
       if (data.success) {

@@ -57,6 +57,7 @@ export function BracketHub({ userId }: BracketHubProps) {
       setIsLoadingHistory(true);
       try {
         const response = await fetch(`/api/brackets/history?userId=${userId}&limit=10`);
+        if (!response.ok) throw new Error(`History API ${response.status}`);
         const data = await response.json();
         
         if (data.success) {
@@ -82,6 +83,7 @@ export function BracketHub({ userId }: BracketHubProps) {
       setIsLoadingStats(true);
       try {
         const response = await fetch('/api/brackets/stats');
+        if (!response.ok) throw new Error(`Stats API ${response.status}`);
         const data = await response.json();
         
         if (data.success) {

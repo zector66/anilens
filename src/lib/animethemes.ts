@@ -3,7 +3,7 @@
 
 const ANIMETHEMES_API = 'https://api.animethemes.moe';
 
-interface AnimeTheme {
+export interface AnimeTheme {
   id: number;
   type: 'OP' | 'ED';
   sequence: number;
@@ -23,19 +23,25 @@ interface AnimeTheme {
 }
 
 interface AnimeThemesResponse {
-  anime?: {
+  anime?: Array<{
+    slug: string;
     name: string;
     animethemes?: AnimeTheme[];
-  };
+  }>;
+}
+
+interface ThemeCacheEntry {
+  themes: AnimeTheme[];
+  slug: string | null;
 }
 
 // Cache for theme lookups to avoid repeated API calls
-const themeCache = new Map<number, AnimeTheme[]>();
+const themeCache = new Map<number, ThemeCacheEntry>();
 
-export async function getAnimeThemes(anilistId: number): Promise<AnimeTheme[]> {
+export async function getAnimeThemes(anilistId: number): Promise<ThemeCacheEntry> {
   // Check cache first
   if (themeCache.has(anilistId)) {
-    return themeCache.get(anilistId) || [];
+    return themeCache.get(anilistId)!;
   }
 
   try {
@@ -46,21 +52,25 @@ export async function getAnimeThemes(anilistId: number): Promise<AnimeTheme[]> {
 
     if (!response.ok) {
       console.error('AnimeThemes API error:', response.status);
-      return [];
+      return { themes: [], slug: null };
     }
 
-    const data = await response.json();
-    
+    const data: AnimeThemesResponse = await response.json();
+
     if (!data.anime || data.anime.length === 0) {
-      return [];
+      return { themes: [], slug: null };
     }
 
-    const themes = data.anime[0]?.animethemes || [];
-    themeCache.set(anilistId, themes);
-    return themes;
+    const anime = data.anime[0];
+    const entry: ThemeCacheEntry = {
+      themes: anime.animethemes || [],
+      slug: anime.slug || null,
+    };
+    themeCache.set(anilistId, entry);
+    return entry;
   } catch (error) {
     console.error('Failed to fetch anime themes:', error);
-    return [];
+    return { themes: [], slug: null };
   }
 }
 

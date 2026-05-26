@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, memo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAnimeList, useMangaList, useFavorites, useRecommendations, RecommendationOptions } from '@/hooks/use-anilist';
 import { useSettings } from '@/contexts/settings-context';
@@ -334,6 +334,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
   const [modelStatus, setModelStatus] = useState<'idle'|'user'|'rule'>('rule');
   // Ratings the user has submitted via the in-app rate modal (mediaId -> score)
   const [userRatings, setUserRatings] = useState<Record<number, number>>({});
+  const loggedBatchRef = useRef<string>('');
 
   const effectiveUserId = userId || user?.id || 0;
 
@@ -354,7 +355,8 @@ export function Recommendations({ userId }: RecommendationsProps) {
     if (!effectiveUserId) return;
     // Try per-user model first
     fetch(`/api/taste/learn?userId=${effectiveUserId}&mediaType=${activeType}`, {method:'POST'})
-      .then(r=>r.json()).then(d=>{
+      .then(r => { if (!r.ok) throw new Error(`Learn API ${r.status}`); return r.json(); })
+      .then(d => {
         if (d.trained && d.weights) {
           setLearnedWeights({weights:d.weights,bias:d.bias,featureNames:Object.keys(d.weights),sampleCount:d.sampleCount});
           setModelStatus('user');
@@ -365,8 +367,11 @@ export function Recommendations({ userId }: RecommendationsProps) {
     // Auto-trigger global retrain if stale (fire-and-forget)
     fetch(`/api/taste/learn/global/auto?mediaType=${activeType}`).catch(()=>{});
     // Fetch existing user ratings to filter recs and pre-fill rating modal
-    refreshUserRatings();
-  }, [effectiveUserId, activeType, refreshUserRatings]);
+    fetch(`/api/taste/ratings?userId=${effectiveUserId}&mediaType=${activeType}`)
+      .then(r => { if (!r.ok) throw new Error(`Ratings API ${r.status}`); return r.json(); })
+      .then(data => { if (data?.ratings) setUserRatings(data.ratings); })
+      .catch(() => {});
+  }, [effectiveUserId, activeType]);
   const { data: animeList, isLoading: isLoadingAnime, error: animeError } = useAnimeList(effectiveUserId);
   const { data: mangaList, isLoading: isLoadingManga, error: mangaError } = useMangaList(effectiveUserId);
   const { data: favorites } = useFavorites(effectiveUserId);
@@ -539,6 +544,82 @@ export function Recommendations({ userId }: RecommendationsProps) {
     recOptions
   );
 
+  const recMemo = useMemo(() => {
+    if (!tasteProfile || !recommendedMedia) {
+      return { processedRecommendations: [], predictionBatch: [] as Array<{anilistMediaId:number;predictedScore:number;features:Record<string,number>}> };
+    }
+    const genome = extractGenome(tasteProfile);
+    const userScoreStats = {
+      mean: tasteProfile.scorePatterns?.meanScore || 7,
+      std: Math.sqrt(1 - (tasteProfile.scorePatterns?.consistency || 0.5)) * 2 + 0.5
+    };
+    const extendedMedia = recommendedMedia as ExtendedMedia[];
+    const predictionBatch: Array<{anilistMediaId:number;predictedScore:number;features:Record<string,number>}> = [];
+    const processedRecommendations = extendedMedia
+      .map(media => {
+        const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '';
+        const mediaFeatures: MediaFeatures = {
+          genres: media.genres || [],
+          tags: (media.tags || []).map(t => ({ name: t.name, rank: t.rank })),
+          popularity: media.popularity || 10000,
+          meanScore: media.meanScore || 70,
+          format: media.format || 'TV',
+          seasonYear: media.seasonYear,
+          studios: media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name)
+        };
+        let prediction: EnjoymentPrediction | null = null;
+        let features: Record<string, number> | null = null;
+        try {
+          const base = predictEnjoyment(genome, tasteProfile, mediaFeatures, userScoreStats);
+          features = extractPredictionFeatures(base, userScoreStats);
+          if (learnedWeights) {
+            prediction = predictWithLearnedWeights(base, features, learnedWeights.weights, learnedWeights.bias, learnedWeights.featureNames, 0.6);
+          } else {
+            prediction = base;
+          }
+        } catch {
+          // Prediction failed, continue without it
+        }
+        if (features && prediction) {
+          predictionBatch.push({anilistMediaId: media.id, predictedScore: prediction.predictedScore, features});
+        }
+        return {
+          id: media.id,
+          title: getPreferredTitle(media.title),
+          coverImage,
+          genres: media.genres || [],
+          tags: mediaFeatures.tags,
+          format: media.format || '',
+          score: media.meanScore || 0,
+          popularity: media.popularity || 0,
+          reason: media._matchReason || 'Matches your taste profile',
+          reasons: media._reasons || [],
+          matchScore: media._matchScore || 70,
+          category: media._category || 'safe' as const,
+          predictedScore: prediction?.predictedScore,
+          probabilityOfLiking: prediction?.probabilityOfLiking,
+          predictionConfidence: prediction?.confidenceLabel,
+          predictionRisk: prediction?.riskLevel
+        };
+      })
+      .filter(rec => rec.coverImage);
+    return { processedRecommendations, predictionBatch };
+  }, [tasteProfile, recommendedMedia, learnedWeights, getPreferredTitle]);
+
+  const { processedRecommendations, predictionBatch } = recMemo;
+
+  useEffect(() => {
+    if (!effectiveUserId || predictionBatch.length === 0) return;
+    const batchHash = `${effectiveUserId}-${activeType}-${predictionBatch.length}-${predictionBatch[0]?.anilistMediaId}`;
+    if (loggedBatchRef.current === batchHash) return;
+    loggedBatchRef.current = batchHash;
+    fetch('/api/taste/log-batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({userId: effectiveUserId, mediaType: activeType, predictions: predictionBatch})
+    }).catch(()=>{});
+  }, [effectiveUserId, activeType, predictionBatch]);
+
   if (isLoadingList) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
@@ -576,90 +657,9 @@ export function Recommendations({ userId }: RecommendationsProps) {
 
   if (!tasteProfile) return null;
 
-  // Extract taste genome for predictions
-  const genome = extractGenome(tasteProfile);
-  
-  // Calculate user score stats for prediction calibration
-  const userScoreStats = {
-    mean: tasteProfile.scorePatterns?.meanScore || 7,
-    std: Math.sqrt(1 - (tasteProfile.scorePatterns?.consistency || 0.5)) * 2 + 0.5
-  };
-
-  // Cast to extended media type for accessing computed properties
-  const extendedMedia = (recommendedMedia || []) as ExtendedMedia[];
-
-  // Collect prediction data for batch logging
-  const predictionBatch: Array<{anilistMediaId:number;predictedScore:number;features:Record<string,number>}> = [];
-
-  // Process recommendations with Taste Genome predictions
-  const processedRecommendations = extendedMedia
-    .map(media => {
-      const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '';
-      
-      // Build media features for prediction
-      const mediaFeatures: MediaFeatures = {
-        genres: media.genres || [],
-        tags: (media.tags || []).map(t => ({ name: t.name, rank: t.rank })),
-        popularity: media.popularity || 10000,
-        meanScore: media.meanScore || 70,
-        format: media.format || 'TV',
-        seasonYear: media.seasonYear,
-        studios: media.studios?.edges?.filter(e => e.isMain).map(e => e.node.name)
-      };
-      
-      // Get prediction from Taste Genome (three-tier: user > global > rule)
-      let prediction: EnjoymentPrediction | null = null;
-      let features: Record<string, number> | null = null;
-      try {
-        const base = predictEnjoyment(genome, tasteProfile, mediaFeatures, userScoreStats);
-        features = extractPredictionFeatures(base, userScoreStats);
-        if (learnedWeights) {
-          prediction = predictWithLearnedWeights(base, features, learnedWeights.weights, learnedWeights.bias, learnedWeights.featureNames, 0.6);
-        } else {
-          prediction = base;
-        }
-      } catch {
-        // Prediction failed, continue without it
-      }
-
-      if (features && prediction && effectiveUserId) {
-        predictionBatch.push({anilistMediaId: media.id, predictedScore: prediction.predictedScore, features});
-      }
-      
-      return {
-        id: media.id,
-        title: getPreferredTitle(media.title),
-        coverImage,
-        genres: media.genres || [],
-        tags: mediaFeatures.tags,
-        format: media.format || '',
-        score: media.meanScore || 0,
-        popularity: media.popularity || 0,
-        reason: media._matchReason || 'Matches your taste profile',
-        reasons: media._reasons || [],
-        matchScore: media._matchScore || 70,
-        category: media._category || 'safe' as const,
-        // Taste Genome predictions
-        predictedScore: prediction?.predictedScore,
-        probabilityOfLiking: prediction?.probabilityOfLiking,
-        predictionConfidence: prediction?.confidenceLabel,
-        predictionRisk: prediction?.riskLevel
-      };
-    })
-    .filter(rec => rec.coverImage); // Filter out any recommendations without cover images
-
   const topGenres = effectiveGenreAffinity.slice(0, 5);
   const topTags = effectiveTagAffinity.slice(0, 5);
   const topStudios = tasteProfile.studioBias.slice(0, 3).map(s => s.studio);
-  
-  // Fire-and-forget batch logging
-  if (effectiveUserId && predictionBatch.length > 0) {
-    fetch('/api/taste/log-batch', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({userId: effectiveUserId, mediaType: activeType, predictions: predictionBatch})
-    }).catch(()=>{});
-  }
 
   const filters = [
     { id: 'all' as const, label: 'All', icon: Sparkles },
@@ -1054,7 +1054,7 @@ export function Recommendations({ userId }: RecommendationsProps) {
                 setUserRatings(prev => ({ ...prev, [rec.id]: score }));
                 // Retrain per-user model so this rating actually shifts future predictions
                 fetch(`/api/taste/learn?userId=${effectiveUserId}&mediaType=${activeType}`, { method: 'POST' })
-                  .then(r => r.json())
+                  .then(r => { if (!r.ok) throw new Error(`Learn API ${r.status}`); return r.json(); })
                   .then(d => {
                     if (d.trained && d.weights) {
                       setLearnedWeights({

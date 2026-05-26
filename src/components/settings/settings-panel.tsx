@@ -102,7 +102,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { settings, updateSetting, resetSettings } = useSettings();
-  const { titleLanguage, setTitleLanguage } = useGlobalSettings();
+  const { titleLanguage, setTitleLanguage, showSpoilers, setShowSpoilers } = useGlobalSettings();
   const { 
     accentColor, 
     setAccentColor, 
@@ -262,6 +262,15 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Show Spoilers */}
+              <SettingToggle
+                icon={showSpoilers ? Eye : EyeOff}
+                label="Show Spoiler Tags"
+                description="Display tags flagged as spoilers on anime/manga detail pages. Off by default."
+                enabled={showSpoilers}
+                onChange={(v) => setShowSpoilers(v)}
+              />
 
               {/* Theme */}
               <div className="space-y-3">

@@ -1,34 +1,16 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from './providers';
 import { Footer } from '@/components/layout/footer';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "AniLens - Anime & Manga Intelligence Platform",
-  description: "Discover your anime and manga taste through advanced DNA analytics, games, and personalized insights",
+  title: "AniLens - Anime Discovery & Taste Platform",
+  description: "Discover anime through a clean, personalized browse experience. Track your taste, play games, and find your next favorite show.",
   manifest: "/manifest.json",
-  themeColor: "#a855f7",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "AniLens",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
   },
   icons: {
     icon: [
@@ -41,16 +23,46 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#050508",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Satoshi font from Fontshare CDN */}
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,900&display=swap"
+          rel="stylesheet"
+        />
+        {/* No-flash theme script: runs before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var accent = localStorage.getItem('anilens-accent') || '#7c6df2';
+                  var theme = localStorage.getItem('anilens-theme') || 'dark';
+                  document.documentElement.style.setProperty('--accent-color', accent);
+                  var rgb = parseInt(accent.slice(1,3),16) + ', ' + parseInt(accent.slice(3,5),16) + ', ' + parseInt(accent.slice(5,7),16);
+                  document.documentElement.style.setProperty('--accent-rgb', rgb);
+                  if (theme === 'light') document.documentElement.classList.add('light');
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="antialiased flex flex-col min-h-screen">
         <Providers>
           <div className="flex-1">
             {children}

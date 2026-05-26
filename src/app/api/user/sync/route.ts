@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user,
+      og_unlocked: !!user.og_unlocked_at,
+      og_unlocked_at: user.og_unlocked_at ?? null,
+      chat_message_count: user.chat_message_count ?? 0,
     });
   } catch (error) {
     console.error('[API /user/sync] Error:', error);

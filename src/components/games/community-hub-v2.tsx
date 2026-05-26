@@ -74,6 +74,7 @@ export function CommunityHubV2({ onStartDailyChallenge, onStartChallenge, onNavi
           avatarUrl: user.avatar?.large,
         }),
       });
+      if (!response.ok) throw new Error(`Profile API ${response.status}`);
       const data = await response.json();
       if (data.success) {
         setDbProfile({
@@ -443,6 +444,7 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
       const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}`, {
         cache: 'no-store',
       });
+      if (!response.ok) throw new Error(`Leaderboard API ${response.status}`);
       const data = await response.json();
       if (data.success) {
         setLeaderboard(data.leaderboard || []);
@@ -486,6 +488,7 @@ function LeaderboardTab({ currentUserId }: { currentUserId: number }) {
     try {
       const newOffset = offset + limit;
       const response = await fetch(`/api/leaderboard?gameType=${leaderboardType}&limit=${limit}&offset=${newOffset}`);
+      if (!response.ok) throw new Error(`Leaderboard API ${response.status}`);
       const data = await response.json();
       if (data.success) {
         const newEntries = data.leaderboard || [];

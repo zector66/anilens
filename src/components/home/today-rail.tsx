@@ -26,7 +26,7 @@ export function TodayRail({ userGenres = [], watchingIds = [] }: TodayRailProps)
     let alive = true;
 
     fetch('/api/consumet/news')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`News API ${r.status}`); return r.json(); })
       .then(data => {
         if (alive && data.success) setNews(data.news || []);
       })
@@ -34,7 +34,7 @@ export function TodayRail({ userGenres = [], watchingIds = [] }: TodayRailProps)
       .finally(() => alive && setLoadingNews(false));
 
     fetch('/api/consumet/schedule')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`Schedule API ${r.status}`); return r.json(); })
       .then(data => {
         if (alive && data.success) setSchedule(data.schedule || []);
       })
@@ -142,7 +142,7 @@ export function TodayRail({ userGenres = [], watchingIds = [] }: TodayRailProps)
                   className="flex gap-3 group hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
                 >
                   {item.thumbnail && (
-                    <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-white/10">
+                    <div className="relative w-16 h-16 shrink-0 rounded-md overflow-hidden bg-white/10">
                       <OptimizedImage
                         src={item.thumbnail}
                         alt=""
@@ -159,7 +159,7 @@ export function TodayRail({ userGenres = [], watchingIds = [] }: TodayRailProps)
                       {formatRelativeTime(item.uploadedAt)}
                     </p>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-pink-400 flex-shrink-0" />
+                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-pink-400 shrink-0" />
                 </a>
               </li>
             ))}
@@ -185,7 +185,7 @@ function ScheduleRow({ entry, highlighted = false }: { entry: ConsumetScheduleEn
       }`}
     >
       {entry.image && (
-        <div className="relative w-10 h-14 flex-shrink-0 rounded overflow-hidden bg-white/10">
+        <div className="relative w-10 h-14 shrink-0 rounded overflow-hidden bg-white/10">
           <OptimizedImage src={entry.image} alt="" fill className="object-cover" />
         </div>
       )}
